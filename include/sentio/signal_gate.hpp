@@ -8,17 +8,8 @@
 namespace sentio {
 
 enum class DropReason : uint16_t {
-  NONE = 0,
-  NO_DATA,
-  NOT_RTH,
-  HOLIDAY,
-  WARMUP,
-  NAN_INPUT,
-  THRESHOLD_TOO_TIGHT,
-  COOLDOWN_ACTIVE,
-  DEBOUNCE,
-  DUPLICATE_BAR_TS,
-  UNKNOWN
+  NONE=0, NOT_RTH, WARMUP, NAN_INPUT, THRESHOLD_TOO_TIGHT,
+  COOLDOWN_ACTIVE, DUPLICATE_BAR_TS
 };
 
 struct SignalHealth {
@@ -30,10 +21,10 @@ struct SignalHealth {
   void incr_drop(DropReason r);
 };
 
-struct GateCfg {
-  bool require_rth = true;
-  int  cooldown_bars = 0;   // optional holdoff after an emit
-  double min_conf = 0.05;   // below => drop
+struct GateCfg { 
+  bool require_rth=true; 
+  int cooldown_bars=0; 
+  double min_conf=0.05; 
 };
 
 class SignalGate {

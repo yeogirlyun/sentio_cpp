@@ -24,9 +24,11 @@ LIBRARY_TARGET = $(BUILD_DIR)/libsentio.a
 DIAGNOSTIC_TARGET = $(BUILD_DIR)/signal_diagnostics
 TEST_TARGET = $(BUILD_DIR)/test_sma_cross
 INTEGRATION_TARGET = $(BUILD_DIR)/integration_example
+PIPELINE_TEST_TARGET = $(BUILD_DIR)/test_pipeline_emits
+TRACE_ANALYZER_TARGET = $(BUILD_DIR)/trace_analyzer
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(DIAGNOSTIC_TARGET) $(TEST_TARGET) $(INTEGRATION_TARGET)
+all: $(MAIN_TARGET) $(POLY_TARGET) $(DIAGNOSTIC_TARGET) $(TEST_TARGET) $(INTEGRATION_TARGET) $(PIPELINE_TEST_TARGET) $(TRACE_ANALYZER_TARGET)
 
 # Main executable
 $(MAIN_TARGET): $(OBJECTS)
@@ -60,6 +62,18 @@ $(TEST_TARGET): tests/test_sma_cross_emit.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR
 
 # Integration example
 $(INTEGRATION_TARGET): tools/integration_example.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Pipeline test
+$(PIPELINE_TEST_TARGET): tests/test_pipeline_emits.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Trace analyzer
+$(TRACE_ANALYZER_TARGET): tools/trace_analyzer.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o $(OBJ_DIR)/feature_health.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
@@ -114,6 +128,16 @@ integration: $(INTEGRATION_TARGET)
 	@echo "Running integration example..."
 	@$(INTEGRATION_TARGET)
 
+# Run pipeline test
+pipeline-test: $(PIPELINE_TEST_TARGET)
+	@echo "Running pipeline test..."
+	@$(PIPELINE_TEST_TARGET)
+
+# Run trace analyzer
+trace: $(TRACE_ANALYZER_TARGET)
+	@echo "Running trace analyzer..."
+	@$(TRACE_ANALYZER_TARGET)
+
 # Help
 help:
 	@echo "Available targets:"
@@ -125,9 +149,11 @@ help:
 	@echo "  test         - Run basic tests"
 	@echo "  diagnose     - Run signal diagnostics"
 	@echo "  integration  - Run integration example"
+	@echo "  pipeline-test - Run pipeline test"
+	@echo "  trace        - Run trace analyzer"
 	@echo "  test-compile - Test compilation only"
 	@echo "  install-deps - Install dependencies (macOS)"
 	@echo "  help         - Show this help"
 
 # Phony targets
-.PHONY: all clean clean-all debug release test diagnose integration test-compile install-deps help
+.PHONY: all clean clean-all debug release test diagnose integration pipeline-test trace test-compile install-deps help
