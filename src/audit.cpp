@@ -71,7 +71,7 @@ std::string AuditRecorder::sha1_hex_(const std::string& s){
 }
 
 AuditRecorder::AuditRecorder(const AuditConfig& cfg)
-: run_id_(cfg.run_id), flush_each_(cfg.flush_each)
+: run_id_(cfg.run_id), file_path_(cfg.file_path), flush_each_(cfg.flush_each)
 {
   fp_ = std::fopen(cfg.file_path.c_str(), "ab");
   if (!fp_) throw std::runtime_error("Audit open failed: "+cfg.file_path);
@@ -207,7 +207,7 @@ void AuditReplayer::apply_fill_(ReplayResult& rr, const std::string& inst, doubl
   double position_qty = (side == Side::Buy) ? qty : -qty;
   
   // cash impact: buy qty>0 => cash decreases, sell qty>0 => cash increases
-  double cash_delta = -px*qty - fees; // This is correct as-is
+  double cash_delta = (side == Side::Buy) ? -(px*qty + fees) : (px*qty - fees);
   rr.acct.cash += cash_delta;
 
   // position update (VWAP)

@@ -32,9 +32,11 @@ DETAILED_STRATEGY_DIAGNOSTICS_TARGET = $(BUILD_DIR)/detailed_strategy_diagnostic
 EXTENDED_STRATEGY_TEST_TARGET = $(BUILD_DIR)/extended_strategy_test
 AUDIT_TEST_TARGET = $(BUILD_DIR)/test_audit_replay
 AUDIT_SIMPLE_TEST_TARGET = $(BUILD_DIR)/test_audit_simple
+SANITY_TEST_TARGET = $(BUILD_DIR)/test_sanity_end_to_end
+SANITY_INTEGRATION_TARGET = $(BUILD_DIR)/sanity_integration_example
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(DIAGNOSTIC_TARGET) $(TEST_TARGET) $(INTEGRATION_TARGET) $(PIPELINE_TEST_TARGET) $(TRACE_ANALYZER_TARGET) $(EXTENDED_STRATEGY_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET)
+all: $(MAIN_TARGET) $(POLY_TARGET) $(DIAGNOSTIC_TARGET) $(TEST_TARGET) $(INTEGRATION_TARGET) $(PIPELINE_TEST_TARGET) $(TRACE_ANALYZER_TARGET) $(EXTENDED_STRATEGY_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET)
 
 # Main executable
 $(MAIN_TARGET): $(OBJECTS)
@@ -116,6 +118,18 @@ $(AUDIT_TEST_TARGET): tests/test_audit_replay.cpp $(OBJ_DIR)/audit.o
 
 # Audit simple test
 $(AUDIT_SIMPLE_TEST_TARGET): tests/test_audit_simple.cpp $(OBJ_DIR)/audit.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Sanity test
+$(SANITY_TEST_TARGET): tests/test_sanity_end_to_end.cpp $(OBJ_DIR)/sanity.o $(OBJ_DIR)/sim_data.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Sanity integration example
+$(SANITY_INTEGRATION_TARGET): tools/sanity_integration_example.cpp $(OBJ_DIR)/sanity.o $(OBJ_DIR)/sim_data.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
@@ -205,6 +219,16 @@ audit-test: $(AUDIT_TEST_TARGET)
 	@echo "Running audit replay test..."
 	@$(AUDIT_TEST_TARGET)
 
+# Run sanity test
+sanity-test: $(SANITY_TEST_TARGET)
+	@echo "Running sanity end-to-end test..."
+	@$(SANITY_TEST_TARGET)
+
+# Run sanity integration example
+sanity-integration: $(SANITY_INTEGRATION_TARGET)
+	@echo "Running sanity integration example..."
+	@$(SANITY_INTEGRATION_TARGET)
+
 # Help
 help:
 	@echo "Available targets:"
@@ -223,9 +247,11 @@ help:
 	@echo "  detailed-diagnostics - Run detailed strategy diagnostics"
 	@echo "  extended-test - Run extended strategy test with more data"
 	@echo "  audit-test - Run audit replay test"
+	@echo "  sanity-test - Run sanity end-to-end test"
+	@echo "  sanity-integration - Run sanity integration example"
 	@echo "  test-compile - Test compilation only"
 	@echo "  install-deps - Install dependencies (macOS)"
 	@echo "  help         - Show this help"
 
 # Phony targets
-.PHONY: all clean clean-all debug release test diagnose integration pipeline-test trace strategy-diagnostics simple-diagnostics detailed-diagnostics extended-test audit-test test-compile install-deps help
+.PHONY: all clean clean-all debug release test diagnose integration pipeline-test trace strategy-diagnostics simple-diagnostics detailed-diagnostics extended-test audit-test sanity-test sanity-integration test-compile install-deps help

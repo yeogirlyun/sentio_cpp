@@ -1,7 +1,6 @@
 #include "sentio/core.hpp"
 #include "sentio/runner.hpp"
 #include "sentio/wf.hpp"
-#include "sentio/replay.hpp"
 #include "sentio/csv_loader.hpp"
 #include "sentio/symbol_table.hpp"
 #include "sentio/profiling.hpp"
@@ -18,6 +17,7 @@
 #include <memory>
 #include <cstdlib> // For std::exit
 #include <sstream>
+#include <ctime> // For std::time
 
 
 namespace { // Anonymous namespace to ensure link-time registration
@@ -148,17 +148,17 @@ int main(int argc, char* argv[]) {
         cfg.audit_level = sentio::AuditLevel::Full;
         cfg.snapshot_stride = 100;
         
-        sentio::Auditor au;
-        au.open("audit.db");
-        au.ensure_schema();
-        au.start_run("backtest", strategy_name, "{}", "NA", 42, "symbol=" + base_symbol);
+        // Create audit recorder
+        sentio::AuditConfig audit_cfg;
+        audit_cfg.run_id = "backtest_" + base_symbol + "_" + std::to_string(std::time(nullptr));
+        audit_cfg.file_path = "audit/backtest_" + base_symbol + ".jsonl";
+        audit_cfg.flush_each = true;
+        sentio::AuditRecorder audit(audit_cfg);
         
         sentio::Tsc timer;
         timer.tic();
-        auto result = sentio::run_backtest(au, ST, series, base_symbol_id, cfg);
+        auto result = sentio::run_backtest(audit, ST, series, base_symbol_id, cfg);
         double elapsed = timer.toc_sec();
-        
-        au.close();
         
         std::cout << "\nBacktest completed in " << elapsed << "s\n";
         std::cout << "Final Equity: " << result.final_equity << "\n";

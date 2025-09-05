@@ -9,11 +9,21 @@
 
 namespace sentio {
 
-RunResult run_backtest([[maybe_unused]] Auditor& au, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
+RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
                       int base_symbol_id, const RunnerCfg& cfg) {
     
     // 1. ============== INITIALIZATION ==============
     RunResult result{};
+    
+    // Start audit run
+    std::string meta = "{";
+    meta += "\"strategy\":\"" + cfg.strategy_name + "\",";
+    meta += "\"base_symbol_id\":" + std::to_string(base_symbol_id) + ",";
+    meta += "\"total_series\":" + std::to_string(series.size()) + ",";
+    meta += "\"base_series_size\":" + std::to_string(series[base_symbol_id].size());
+    meta += "}";
+    audit.event_run_start(series[base_symbol_id][0].ts_nyt_epoch, meta);
+    
     auto strategy = StrategyFactory::instance().create_strategy(cfg.strategy_name);
     if (!strategy) {
         std::cerr << "FATAL: Could not create strategy '" << cfg.strategy_name << "'. Check registration." << std::endl;
@@ -45,14 +55,23 @@ RunResult run_backtest([[maybe_unused]] Auditor& au, const SymbolTable& ST, cons
         const auto& bar = base_series[i];
         pricebook.sync_to_base_i(i);
         
+        // Log bar data
+        AuditBar audit_bar{bar.open, bar.high, bar.low, bar.close, static_cast<double>(bar.volume)};
+        audit.event_bar(bar.ts_nyt_epoch, ST.get_symbol(base_symbol_id), audit_bar);
+        
         StrategySignal sig = strategy->calculate_signal(base_series, i);
         
         if (sig.type != StrategySignal::Type::HOLD) {
-            // Note: metadata not available in new StrategySignal structure
+            // Log signal
+            SigType sig_type = static_cast<SigType>(static_cast<int>(sig.type));
+            audit.event_signal(bar.ts_nyt_epoch, ST.get_symbol(base_symbol_id), sig_type, sig.confidence);
             
             auto route_decision = route(sig, cfg.router, ST.get_symbol(base_symbol_id));
 
             if (route_decision) {
+                // Log route decision
+                audit.event_route(bar.ts_nyt_epoch, ST.get_symbol(base_symbol_id), route_decision->instrument, route_decision->target_weight);
+                
                 int instrument_id = ST.get_id(route_decision->instrument);
                 if (instrument_id != -1) {
                     double instrument_price = pricebook.last_px[instrument_id];
@@ -70,6 +89,11 @@ RunResult run_backtest([[maybe_unused]] Auditor& au, const SymbolTable& ST, cons
                         double trade_qty = target_qty - current_qty; // The actual amount to trade
 
                         if (std::abs(trade_qty * instrument_price) > 1.0) { // Min trade notional $1
+                            // Log order and fill
+                            Side side = (trade_qty > 0) ? Side::Buy : Side::Sell;
+                            audit.event_order(bar.ts_nyt_epoch, route_decision->instrument, side, std::abs(trade_qty), 0.0);
+                            audit.event_fill(bar.ts_nyt_epoch, route_decision->instrument, instrument_price, std::abs(trade_qty), 0.0, side);
+                            
                             apply_fill(portfolio, instrument_id, trade_qty, instrument_price);
                             total_fills++; // **CRITICAL FIX**: Increment the fills counter
                         } else {
@@ -86,6 +110,13 @@ RunResult run_backtest([[maybe_unused]] Auditor& au, const SymbolTable& ST, cons
         if (i % cfg.snapshot_stride == 0 || i == base_series.size() - 1) {
             double current_equity = equity_mark_to_market(portfolio, pricebook.last_px);
             equity_curve.emplace_back(bar.ts_utc, current_equity);
+            
+            // Log account snapshot
+            AccountState state;
+            state.cash = portfolio.cash;
+            state.equity = current_equity;
+            state.realized = 0.0; // TODO: Calculate realized P&L
+            audit.event_snapshot(bar.ts_nyt_epoch, state);
         }
     }
     
@@ -106,6 +137,23 @@ RunResult run_backtest([[maybe_unused]] Auditor& au, const SymbolTable& ST, cons
     result.total_fills = summary.trades;
     result.no_route = no_route_count;
     result.no_qty = no_qty_count;
+
+    // Log final metrics and end run
+    std::int64_t end_ts = equity_curve.empty() ? series[base_symbol_id][0].ts_nyt_epoch : series[base_symbol_id].back().ts_nyt_epoch;
+    audit.event_metric(end_ts, "final_equity", result.final_equity);
+    audit.event_metric(end_ts, "total_return", result.total_return);
+    audit.event_metric(end_ts, "sharpe_ratio", result.sharpe_ratio);
+    audit.event_metric(end_ts, "max_drawdown", result.max_drawdown);
+    audit.event_metric(end_ts, "total_fills", result.total_fills);
+    audit.event_metric(end_ts, "no_route", result.no_route);
+    audit.event_metric(end_ts, "no_qty", result.no_qty);
+    
+    std::string end_meta = "{";
+    end_meta += "\"final_equity\":" + std::to_string(result.final_equity) + ",";
+    end_meta += "\"total_return\":" + std::to_string(result.total_return) + ",";
+    end_meta += "\"sharpe_ratio\":" + std::to_string(result.sharpe_ratio);
+    end_meta += "}";
+    audit.event_run_end(end_ts, end_meta);
 
     return result;
 }

@@ -5,7 +5,6 @@
 #include <optional>
 #include <unordered_map>
 #include <vector>
-#include "core.hpp"
 
 namespace sentio {
 
@@ -15,8 +14,7 @@ enum class Side    : uint8_t { Buy=0, Sell=1 };
 
 // Simple Bar structure for audit system (avoiding conflicts with core.hpp)
 struct AuditBar { 
-  double open{}, high{}, low{}, close{}; 
-  double volume{0.0};
+  double open{}, high{}, low{}, close{}, volume{};
 };
 
 struct AuditPosition { 
@@ -56,8 +54,12 @@ public:
   void event_snapshot(std::int64_t ts_utc, const AccountState& acct);
   void event_metric (std::int64_t ts_utc, const std::string& key, double value);
 
+  // Get current config (for creating new instances)
+  AuditConfig get_config() const { return {run_id_, file_path_, flush_each_}; }
+
 private:
   std::string run_id_;
+  std::string file_path_;
   std::FILE*  fp_{nullptr};
   std::uint64_t seq_{0};
   bool flush_each_;

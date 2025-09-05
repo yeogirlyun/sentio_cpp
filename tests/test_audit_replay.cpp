@@ -8,12 +8,12 @@ int main(){
   {
     AuditRecorder ar({.run_id="t1", .file_path=path, .flush_each=true});
     ar.event_run_start(1000);
-    ar.event_bar(1000,"QQQ",Bar{100,101,99,100});
+    ar.event_bar(1000,"QQQ",AuditBar{100,101,99,100,0});
     ar.event_signal(1000,"QQQ",SigType::BUY,0.8);
     ar.event_route(1000,"QQQ","TQQQ",0.05);
     ar.event_order(1000,"TQQQ",Side::Buy,10,0.0);
     ar.event_fill(1000,"TQQQ",30.0,10,0.1,Side::Buy); // buy 10 @ 30
-    ar.event_bar(1060,"TQQQ",Bar{30,31,29,31});
+    ar.event_bar(1060,"TQQQ",AuditBar{30,31,29,31,0});
     ar.event_signal(1120,"QQQ",SigType::SELL,0.8);
     ar.event_route(1120,"QQQ","TQQQ",-0.05);
     ar.event_order(1120,"TQQQ",Side::Sell,10,0.0);
