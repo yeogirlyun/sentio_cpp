@@ -469,7 +469,7 @@ int date_to_bar_index(Date date) {
 }
 
 // Bridge function to match existing API
-Gate run_wf_and_gate(Auditor& au_template,
+Gate run_wf_and_gate(AuditRecorder& audit_template,
                      const SymbolTable& ST,
                      const std::vector<std::vector<Bar>>& series,
                      int base_symbol_id,
@@ -536,14 +536,19 @@ Gate run_wf_and_gate(Auditor& au_template,
             std::cerr << "Running training backtest for iteration " << current_iteration << "..." << std::endl;
         }
         
-        Auditor au_train = au_template;
-        au_train.start_run("wf_train", rcfg.strategy_name, "{}", "NA", 42, "fold=" + std::to_string(start_idx));
+        // Create new audit recorder for training
+        AuditConfig train_cfg = audit_template.get_config();
+        train_cfg.run_id = "wf_train_" + std::to_string(start_idx);
+        train_cfg.file_path = "audit/wf_train_" + std::to_string(start_idx) + ".jsonl";
+        AuditRecorder au_train(train_cfg);
         
         auto train_result = run_backtest(au_train, ST, train_series, base_symbol_id, rcfg);
         
         // Always run OOS backtest (removed gate mechanism)
-        Auditor au_oos = au_template;
-        au_oos.start_run("wf_oos", rcfg.strategy_name, "{}", "NA", 42, "fold=" + std::to_string(start_idx));
+        AuditConfig oos_cfg = audit_template.get_config();
+        oos_cfg.run_id = "wf_oos_" + std::to_string(start_idx);
+        oos_cfg.file_path = "audit/wf_oos_" + std::to_string(start_idx) + ".jsonl";
+        AuditRecorder au_oos(oos_cfg);
         
         auto oos_result = run_backtest(au_oos, ST, oos_series, base_symbol_id, rcfg);
         
@@ -593,7 +598,7 @@ Gate run_wf_and_gate(Auditor& au_template,
 }
 
 // Walk-forward testing with optimization (simplified for now)
-Gate run_wf_and_gate_optimized(Auditor& au_template,
+Gate run_wf_and_gate_optimized(AuditRecorder& audit_template,
                                const SymbolTable& ST,
                                const std::vector<std::vector<Bar>>& series,
                                int base_symbol_id,
@@ -601,7 +606,7 @@ Gate run_wf_and_gate_optimized(Auditor& au_template,
                                const WfCfg& wcfg) {
     // For now, just run the basic WF without optimization
     // TODO: Implement parameter optimization
-    return run_wf_and_gate(au_template, ST, series, base_symbol_id, base_rcfg, wcfg);
+    return run_wf_and_gate(audit_template, ST, series, base_symbol_id, base_rcfg, wcfg);
 }
 
 } // namespace sentio

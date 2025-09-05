@@ -33,7 +33,7 @@ struct Gate {
 };
 
 // Walk-forward testing with vector-based data
-Gate run_wf_and_gate(Auditor& au_template,
+Gate run_wf_and_gate(AuditRecorder& audit_template,
                      const SymbolTable& ST,
                      const std::vector<std::vector<Bar>>& series,
                      int base_symbol_id,
@@ -41,7 +41,7 @@ Gate run_wf_and_gate(Auditor& au_template,
                      const WfCfg& wcfg);
 
 // Walk-forward testing with optimization
-Gate run_wf_and_gate_optimized(Auditor& au_template,
+Gate run_wf_and_gate_optimized(AuditRecorder& audit_template,
                                const SymbolTable& ST,
                                const std::vector<std::vector<Bar>>& series,
                                int base_symbol_id,

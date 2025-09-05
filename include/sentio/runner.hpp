@@ -21,6 +21,7 @@ struct RunnerCfg {
     SizerCfg sizer;
     AuditLevel audit_level = AuditLevel::Full;
     int snapshot_stride = 100;
+    std::string audit_file = "audit.jsonl";  // JSONL audit file path
 };
 
 struct RunResult {
@@ -35,7 +36,7 @@ struct RunResult {
     int no_qty;
 };
 
-RunResult run_backtest(Auditor& au, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
+RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
                       int base_symbol_id, const RunnerCfg& cfg);
 
 } // namespace sentio
