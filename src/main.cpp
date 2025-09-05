@@ -25,7 +25,6 @@ namespace { // Anonymous namespace to ensure link-time registration
         StrategyRegistrar() {
             auto force_link_vwap = std::make_unique<sentio::VWAPReversionStrategy>();
             auto force_link_momentum = std::make_unique<sentio::MomentumVolumeProfileStrategy>();
-            auto force_link_volatility = std::make_unique<sentio::VolatilityExpansionStrategy>();
             auto force_link_bollinger = std::make_unique<sentio::BollingerSqueezeBreakoutStrategy>();
             auto force_link_opening = std::make_unique<sentio::OpeningRangeBreakoutStrategy>();
             auto force_link_scalping = std::make_unique<sentio::OrderFlowScalpingStrategy>();

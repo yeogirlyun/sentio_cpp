@@ -1,5 +1,4 @@
 #include "../include/sentio/strategy_market_making.hpp"
-#include "../include/sentio/strategy_volatility_expansion.hpp"
 #include "../include/sentio/core.hpp"
 #include <iostream>
 #include <vector>
@@ -104,11 +103,6 @@ int main() {
   std::cout << "Creating Market Making Strategy...\n";
   MarketMakingStrategy mm_strategy;
   test_strategy_extended("Market Making", &mm_strategy, closes);
-  
-  // Test Volatility Expansion Strategy  
-  std::cout << "\nCreating Volatility Expansion Strategy...\n";
-  VolatilityExpansionStrategy ve_strategy;
-  test_strategy_extended("Volatility Expansion", &ve_strategy, closes);
   
   std::cout << "\n🎯 EXTENDED TEST COMPLETE\n";
   std::cout << "==========================\n";
