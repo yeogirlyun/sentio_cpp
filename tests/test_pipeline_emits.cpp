@@ -40,10 +40,10 @@ int main() {
   int emits=0;
   for (int i=0;i<(int)closes.size();++i) {
     StrategyCtx ctx{.instrument="QQQ", .ts_utc_epoch=1'000'000+i*60, .is_rth=true};
-    Bar b{closes[i],closes[i],closes[i],closes[i]};
+    Bar b{"2024-01-01T09:30:00Z", 1000000+i*60, closes[i], closes[i], closes[i], closes[i], 1000};
     // keep both QQQ and TQQQ book updated to avoid "no price"
     book.upsert_latest("QQQ", b);
-    book.upsert_latest("TQQQ", Bar{b.open*3,b.high*3,b.low*3,b.close*3});
+    book.upsert_latest("TQQQ", Bar{"2024-01-01T09:30:00Z", 1000000+i*60, b.open*3, b.high*3, b.low*3, b.close*3, 1000});
     auto out = pipe.on_bar(ctx,b,&acct);
     if (out.signal) ++emits;
   }

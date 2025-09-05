@@ -14,7 +14,7 @@ BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 
 # Source files (exclude poly_fetch_main.cpp and test_rth.cpp from main executable)
-SOURCES = $(filter-out $(SRC_DIR)/poly_fetch_main.cpp $(SRC_DIR)/test_rth.cpp, $(wildcard $(SRC_DIR)/*.cpp))
+SOURCES = $(filter-out $(SRC_DIR)/poly_fetch_main.cpp $(SRC_DIR)/test_rth.cpp, $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(SRC_DIR)/ml/*.cpp))
 OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 
 # Main targets
@@ -27,9 +27,10 @@ AUDIT_TEST_TARGET = $(BUILD_DIR)/test_audit_replay
 AUDIT_SIMPLE_TEST_TARGET = $(BUILD_DIR)/test_audit_simple
 SANITY_TEST_TARGET = $(BUILD_DIR)/test_sanity_end_to_end
 SANITY_INTEGRATION_TARGET = $(BUILD_DIR)/sanity_integration_example
+HYBRID_PPO_TEST_TARGET = $(BUILD_DIR)/test_hybrid_ppo
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET)
+all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(HYBRID_PPO_TEST_TARGET)
 
 # Main executable
 $(MAIN_TARGET): $(OBJECTS)
@@ -88,10 +89,15 @@ $(SANITY_INTEGRATION_TARGET): tools/sanity_integration_example.cpp $(OBJ_DIR)/sa
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
+$(HYBRID_PPO_TEST_TARGET): tests/test_hybrid_ppo.cpp $(OBJ_DIR)/strategy_hybrid_ppo.o $(OBJ_DIR)/ml/model_registry.o $(OBJ_DIR)/ml/onnx_model.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
 # Object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@echo "Compiling $<"
-	@mkdir -p $(OBJ_DIR)
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 

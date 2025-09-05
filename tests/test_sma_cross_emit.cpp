@@ -23,7 +23,7 @@ int main() {
   int emits=0;
   for (int i=0;i<(int)closes.size();++i) {
     StrategyCtx ctx{.instrument="QQQ", .ts_utc_epoch=1'000'000+i*60, .is_rth=true};
-    Bar b{closes[i], closes[i], closes[i], closes[i]};
+    Bar b{"2024-01-01T09:30:00Z", 1000000+i*60, closes[i], closes[i], closes[i], closes[i], 1000};
     auto out = engine.on_bar(ctx, b, /*inputs_finite=*/true);
     if (out.signal) { 
       last = out.signal; 

@@ -10,3 +10,4 @@
 #include "strategy_order_flow_imbalance.hpp"
 #include "strategy_order_flow_scalping.hpp"
 #include "strategy_vwap_reversion.hpp"
+#include "strategy_hybrid_ppo.hpp"
