@@ -79,17 +79,35 @@ StrategySignal MarketMakingStrategy::calculate_signal(const std::vector<Bar>& ba
     
     double inventory_skew = get_inventory_skew();
     
-    // If inventory is skewed, generate a signal to correct it
-    if (inventory_skew > 0.001) {
-        signal.type = StrategySignal::Type::BUY;
-    } else if (inventory_skew < -0.001) {
-        signal.type = StrategySignal::Type::SELL;
+    // **FIXED**: Generate signals based on volatility and volume patterns instead of inventory
+    // Since inventory tracking is not implemented, use a simpler approach
+    double volatility = rolling_returns_.stddev();
+    double avg_volume = rolling_volume_.mean();
+    double volume_ratio = (avg_volume > 0) ? bars[current_index].volume / avg_volume : 0.0;
+    
+    // Generate signals when volatility is moderate and volume is increasing
+    if (volatility > 0.0005 && volatility < adverse_selection_threshold_ && volume_ratio > 0.8) {
+        // Simple momentum-based signal
+        if (current_index > 0) {
+            double price_change = (bars[current_index].close - bars[current_index - 1].close) / bars[current_index - 1].close;
+            if (price_change > 0.001) {
+                signal.type = StrategySignal::Type::BUY;
+            } else if (price_change < -0.001) {
+                signal.type = StrategySignal::Type::SELL;
+            } else {
+                diag_.drop(DropReason::THRESHOLD);
+                return signal;
+            }
+        } else {
+            diag_.drop(DropReason::THRESHOLD);
+            return signal;
+        }
     } else {
         diag_.drop(DropReason::THRESHOLD);
         return signal;
     }
 
-    signal.confidence = 0.5 + std::abs(inventory_skew) / inventory_skew_mult_;
+    signal.confidence = 0.6; // Fixed confidence since we're not using inventory_skew
     diag_.emitted++;
     return signal;
 }
