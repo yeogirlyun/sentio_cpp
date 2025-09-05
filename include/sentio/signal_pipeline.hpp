@@ -27,14 +27,13 @@ struct PipelineOut {
 
 class SignalPipeline {
 public:
-  SignalPipeline(IStrategy* strat, const PipelineCfg& cfg, void* book, SignalTrace* trace)
-  : strat_(strat), cfg_(cfg), book_(book), trace_(trace), gate_(cfg.gate, nullptr) {}
+  SignalPipeline(IStrategy* strat, const PipelineCfg& cfg, void* /*book*/, SignalTrace* trace)
+  : strat_(strat), cfg_(cfg), trace_(trace), gate_(cfg.gate, nullptr) {}
 
   PipelineOut on_bar(const StrategyCtx& ctx, const Bar& b, const void* acct);
 private:
   IStrategy* strat_;
   PipelineCfg cfg_;
-  void* book_;  // Avoid include conflicts
   SignalTrace* trace_;
   SignalGate gate_;
 };

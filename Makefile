@@ -21,22 +21,15 @@ OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 MAIN_TARGET = $(BUILD_DIR)/sentio_cli
 POLY_TARGET = $(BUILD_DIR)/poly_fetch
 LIBRARY_TARGET = $(BUILD_DIR)/libsentio.a
-DIAGNOSTIC_TARGET = $(BUILD_DIR)/signal_diagnostics
 TEST_TARGET = $(BUILD_DIR)/test_sma_cross
-INTEGRATION_TARGET = $(BUILD_DIR)/integration_example
 PIPELINE_TEST_TARGET = $(BUILD_DIR)/test_pipeline_emits
-TRACE_ANALYZER_TARGET = $(BUILD_DIR)/trace_analyzer
-STRATEGY_DIAGNOSTICS_TARGET = $(BUILD_DIR)/strategy_diagnostics
-SIMPLE_STRATEGY_DIAGNOSTICS_TARGET = $(BUILD_DIR)/simple_strategy_diagnostics
-DETAILED_STRATEGY_DIAGNOSTICS_TARGET = $(BUILD_DIR)/detailed_strategy_diagnostics
-EXTENDED_STRATEGY_TEST_TARGET = $(BUILD_DIR)/extended_strategy_test
 AUDIT_TEST_TARGET = $(BUILD_DIR)/test_audit_replay
 AUDIT_SIMPLE_TEST_TARGET = $(BUILD_DIR)/test_audit_simple
 SANITY_TEST_TARGET = $(BUILD_DIR)/test_sanity_end_to_end
 SANITY_INTEGRATION_TARGET = $(BUILD_DIR)/sanity_integration_example
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(DIAGNOSTIC_TARGET) $(TEST_TARGET) $(INTEGRATION_TARGET) $(PIPELINE_TEST_TARGET) $(TRACE_ANALYZER_TARGET) $(EXTENDED_STRATEGY_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET)
+all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET)
 
 # Main executable
 $(MAIN_TARGET): $(OBJECTS)
@@ -56,11 +49,6 @@ $(LIBRARY_TARGET): $(OBJECTS)
 	@mkdir -p $(BUILD_DIR)
 	ar rcs $@ $^
 
-# Diagnostic tool
-$(DIAGNOSTIC_TARGET): tools/signal_diagnostics.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 # Unit test
 $(TEST_TARGET): tests/test_sma_cross_emit.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o
@@ -68,11 +56,6 @@ $(TEST_TARGET): tests/test_sma_cross_emit.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
-# Integration example
-$(INTEGRATION_TARGET): tools/integration_example.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 # Pipeline test
 $(PIPELINE_TEST_TARGET): tests/test_pipeline_emits.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o
@@ -80,35 +63,6 @@ $(PIPELINE_TEST_TARGET): tests/test_pipeline_emits.cpp $(OBJ_DIR)/signal_gate.o 
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
-# Trace analyzer
-$(TRACE_ANALYZER_TARGET): tools/trace_analyzer.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o $(OBJ_DIR)/feature_health.o
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
-
-# Strategy diagnostics
-$(STRATEGY_DIAGNOSTICS_TARGET): tools/strategy_diagnostics.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o $(OBJ_DIR)/feature_health.o
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
-
-# Simple strategy diagnostics
-$(SIMPLE_STRATEGY_DIAGNOSTICS_TARGET): tools/simple_strategy_diagnostics.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
-
-# Detailed strategy diagnostics
-$(DETAILED_STRATEGY_DIAGNOSTICS_TARGET): tools/detailed_strategy_diagnostics.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
-
-# Extended strategy test
-$(EXTENDED_STRATEGY_TEST_TARGET): tools/extended_strategy_test.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 # Audit test
 $(AUDIT_TEST_TARGET): tests/test_audit_replay.cpp $(OBJ_DIR)/audit.o
@@ -174,45 +128,10 @@ test: $(MAIN_TARGET) $(TEST_TARGET)
 	@echo "Running signal emission test..."
 	@$(TEST_TARGET)
 
-# Run diagnostics
-diagnose: $(DIAGNOSTIC_TARGET)
-	@echo "Running signal diagnostics..."
-	@$(DIAGNOSTIC_TARGET)
-
-# Run integration example
-integration: $(INTEGRATION_TARGET)
-	@echo "Running integration example..."
-	@$(INTEGRATION_TARGET)
-
 # Run pipeline test
 pipeline-test: $(PIPELINE_TEST_TARGET)
 	@echo "Running pipeline test..."
 	@$(PIPELINE_TEST_TARGET)
-
-# Run trace analyzer
-trace: $(TRACE_ANALYZER_TARGET)
-	@echo "Running trace analyzer..."
-	@$(TRACE_ANALYZER_TARGET)
-
-# Run strategy diagnostics
-strategy-diagnostics: $(STRATEGY_DIAGNOSTICS_TARGET)
-	@echo "Running strategy diagnostics..."
-	@$(STRATEGY_DIAGNOSTICS_TARGET)
-
-# Run simple strategy diagnostics
-simple-diagnostics: $(SIMPLE_STRATEGY_DIAGNOSTICS_TARGET)
-	@echo "Running simple strategy diagnostics..."
-	@$(SIMPLE_STRATEGY_DIAGNOSTICS_TARGET)
-
-# Run detailed strategy diagnostics
-detailed-diagnostics: $(DETAILED_STRATEGY_DIAGNOSTICS_TARGET)
-	@echo "Running detailed strategy diagnostics..."
-	@$(DETAILED_STRATEGY_DIAGNOSTICS_TARGET)
-
-# Run extended strategy test
-extended-test: $(EXTENDED_STRATEGY_TEST_TARGET)
-	@echo "Running extended strategy test..."
-	@$(EXTENDED_STRATEGY_TEST_TARGET)
 
 # Run audit test
 audit-test: $(AUDIT_TEST_TARGET)
@@ -238,14 +157,7 @@ help:
 	@echo "  debug        - Build with debug flags"
 	@echo "  release      - Build with release optimization"
 	@echo "  test         - Run basic tests"
-	@echo "  diagnose     - Run signal diagnostics"
-	@echo "  integration  - Run integration example"
 	@echo "  pipeline-test - Run pipeline test"
-	@echo "  trace        - Run trace analyzer"
-	@echo "  strategy-diagnostics - Run strategy diagnostics"
-	@echo "  simple-diagnostics - Run simple strategy diagnostics"
-	@echo "  detailed-diagnostics - Run detailed strategy diagnostics"
-	@echo "  extended-test - Run extended strategy test with more data"
 	@echo "  audit-test - Run audit replay test"
 	@echo "  sanity-test - Run sanity end-to-end test"
 	@echo "  sanity-integration - Run sanity integration example"
@@ -254,4 +166,4 @@ help:
 	@echo "  help         - Show this help"
 
 # Phony targets
-.PHONY: all clean clean-all debug release test diagnose integration pipeline-test trace strategy-diagnostics simple-diagnostics detailed-diagnostics extended-test audit-test sanity-test sanity-integration test-compile install-deps help
+.PHONY: all clean clean-all debug release test pipeline-test audit-test sanity-test sanity-integration test-compile install-deps help

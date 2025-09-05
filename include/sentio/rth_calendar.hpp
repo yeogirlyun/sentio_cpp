@@ -18,7 +18,7 @@ struct TradingCalendar {
   static constexpr int RTH_CLOSE_SEC = 16*3600;         // 16:00:00
 
   // Return yyyymmdd in ET from a zoned_time (no allocations)
-  static int yyyymmdd_from_local(const std::chrono::hh_mm_ss<std::chrono::seconds>& tod,
+  static int yyyymmdd_from_local(const std::chrono::hh_mm_ss<std::chrono::seconds>& /*tod*/,
                                  std::chrono::year_month_day ymd) {
     int y = int(ymd.year());
     unsigned m = unsigned(ymd.month());

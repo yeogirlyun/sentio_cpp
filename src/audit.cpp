@@ -156,8 +156,7 @@ std::optional<ReplayResult> AuditReplayer::replay_file(const std::string& path,
     if (!run_expect.empty() && run!=run_expect) continue;
 
     std::string type; if (!parse_kv(line, "type", type)) continue;
-    std::string ts_s; parse_kv(line, "ts", ts_s);
-    std::int64_t ts = ts_s.empty()?0:std::stoll(ts_s);
+    // Note: timestamp parsing removed as it's not currently used in replay logic
 
     if (type=="bar") {
       std::string inst; parse_kv(line, "inst", inst);
