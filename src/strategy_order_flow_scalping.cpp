@@ -15,7 +15,7 @@ ParameterMap OrderFlowScalpingStrategy::get_default_params() const {
     // **MODIFIED**: Relaxed the imbalance threshold to arm more frequently.
     return {
         {"lookback_period", 50.0},
-        {"imbalance_threshold", 0.65}, // Was 0.7, now arms when avg pressure is > 65%
+        {"imbalance_threshold", 0.55}, // Was 0.65, now arms when avg pressure is > 55%
         {"hold_max_bars", 20.0},
         {"cool_down_period", 3.0}
     };
