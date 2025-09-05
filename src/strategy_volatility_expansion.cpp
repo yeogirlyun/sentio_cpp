@@ -21,7 +21,7 @@ ParameterMap VolatilityExpansionStrategy::get_default_params() const {
         {"atr_window", 14.0},
         {"lookback_hh", 20.0},
         {"lookback_ll", 20.0},
-        {"breakout_k", 0.3}, // Was 0.6, lowered further for more sensitivity
+        {"breakout_k", 0.01}, // Extremely sensitive - was 0.05, now 0.01
         {"hold_max_bars", 160.0},
         {"tp_atr_mult", 1.5},
         {"sl_atr_mult", 1.0},

@@ -26,9 +26,13 @@ TEST_TARGET = $(BUILD_DIR)/test_sma_cross
 INTEGRATION_TARGET = $(BUILD_DIR)/integration_example
 PIPELINE_TEST_TARGET = $(BUILD_DIR)/test_pipeline_emits
 TRACE_ANALYZER_TARGET = $(BUILD_DIR)/trace_analyzer
+STRATEGY_DIAGNOSTICS_TARGET = $(BUILD_DIR)/strategy_diagnostics
+SIMPLE_STRATEGY_DIAGNOSTICS_TARGET = $(BUILD_DIR)/simple_strategy_diagnostics
+DETAILED_STRATEGY_DIAGNOSTICS_TARGET = $(BUILD_DIR)/detailed_strategy_diagnostics
+EXTENDED_STRATEGY_TEST_TARGET = $(BUILD_DIR)/extended_strategy_test
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(DIAGNOSTIC_TARGET) $(TEST_TARGET) $(INTEGRATION_TARGET) $(PIPELINE_TEST_TARGET) $(TRACE_ANALYZER_TARGET)
+all: $(MAIN_TARGET) $(POLY_TARGET) $(DIAGNOSTIC_TARGET) $(TEST_TARGET) $(INTEGRATION_TARGET) $(PIPELINE_TEST_TARGET) $(TRACE_ANALYZER_TARGET) $(EXTENDED_STRATEGY_TEST_TARGET)
 
 # Main executable
 $(MAIN_TARGET): $(OBJECTS)
@@ -74,6 +78,30 @@ $(PIPELINE_TEST_TARGET): tests/test_pipeline_emits.cpp $(OBJ_DIR)/signal_gate.o 
 
 # Trace analyzer
 $(TRACE_ANALYZER_TARGET): tools/trace_analyzer.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o $(OBJ_DIR)/feature_health.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Strategy diagnostics
+$(STRATEGY_DIAGNOSTICS_TARGET): tools/strategy_diagnostics.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/strategy_volatility_expansion.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o $(OBJ_DIR)/feature_health.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Simple strategy diagnostics
+$(SIMPLE_STRATEGY_DIAGNOSTICS_TARGET): tools/simple_strategy_diagnostics.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/strategy_volatility_expansion.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Detailed strategy diagnostics
+$(DETAILED_STRATEGY_DIAGNOSTICS_TARGET): tools/detailed_strategy_diagnostics.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/strategy_volatility_expansion.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Extended strategy test
+$(EXTENDED_STRATEGY_TEST_TARGET): tools/extended_strategy_test.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/strategy_volatility_expansion.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
@@ -138,6 +166,26 @@ trace: $(TRACE_ANALYZER_TARGET)
 	@echo "Running trace analyzer..."
 	@$(TRACE_ANALYZER_TARGET)
 
+# Run strategy diagnostics
+strategy-diagnostics: $(STRATEGY_DIAGNOSTICS_TARGET)
+	@echo "Running strategy diagnostics..."
+	@$(STRATEGY_DIAGNOSTICS_TARGET)
+
+# Run simple strategy diagnostics
+simple-diagnostics: $(SIMPLE_STRATEGY_DIAGNOSTICS_TARGET)
+	@echo "Running simple strategy diagnostics..."
+	@$(SIMPLE_STRATEGY_DIAGNOSTICS_TARGET)
+
+# Run detailed strategy diagnostics
+detailed-diagnostics: $(DETAILED_STRATEGY_DIAGNOSTICS_TARGET)
+	@echo "Running detailed strategy diagnostics..."
+	@$(DETAILED_STRATEGY_DIAGNOSTICS_TARGET)
+
+# Run extended strategy test
+extended-test: $(EXTENDED_STRATEGY_TEST_TARGET)
+	@echo "Running extended strategy test..."
+	@$(EXTENDED_STRATEGY_TEST_TARGET)
+
 # Help
 help:
 	@echo "Available targets:"
@@ -151,9 +199,13 @@ help:
 	@echo "  integration  - Run integration example"
 	@echo "  pipeline-test - Run pipeline test"
 	@echo "  trace        - Run trace analyzer"
+	@echo "  strategy-diagnostics - Run strategy diagnostics"
+	@echo "  simple-diagnostics - Run simple strategy diagnostics"
+	@echo "  detailed-diagnostics - Run detailed strategy diagnostics"
+	@echo "  extended-test - Run extended strategy test with more data"
 	@echo "  test-compile - Test compilation only"
 	@echo "  install-deps - Install dependencies (macOS)"
 	@echo "  help         - Show this help"
 
 # Phony targets
-.PHONY: all clean clean-all debug release test diagnose integration pipeline-test trace test-compile install-deps help
+.PHONY: all clean clean-all debug release test diagnose integration pipeline-test trace strategy-diagnostics simple-diagnostics detailed-diagnostics extended-test test-compile install-deps help
