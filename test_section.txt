@@ -1,0 +1,31 @@
+## 📄 **FILE 1 of 60**: include/sentio/strategy_bollinger_squeeze_breakout.hpp
+
+**File Information**:
+- **Path**: `include/sentio/strategy_bollinger_squeeze_breakout.hpp`
+- **Size**: 1.2 KB
+- **Modified**: 2025-09-05 02:20:03
+- **Type**: .hpp
+
+```text
+#pragma once
+#include "base_strategy.hpp"
+#include "bollinger.hpp"
+#include <vector>
+#include <string>
+
+namespace sentio {
+
+class BollingerSqueezeBreakoutStrategy : public BaseStrategy {
+private:
+    enum class State { Idle, Squeezed, ArmedLong, ArmedShort, Long, Short };
+    
+    // **MODIFIED**: Cached parameters
+    int bb_window_;
+    double squeeze_percentile_;
+    int squeeze_lookback_;
+    int hold_max_bars_;
+    double tp_mult_sd_;
+    double sl_mult_sd_;
+    int min_squeeze_bars_;
+
+    // Strategy state & indicators
