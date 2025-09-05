@@ -30,9 +30,11 @@ STRATEGY_DIAGNOSTICS_TARGET = $(BUILD_DIR)/strategy_diagnostics
 SIMPLE_STRATEGY_DIAGNOSTICS_TARGET = $(BUILD_DIR)/simple_strategy_diagnostics
 DETAILED_STRATEGY_DIAGNOSTICS_TARGET = $(BUILD_DIR)/detailed_strategy_diagnostics
 EXTENDED_STRATEGY_TEST_TARGET = $(BUILD_DIR)/extended_strategy_test
+AUDIT_TEST_TARGET = $(BUILD_DIR)/test_audit_replay
+AUDIT_SIMPLE_TEST_TARGET = $(BUILD_DIR)/test_audit_simple
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(DIAGNOSTIC_TARGET) $(TEST_TARGET) $(INTEGRATION_TARGET) $(PIPELINE_TEST_TARGET) $(TRACE_ANALYZER_TARGET) $(EXTENDED_STRATEGY_TEST_TARGET)
+all: $(MAIN_TARGET) $(POLY_TARGET) $(DIAGNOSTIC_TARGET) $(TEST_TARGET) $(INTEGRATION_TARGET) $(PIPELINE_TEST_TARGET) $(TRACE_ANALYZER_TARGET) $(EXTENDED_STRATEGY_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET)
 
 # Main executable
 $(MAIN_TARGET): $(OBJECTS)
@@ -102,6 +104,18 @@ $(DETAILED_STRATEGY_DIAGNOSTICS_TARGET): tools/detailed_strategy_diagnostics.cpp
 
 # Extended strategy test
 $(EXTENDED_STRATEGY_TEST_TARGET): tools/extended_strategy_test.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Audit test
+$(AUDIT_TEST_TARGET): tests/test_audit_replay.cpp $(OBJ_DIR)/audit.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Audit simple test
+$(AUDIT_SIMPLE_TEST_TARGET): tests/test_audit_simple.cpp $(OBJ_DIR)/audit.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
@@ -186,6 +200,11 @@ extended-test: $(EXTENDED_STRATEGY_TEST_TARGET)
 	@echo "Running extended strategy test..."
 	@$(EXTENDED_STRATEGY_TEST_TARGET)
 
+# Run audit test
+audit-test: $(AUDIT_TEST_TARGET)
+	@echo "Running audit replay test..."
+	@$(AUDIT_TEST_TARGET)
+
 # Help
 help:
 	@echo "Available targets:"
@@ -203,9 +222,10 @@ help:
 	@echo "  simple-diagnostics - Run simple strategy diagnostics"
 	@echo "  detailed-diagnostics - Run detailed strategy diagnostics"
 	@echo "  extended-test - Run extended strategy test with more data"
+	@echo "  audit-test - Run audit replay test"
 	@echo "  test-compile - Test compilation only"
 	@echo "  install-deps - Install dependencies (macOS)"
 	@echo "  help         - Show this help"
 
 # Phony targets
-.PHONY: all clean clean-all debug release test diagnose integration pipeline-test trace strategy-diagnostics simple-diagnostics detailed-diagnostics extended-test test-compile install-deps help
+.PHONY: all clean clean-all debug release test diagnose integration pipeline-test trace strategy-diagnostics simple-diagnostics detailed-diagnostics extended-test audit-test test-compile install-deps help

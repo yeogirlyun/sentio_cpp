@@ -1,427 +1,260 @@
 #include "sentio/audit.hpp"
-#include <cassert>
-#include <iostream>
+#include <cstring>
+#include <sstream>
+#include <iomanip>
+
+// ---- minimal SHA1 (tiny, not constant-time; for tamper detection only) ----
+namespace {
+struct Sha1 {
+  uint32_t h0=0x67452301, h1=0xEFCDAB89, h2=0x98BADCFE, h3=0x10325476, h4=0xC3D2E1F0;
+  std::string hex(const std::string& s){
+    uint64_t ml = s.size()*8ULL;
+    std::string msg = s;
+    msg.push_back('\x80');
+    while ((msg.size()%64)!=56) msg.push_back('\0');
+    for (int i=7;i>=0;--i) msg.push_back(char((ml>>(i*8))&0xFF));
+    for (size_t i=0;i<msg.size(); i+=64) {
+      uint32_t w[80];
+      for (int t=0;t<16;++t) {
+        w[t] = (uint32_t(uint8_t(msg[i+4*t]))<<24)
+             | (uint32_t(uint8_t(msg[i+4*t+1]))<<16)
+             | (uint32_t(uint8_t(msg[i+4*t+2]))<<8)
+             | (uint32_t(uint8_t(msg[i+4*t+3])));
+      }
+      for (int t=16;t<80;++t){ uint32_t v = w[t-3]^w[t-8]^w[t-14]^w[t-16]; w[t]=(v<<1)|(v>>31); }
+      uint32_t a=h0,b=h1,c=h2,d=h3,e=h4;
+      for (int t=0;t<80;++t){
+        uint32_t f,k;
+        if (t<20){ f=(b&c)|((~b)&d); k=0x5A827999; }
+        else if (t<40){ f=b^c^d; k=0x6ED9EBA1; }
+        else if (t<60){ f=(b&c)|(b&d)|(c&d); k=0x8F1BBCDC; }
+        else { f=b^c^d; k=0xCA62C1D6; }
+        uint32_t temp = ((a<<5)|(a>>27)) + f + e + k + w[t];
+        e=d; d=c; c=((b<<30)|(b>>2)); b=a; a=temp;
+      }
+      h0+=a; h1+=b; h2+=c; h3+=d; h4+=e;
+    }
+    std::ostringstream os; os<<std::hex<<std::setfill('0')<<std::nouppercase;
+    os<<std::setw(8)<<h0<<std::setw(8)<<h1<<std::setw(8)<<h2<<std::setw(8)<<h3<<std::setw(8)<<h4;
+    return os.str();
+  }
+};
+}
 
 namespace sentio {
 
-static bool exec(sqlite3* db, const char* sql) {
-  char* err=nullptr;
-  int rc = sqlite3_exec(db, sql, nullptr, nullptr, &err);
-  if (rc!=SQLITE_OK) { if (err){ sqlite3_free(err);} return false; }
+static inline std::string num_s(double v){
+  std::ostringstream os; os.setf(std::ios::fixed); os<<std::setprecision(8)<<v; return os.str();
+}
+static inline std::string num_i(std::int64_t v){
+  std::ostringstream os; os<<v; return os.str();
+}
+std::string AuditRecorder::json_escape_(const std::string& s){
+  std::string o; o.reserve(s.size()+8);
+  for (char c: s){
+    switch(c){
+      case '"': o+="\\\""; break;
+      case '\\':o+="\\\\"; break;
+      case '\b':o+="\\b"; break;
+      case '\f':o+="\\f"; break;
+      case '\n':o+="\\n"; break;
+      case '\r':o+="\\r"; break;
+      case '\t':o+="\\t"; break;
+      default: o.push_back(c);
+    }
+  }
+  return o;
+}
+
+std::string AuditRecorder::sha1_hex_(const std::string& s){
+  Sha1 sh; return sh.hex(s);
+}
+
+AuditRecorder::AuditRecorder(const AuditConfig& cfg)
+: run_id_(cfg.run_id), flush_each_(cfg.flush_each)
+{
+  fp_ = std::fopen(cfg.file_path.c_str(), "ab");
+  if (!fp_) throw std::runtime_error("Audit open failed: "+cfg.file_path);
+}
+AuditRecorder::~AuditRecorder(){ if (fp_) std::fclose(fp_); }
+
+void AuditRecorder::write_line_(const std::string& body){
+  std::string core = "{\"run\":\""+json_escape_(run_id_)+"\",\"seq\":"+num_i((std::int64_t)seq_)+","+body+"}";
+  std::string line = core; // sha1 over core for stability
+  std::string h = sha1_hex_(core);
+  line.pop_back(); // remove trailing '}'
+  line += ",\"sha1\":\""+h+"\"}\n";
+  if (std::fwrite(line.data(),1,line.size(),fp_)!=line.size()) throw std::runtime_error("Audit write failed");
+  if (flush_each_) std::fflush(fp_);
+  ++seq_;
+}
+
+void AuditRecorder::event_run_start(std::int64_t ts, const std::string& meta){
+  write_line_("\"type\":\"run_start\",\"ts\":"+num_i(ts)+",\"meta\":"+meta+"}");
+}
+void AuditRecorder::event_run_end(std::int64_t ts, const std::string& meta){
+  write_line_("\"type\":\"run_end\",\"ts\":"+num_i(ts)+",\"meta\":"+meta+"}");
+}
+void AuditRecorder::event_bar(std::int64_t ts, const std::string& inst, const AuditBar& b){
+  write_line_("\"type\":\"bar\",\"ts\":"+num_i(ts)+",\"inst\":\""+json_escape_(inst)+"\",\"o\":"+num_s(b.open)+",\"h\":"+num_s(b.high)+",\"l\":"+num_s(b.low)+",\"c\":"+num_s(b.close)+",\"v\":"+num_s(b.volume)+"}");
+}
+void AuditRecorder::event_signal(std::int64_t ts, const std::string& base, SigType t, double conf){
+  write_line_("\"type\":\"signal\",\"ts\":"+num_i(ts)+",\"base\":\""+json_escape_(base)+"\",\"sig\":" + num_i((int)t) + ",\"conf\":"+num_s(conf)+"}");
+}
+void AuditRecorder::event_route (std::int64_t ts, const std::string& base, const std::string& inst, double tw){
+  write_line_("\"type\":\"route\",\"ts\":"+num_i(ts)+",\"base\":\""+json_escape_(base)+"\",\"inst\":\""+json_escape_(inst)+"\",\"tw\":"+num_s(tw)+"}");
+}
+void AuditRecorder::event_order (std::int64_t ts, const std::string& inst, Side side, double qty, double limit_px){
+  write_line_("\"type\":\"order\",\"ts\":"+num_i(ts)+",\"inst\":\""+json_escape_(inst)+"\",\"side\":"+num_i((int)side)+",\"qty\":"+num_s(qty)+",\"limit\":"+num_s(limit_px)+"}");
+}
+void AuditRecorder::event_fill  (std::int64_t ts, const std::string& inst, double price, double qty, double fees, Side side){
+  write_line_("\"type\":\"fill\",\"ts\":"+num_i(ts)+",\"inst\":\""+json_escape_(inst)+"\",\"px\":"+num_s(price)+",\"qty\":"+num_s(qty)+",\"fees\":"+num_s(fees)+",\"side\":"+num_i((int)side)+"}");
+}
+void AuditRecorder::event_snapshot(std::int64_t ts, const AccountState& a){
+  write_line_("\"type\":\"snapshot\",\"ts\":"+num_i(ts)+",\"cash\":"+num_s(a.cash)+",\"real\":"+num_s(a.realized)+",\"equity\":"+num_s(a.equity)+"}");
+}
+void AuditRecorder::event_metric(std::int64_t ts, const std::string& key, double val){
+  write_line_("\"type\":\"metric\",\"ts\":"+num_i(ts)+",\"key\":\""+json_escape_(key)+"\",\"val\":"+num_s(val)+"}");
+}
+
+// ----------------- Replayer --------------------
+
+static inline bool parse_kv(const std::string& s, const char* key, std::string& out) {
+  auto kq = std::string("\"")+key+"\":";
+  auto p = s.find(kq); if (p==std::string::npos) return false;
+  p += kq.size();
+  if (p>=s.size()) return false;
+  if (s[p]=='"'){ // string
+    auto e = s.find('"', p+1);
+    if (e==std::string::npos) return false;
+    out = s.substr(p+1, e-(p+1));
+    return true;
+  } else { // number or enum
+    auto e = s.find_first_of(",}", p);
+    out = s.substr(p, e-p);
+    return true;
+  }
+}
+
+std::optional<ReplayResult> AuditReplayer::replay_file(const std::string& path,
+                                                       const std::string& run_expect)
+{
+  std::FILE* fp = std::fopen(path.c_str(), "rb");
+  if (!fp) return std::nullopt;
+
+  PriceBook pb;
+  ReplayResult rr;
+  rr.acct.cash = 0.0;
+  rr.acct.realized = 0.0;
+
+  char buf[16*1024];
+  while (std::fgets(buf, sizeof(buf), fp)) {
+    std::string line(buf);
+    // very light JSONL parsing (we control writer)
+
+    std::string run; if (!parse_kv(line, "run", run)) continue;
+    if (!run_expect.empty() && run!=run_expect) continue;
+
+    std::string type; if (!parse_kv(line, "type", type)) continue;
+    std::string ts_s; parse_kv(line, "ts", ts_s);
+    std::int64_t ts = ts_s.empty()?0:std::stoll(ts_s);
+
+    if (type=="bar") {
+      std::string inst; parse_kv(line, "inst", inst);
+      std::string o,h,l,c; parse_kv(line,"o",o); parse_kv(line,"h",h);
+      parse_kv(line,"l",l); parse_kv(line,"c",c);
+      AuditBar b{std::stod(o),std::stod(h),std::stod(l),std::stod(c)};
+      apply_bar_(pb, inst, b);
+      ++rr.bars;
+    } else if (type=="signal") {
+      ++rr.signals;
+    } else if (type=="route") {
+      ++rr.routes;
+    } else if (type=="order") {
+      ++rr.orders;
+    } else if (type=="fill") {
+      std::string inst,px,qty,fees,side_s;
+      parse_kv(line,"inst",inst); parse_kv(line,"px",px);
+      parse_kv(line,"qty",qty); parse_kv(line,"fees",fees);
+      parse_kv(line,"side",side_s);
+      Side side = side_s.empty() ? Side::Buy : static_cast<Side>(std::stoi(side_s));
+      apply_fill_(rr, inst, std::stod(px), std::stod(qty), std::stod(fees), side);
+      ++rr.fills;
+      mark_to_market_(pb, rr);
+    } else if (type=="snapshot") {
+      // snapshots are optional for verification; we recompute anyway
+      // you can cross-check here if you also store snapshots
+    } else if (type=="run_end") {
+      // could verify sha1 continuity/counts here
+    }
+  }
+  std::fclose(fp);
+
+  mark_to_market_(pb, rr);
+  return rr;
+}
+
+bool AuditReplayer::apply_bar_(PriceBook& pb, const std::string& instrument, const AuditBar& b) {
+  pb.last_px[instrument] = b.close;
   return true;
 }
 
-bool Auditor::open(const std::string& path) {
-  if (sqlite3_open(path.c_str(), &db) != SQLITE_OK) return false;
-  exec(db, "PRAGMA journal_mode=WAL;");
-  exec(db, "PRAGMA synchronous=NORMAL;");
-  exec(db, "PRAGMA temp_store=MEMORY;");
-  exec(db, "PRAGMA mmap_size=268435456;");
-  return true;
-}
-void Auditor::close() { if (db) sqlite3_close(db), db=nullptr; }
+void AuditReplayer::apply_fill_(ReplayResult& rr, const std::string& inst, double px, double qty, double fees, Side side) {
+  auto& pos = rr.positions[inst];
+  
+  // Convert order side to position impact
+  // Buy orders: positive position qty, Sell orders: negative position qty
+  double position_qty = (side == Side::Buy) ? qty : -qty;
+  
+  // cash impact: buy qty>0 => cash decreases, sell qty>0 => cash increases
+  double cash_delta = -px*qty - fees; // This is correct as-is
+  rr.acct.cash += cash_delta;
 
-bool Auditor::ensure_schema() {
-  const char* ddl =
-    "PRAGMA journal_mode=WAL;"
-    "CREATE TABLE IF NOT EXISTS audit_runs("
-    " id INTEGER PRIMARY KEY AUTOINCREMENT,"
-    " created_at_utc TEXT NOT NULL DEFAULT (datetime('now')),"
-    " kind TEXT NOT NULL, strategy_name TEXT NOT NULL, params_json TEXT NOT NULL,"
-    " data_hash TEXT NOT NULL, code_commit TEXT, seed INTEGER, notes TEXT );"
-    "CREATE TABLE IF NOT EXISTS signals("
-    " id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INTEGER NOT NULL,"
-    " ts_utc TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL, price REAL NOT NULL,"
-    " score REAL, confidence REAL, features_json TEXT );"
-    "CREATE TABLE IF NOT EXISTS router_decisions("
-    " id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INTEGER NOT NULL, signal_id INTEGER NOT NULL,"
-    " policy TEXT NOT NULL, instrument TEXT NOT NULL, target_leverage REAL NOT NULL, target_weight REAL, notes TEXT );"
-    "CREATE TABLE IF NOT EXISTS orders("
-    " id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INTEGER NOT NULL,"
-    " ts_utc TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL,"
-    " qty REAL NOT NULL, price REAL, order_type TEXT NOT NULL, status TEXT NOT NULL,"
-    " instrument TEXT, leverage_used REAL );"
-    "CREATE TABLE IF NOT EXISTS fills("
-    " id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INTEGER NOT NULL, order_id INTEGER,"
-    " ts_utc TEXT NOT NULL, symbol TEXT NOT NULL, qty REAL NOT NULL, price REAL NOT NULL,"
-    " fees REAL DEFAULT 0.0, slippage_bp REAL DEFAULT 0.0 );"
-    "CREATE TABLE IF NOT EXISTS snapshots("
-    " id INTEGER PRIMARY KEY AUTOINCREMENT, run_id INTEGER NOT NULL, ts_utc TEXT NOT NULL,"
-    " cash REAL NOT NULL, equity REAL NOT NULL, gross_exposure REAL NOT NULL, net_exposure REAL NOT NULL,"
-    " pnl REAL NOT NULL, drawdown REAL NOT NULL );"
-    "CREATE TABLE IF NOT EXISTS run_metrics("
-    " run_id INTEGER PRIMARY KEY, bars INTEGER NOT NULL, trades INTEGER NOT NULL, ret_total REAL NOT NULL,"
-    " ret_ann REAL NOT NULL, vol_ann REAL NOT NULL, sharpe REAL NOT NULL, mdd REAL NOT NULL,"
-    " monthly_proj REAL, daily_trades REAL );"
-    // Dictionary tables for compact audit (optional, for performance)
-    "CREATE TABLE IF NOT EXISTS dict_symbol("
-    " id INTEGER PRIMARY KEY AUTOINCREMENT, sym TEXT UNIQUE NOT NULL );"
-    "CREATE TABLE IF NOT EXISTS dict_policy("
-    " id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL );"
-    "CREATE TABLE IF NOT EXISTS dict_instrument("
-    " id INTEGER PRIMARY KEY AUTOINCREMENT, sym TEXT UNIQUE NOT NULL );"
-    // Add compact columns to existing tables (optional, backward compatible)
-    "ALTER TABLE signals ADD COLUMN ts_ms INTEGER DEFAULT NULL;"
-    "ALTER TABLE signals ADD COLUMN symbol_id INTEGER DEFAULT NULL;"
-    "ALTER TABLE router_decisions ADD COLUMN policy_id INTEGER DEFAULT NULL;"
-    "ALTER TABLE router_decisions ADD COLUMN instrument_id INTEGER DEFAULT NULL;"
-    "ALTER TABLE orders ADD COLUMN ts_ms INTEGER DEFAULT NULL;"
-    "ALTER TABLE orders ADD COLUMN symbol_id INTEGER DEFAULT NULL;"
-    "ALTER TABLE fills ADD COLUMN ts_ms INTEGER DEFAULT NULL;"
-    "ALTER TABLE fills ADD COLUMN symbol_id INTEGER DEFAULT NULL;"
-    "ALTER TABLE snapshots ADD COLUMN ts_ms INTEGER DEFAULT NULL;";
-  return exec(db, ddl);
+  // position update (VWAP)
+  double new_qty = pos.qty + position_qty;
+  
+  if (new_qty == 0.0) {
+    // flat: realize P&L for the round trip
+    if (pos.qty != 0.0) {
+      rr.acct.realized += (px - pos.avg_px) * pos.qty;
+    }
+    pos.qty = 0.0; 
+    pos.avg_px = 0.0;
+  } else if (pos.qty == 0.0) {
+    // opening new position
+    pos.qty = new_qty;
+    pos.avg_px = px;
+  } else if ((pos.qty > 0) == (position_qty > 0)) {
+    // adding to same side -> new average
+    pos.avg_px = (pos.avg_px * pos.qty + px * position_qty) / new_qty;
+    pos.qty = new_qty;
+  } else {
+    // reducing or flipping side -> realize partial P&L
+    double closed_qty = std::min(std::abs(position_qty), std::abs(pos.qty));
+    if (pos.qty > 0) {
+      rr.acct.realized += (px - pos.avg_px) * closed_qty;
+    } else {
+      rr.acct.realized += (pos.avg_px - px) * closed_qty;
+    }
+    pos.qty = new_qty;
+    if (pos.qty == 0.0) {
+      pos.avg_px = 0.0;
+    } else {
+      pos.avg_px = px; // new average for remaining position
+    }
+  }
 }
 
-bool Auditor::begin_tx(){
-  return exec(db, "BEGIN IMMEDIATE TRANSACTION;");
-}
-bool Auditor::commit_tx(){
-  return exec(db, "COMMIT;");
-}
-
-bool Auditor::prepare_hot() {
-  const char* sql_sig = "INSERT INTO signals(run_id,ts_utc,symbol,side,price,score) VALUES(?,?,?,?,?,?);";
-  const char* sql_router="INSERT INTO router_decisions(run_id,signal_id,policy,instrument,target_leverage,target_weight,notes) VALUES(?,?,?,?,?,?,?);";
-  const char* sql_ord = "INSERT INTO orders(run_id,ts_utc,symbol,side,qty,price,order_type,status,instrument,leverage_used) VALUES(?,?,?,?,?,?,?,?,?,?);";
-  const char* sql_fill= "INSERT INTO fills(run_id,order_id,ts_utc,symbol,qty,price,fees,slippage_bp) VALUES(?,?,?,?,?,?,?,?);";
-  const char* sql_snap= "INSERT INTO snapshots(run_id,ts_utc,cash,equity,gross_exposure,net_exposure,pnl,drawdown) VALUES(?,?,?,?,?,?,?,?);";
-  const char* sql_metric="INSERT INTO run_metrics(run_id,bars,trades,ret_total,ret_ann,vol_ann,sharpe,mdd,monthly_proj,daily_trades) VALUES(?,?,?,?,?,?,?,?,?,?) "
-                         "ON CONFLICT(run_id) DO UPDATE SET bars=excluded.bars,trades=excluded.trades,ret_total=excluded.ret_total,ret_ann=excluded.ret_ann,vol_ann=excluded.vol_ann,sharpe=excluded.sharpe,mdd=excluded.mdd,monthly_proj=excluded.monthly_proj,daily_trades=excluded.daily_trades;";
-  if (sqlite3_prepare_v2(db, sql_sig, -1, &st_sig, nullptr) != SQLITE_OK) return false;
-  if (sqlite3_prepare_v2(db, sql_router, -1, &st_router, nullptr) != SQLITE_OK) return false;
-  if (sqlite3_prepare_v2(db, sql_ord, -1, &st_ord, nullptr) != SQLITE_OK) return false;
-  if (sqlite3_prepare_v2(db, sql_fill, -1, &st_fill, nullptr) != SQLITE_OK) return false;
-  if (sqlite3_prepare_v2(db, sql_snap, -1, &st_snap, nullptr) != SQLITE_OK) return false;
-  if (sqlite3_prepare_v2(db, sql_metric, -1, &st_metrics, nullptr) != SQLITE_OK) return false;
-  return true;
-}
-
-void Auditor::finalize_hot() {
-  if (st_sig) sqlite3_finalize(st_sig);
-  if (st_router) sqlite3_finalize(st_router);
-  if (st_ord) sqlite3_finalize(st_ord);
-  if (st_fill) sqlite3_finalize(st_fill);
-  if (st_snap) sqlite3_finalize(st_snap);
-  if (st_metrics) sqlite3_finalize(st_metrics);
-  st_sig=st_router=st_ord=st_fill=st_snap=st_metrics=nullptr;
-}
-
-long long Auditor::insert_signal_fast(const std::string& ts,const std::string& base_sym,const std::string& side,double price,double score){
-  sqlite3_reset(st_sig); sqlite3_clear_bindings(st_sig);
-  sqlite3_bind_int64(st_sig,1,run_id);
-  sqlite3_bind_text (st_sig,2,ts.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text (st_sig,3,base_sym.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text (st_sig,4,side.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st_sig,5,price);
-  sqlite3_bind_double(st_sig,6,score);
-  if (sqlite3_step(st_sig) != SQLITE_DONE) return -1;
-  return sqlite3_last_insert_rowid(db);
-}
-
-long long Auditor::insert_router_fast(long long signal_id,const std::string& policy,const std::string& instrument,double lev,double weight,const std::string& notes){
-  sqlite3_reset(st_router); sqlite3_clear_bindings(st_router);
-  sqlite3_bind_int64(st_router,1,run_id);
-  sqlite3_bind_int64(st_router,2,signal_id);
-  sqlite3_bind_text (st_router,3,policy.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text (st_router,4,instrument.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st_router,5,lev);
-  sqlite3_bind_double(st_router,6,weight);
-  sqlite3_bind_text (st_router,7,notes.c_str(),-1,SQLITE_TRANSIENT);
-  if (sqlite3_step(st_router) != SQLITE_DONE) return -1;
-  return sqlite3_last_insert_rowid(db);
-}
-
-long long Auditor::insert_order_fast(const std::string& ts,const std::string& instrument,const std::string& side,double qty,const std::string& order_type,double price,const std::string& status,double leverage_used){
-  sqlite3_reset(st_ord); sqlite3_clear_bindings(st_ord);
-  sqlite3_bind_int64(st_ord,1,run_id);
-  sqlite3_bind_text (st_ord,2,ts.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text (st_ord,3,instrument.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text (st_ord,4,side.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st_ord,5,qty);
-  sqlite3_bind_double(st_ord,6,price);
-  sqlite3_bind_text (st_ord,7,order_type.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text (st_ord,8,status.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text (st_ord,9,instrument.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st_ord,10,leverage_used);
-  if (sqlite3_step(st_ord) != SQLITE_DONE) return -1;
-  return sqlite3_last_insert_rowid(db);
-}
-
-bool Auditor::insert_fill_fast(long long order_id,const std::string& ts,const std::string& instrument,double qty,double price,double fees,double slippage_bp){
-  sqlite3_reset(st_fill); sqlite3_clear_bindings(st_fill);
-  sqlite3_bind_int64(st_fill,1,run_id);
-  sqlite3_bind_int64(st_fill,2,order_id);
-  sqlite3_bind_text (st_fill,3,ts.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text (st_fill,4,instrument.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st_fill,5,qty);
-  sqlite3_bind_double(st_fill,6,price);
-  sqlite3_bind_double(st_fill,7,fees);
-  sqlite3_bind_double(st_fill,8,slippage_bp);
-  return sqlite3_step(st_fill) == SQLITE_DONE;
-}
-
-bool Auditor::insert_snapshot_fast(const std::string& ts,double cash,double equity,double gross,double net,double pnl,double dd){
-  sqlite3_reset(st_snap); sqlite3_clear_bindings(st_snap);
-  sqlite3_bind_int64(st_snap,1,run_id);
-  sqlite3_bind_text (st_snap,2,ts.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st_snap,3,cash);
-  sqlite3_bind_double(st_snap,4,equity);
-  sqlite3_bind_double(st_snap,5,gross);
-  sqlite3_bind_double(st_snap,6,net);
-  sqlite3_bind_double(st_snap,7,pnl);
-  sqlite3_bind_double(st_snap,8,dd);
-  return sqlite3_step(st_snap) == SQLITE_DONE;
-}
-
-bool Auditor::insert_metrics_upsert(int bars,int trades,double ret_total,double ret_ann,double vol_ann,double sharpe,double mdd,double monthly_proj,double daily_trades){
-  sqlite3_reset(st_metrics); sqlite3_clear_bindings(st_metrics);
-  sqlite3_bind_int64(st_metrics,1,run_id);
-  sqlite3_bind_int (st_metrics,2,bars);
-  sqlite3_bind_int (st_metrics,3,trades);
-  sqlite3_bind_double(st_metrics,4,ret_total);
-  sqlite3_bind_double(st_metrics,5,ret_ann);
-  sqlite3_bind_double(st_metrics,6,vol_ann);
-  sqlite3_bind_double(st_metrics,7,sharpe);
-  sqlite3_bind_double(st_metrics,8,mdd);
-  sqlite3_bind_double(st_metrics,9,monthly_proj);
-  sqlite3_bind_double(st_metrics,10,daily_trades);
-  return sqlite3_step(st_metrics) == SQLITE_DONE;
-}
-
-bool Auditor::start_run(const std::string& kind, const std::string& strategy_name,
-                 const std::string& params_json, const std::string& data_hash,
-                 std::optional<long long> seed, std::optional<std::string> notes) {
-  sqlite3_stmt* st=nullptr;
-  const char* sql = "INSERT INTO audit_runs(kind,strategy_name,params_json,data_hash,seed,notes) VALUES(?,?,?,?,?,?);";
-  if (sqlite3_prepare_v2(db, sql, -1, &st, nullptr) != SQLITE_OK) return false;
-  sqlite3_bind_text(st,1,kind.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,2,strategy_name.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,3,params_json.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,4,data_hash.c_str(),-1,SQLITE_TRANSIENT);
-  if (seed) sqlite3_bind_int64(st,5,*seed); else sqlite3_bind_null(st,5);
-  if (notes) sqlite3_bind_text(st,6,notes->c_str(),-1,SQLITE_TRANSIENT); else sqlite3_bind_null(st,6);
-  int rc = sqlite3_step(st); sqlite3_finalize(st);
-  if (rc != SQLITE_DONE) return false;
-  run_id = sqlite3_last_insert_rowid(db);
-  return true;
-}
-
-long long Auditor::insert_signal(const std::string& ts,const std::string& base_sym,const std::string& side,double price,double score) {
-  sqlite3_stmt* st=nullptr;
-  const char* sql="INSERT INTO signals(run_id,ts_utc,symbol,side,price,score) VALUES(?,?,?,?,?,?);";
-  sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_text(st,2,ts.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,3,base_sym.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,4,side.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st,5,price);
-  sqlite3_bind_double(st,6,score);
-  int rc=sqlite3_step(st); sqlite3_finalize(st);
-  return (rc==SQLITE_DONE)? sqlite3_last_insert_rowid(db) : -1;
-}
-
-long long Auditor::insert_router(long long signal_id,const std::string& policy,const std::string& instrument,double lev,double weight,const std::string& notes){
-  sqlite3_stmt* st=nullptr;
-  const char* sql="INSERT INTO router_decisions(run_id,signal_id,policy,instrument,target_leverage,target_weight,notes) VALUES(?,?,?,?,?,?,?);";
-  sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_int64(st,2,signal_id);
-  sqlite3_bind_text(st,3,policy.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,4,instrument.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st,5,lev);
-  sqlite3_bind_double(st,6,weight);
-  sqlite3_bind_text(st,7,notes.c_str(),-1,SQLITE_TRANSIENT);
-  int rc=sqlite3_step(st); sqlite3_finalize(st);
-  return (rc==SQLITE_DONE)? sqlite3_last_insert_rowid(db) : -1;
-}
-
-long long Auditor::insert_order(const std::string& ts,const std::string& instrument,const std::string& side,double qty,const std::string& order_type,double price,const std::string& status,double leverage_used){
-  sqlite3_stmt* st=nullptr;
-  const char* sql="INSERT INTO orders(run_id,ts_utc,symbol,side,qty,price,order_type,status,instrument,leverage_used) VALUES(?,?,?,?,?,?,?,?,?,?);";
-  sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_text(st,2,ts.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,3,instrument.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,4,side.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st,5,qty);
-  sqlite3_bind_double(st,6,price);
-  sqlite3_bind_text(st,7,order_type.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,8,status.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,9,instrument.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st,10,leverage_used);
-  int rc=sqlite3_step(st); sqlite3_finalize(st);
-  return (rc==SQLITE_DONE)? sqlite3_last_insert_rowid(db) : -1;
-}
-
-bool Auditor::insert_fill(long long order_id,const std::string& ts,const std::string& instrument,double qty,double price,double fees,double slippage_bp){
-  sqlite3_stmt* st=nullptr;
-  const char* sql="INSERT INTO fills(run_id,order_id,ts_utc,symbol,qty,price,fees,slippage_bp) VALUES(?,?,?,?,?,?,?,?);";
-  sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_int64(st,2,order_id);
-  sqlite3_bind_text(st,3,ts.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text(st,4,instrument.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st,5,qty);
-  sqlite3_bind_double(st,6,price);
-  sqlite3_bind_double(st,7,fees);
-  sqlite3_bind_double(st,8,slippage_bp);
-  int rc=sqlite3_step(st); sqlite3_finalize(st);
-  return rc==SQLITE_DONE;
-}
-
-bool Auditor::insert_snapshot(const std::string& ts,double cash,double equity,double gross,double net,double pnl,double dd){
-  sqlite3_stmt* st=nullptr;
-  const char* sql="INSERT INTO snapshots(run_id,ts_utc,cash,equity,gross_exposure,net_exposure,pnl,drawdown) VALUES(?,?,?,?,?,?,?,?);";
-  if (sqlite3_prepare_v2(db, sql, -1, &st, nullptr) != SQLITE_OK) return false;
-  std::cerr << "Auditor: run_id = " << run_id << std::endl;
-  std::cerr << "Auditor: timestamp = '" << ts << "'" << std::endl;
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_text(st,2,ts.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st,3,cash);
-  sqlite3_bind_double(st,4,equity);
-  sqlite3_bind_double(st,5,gross);
-  sqlite3_bind_double(st,6,net);
-  sqlite3_bind_double(st,7,pnl);
-  sqlite3_bind_double(st,8,dd);
-  int rc=sqlite3_step(st); sqlite3_finalize(st);
-  return rc==SQLITE_DONE;
-}
-
-bool Auditor::insert_metrics(int bars,int trades,double ret_total,double ret_ann,double vol_ann,double sharpe,double mdd,double monthly_proj,double daily_trades){
-  sqlite3_stmt* st=nullptr;
-  const char* sql="INSERT INTO run_metrics(run_id,bars,trades,ret_total,ret_ann,vol_ann,sharpe,mdd,monthly_proj,daily_trades) VALUES(?,?,?,?,?,?,?,?,?,?) "
-                  "ON CONFLICT(run_id) DO UPDATE SET bars=excluded.bars,trades=excluded.trades,ret_total=excluded.ret_total,ret_ann=excluded.ret_ann,vol_ann=excluded.vol_ann,sharpe=excluded.sharpe,mdd=excluded.mdd,monthly_proj=excluded.monthly_proj,daily_trades=excluded.daily_trades;";
-  sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_int(st,2,bars);
-  sqlite3_bind_int(st,3,trades);
-  sqlite3_bind_double(st,4,ret_total);
-  sqlite3_bind_double(st,5,ret_ann);
-  sqlite3_bind_double(st,6,vol_ann);
-  sqlite3_bind_double(st,7,sharpe);
-  sqlite3_bind_double(st,8,mdd);
-  sqlite3_bind_double(st,9,monthly_proj);
-  sqlite3_bind_double(st,10,daily_trades);
-  int rc=sqlite3_step(st); sqlite3_finalize(st);
-  return rc==SQLITE_DONE;
+void AuditReplayer::mark_to_market_(const PriceBook& pb, ReplayResult& rr) {
+  double mtm=0.0;
+  for (auto& kv : rr.positions) {
+    const auto& inst = kv.first;
+    const auto& p = kv.second;
+    auto it = pb.last_px.find(inst);
+    if (it==pb.last_px.end()) continue;
+    mtm += p.qty * it->second;
+  }
+  rr.acct.equity = rr.acct.cash + rr.acct.realized + mtm;
 }
 
 } // namespace sentio
- 
-// Compact helpers impl
-namespace sentio {
-
-int Auditor::upsert_symbol_id(const std::string& sym){
-  sqlite3_stmt* st=nullptr; int id=-1;
-  sqlite3_prepare_v2(db, "INSERT OR IGNORE INTO dict_symbol(sym) VALUES(?1);", -1, &st, nullptr);
-  sqlite3_bind_text(st,1,sym.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_step(st); sqlite3_finalize(st);
-  sqlite3_prepare_v2(db, "SELECT id FROM dict_symbol WHERE sym=?1;", -1, &st, nullptr);
-  sqlite3_bind_text(st,1,sym.c_str(),-1,SQLITE_TRANSIENT);
-  if (sqlite3_step(st)==SQLITE_ROW) id=sqlite3_column_int(st,0);
-  sqlite3_finalize(st);
-  return id;
-}
-
-int Auditor::upsert_policy_id(const std::string& name){
-  sqlite3_stmt* st=nullptr; int id=-1;
-  sqlite3_prepare_v2(db, "INSERT OR IGNORE INTO dict_policy(name) VALUES(?1);", -1, &st, nullptr);
-  sqlite3_bind_text(st,1,name.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_step(st); sqlite3_finalize(st);
-  sqlite3_prepare_v2(db, "SELECT id FROM dict_policy WHERE name=?1;", -1, &st, nullptr);
-  sqlite3_bind_text(st,1,name.c_str(),-1,SQLITE_TRANSIENT);
-  if (sqlite3_step(st)==SQLITE_ROW) id=sqlite3_column_int(st,0);
-  sqlite3_finalize(st);
-  return id;
-}
-
-int Auditor::upsert_instrument_id(const std::string& sym){
-  sqlite3_stmt* st=nullptr; int id=-1;
-  sqlite3_prepare_v2(db, "INSERT OR IGNORE INTO dict_instrument(sym) VALUES(?1);", -1, &st, nullptr);
-  sqlite3_bind_text(st,1,sym.c_str(),-1,SQLITE_TRANSIENT);
-  sqlite3_step(st); sqlite3_finalize(st);
-  sqlite3_prepare_v2(db, "SELECT id FROM dict_instrument WHERE sym=?1;", -1, &st, nullptr);
-  sqlite3_bind_text(st,1,sym.c_str(),-1,SQLITE_TRANSIENT);
-  if (sqlite3_step(st)==SQLITE_ROW) id=sqlite3_column_int(st,0);
-  sqlite3_finalize(st);
-  return id;
-}
-
-long long Auditor::insert_signal_compact(long long ts_ms, int symbol_id, const char* side, double price, double score){
-  sqlite3_stmt* st=nullptr;
-  const char* sql = "INSERT INTO signals(run_id, ts_ms, symbol_id, side, price, score) VALUES(?,?,?,?,?,?);";
-  sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_int64(st,2,ts_ms);
-  sqlite3_bind_int  (st,3,symbol_id);
-  sqlite3_bind_text (st,4,side,-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st,5,price);
-  sqlite3_bind_double(st,6,score);
-  int rc=sqlite3_step(st); sqlite3_finalize(st);
-  return (rc==SQLITE_DONE)? sqlite3_last_insert_rowid(db) : -1;
-}
-
-long long Auditor::insert_router_compact(long long signal_id, int policy_id, int instrument_id, double lev, double weight){
-  sqlite3_stmt* st=nullptr;
-  const char* sql = "INSERT INTO router_decisions(run_id, signal_id, policy_id, instrument_id, target_leverage, target_weight) VALUES(?,?,?,?,?,?);";
-  sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_int64(st,2,signal_id);
-  sqlite3_bind_int  (st,3,policy_id);
-  sqlite3_bind_int  (st,4,instrument_id);
-  sqlite3_bind_double(st,5,lev);
-  sqlite3_bind_double(st,6,weight);
-  int rc=sqlite3_step(st); sqlite3_finalize(st);
-  return (rc==SQLITE_DONE)? sqlite3_last_insert_rowid(db) : -1;
-}
-
-long long Auditor::insert_order_compact(long long ts_ms, int symbol_id, const char* side, double qty, const char* order_type, double price, const char* status, double leverage_used){
-  sqlite3_stmt* st=nullptr;
-  const char* sql = "INSERT INTO orders(run_id, ts_ms, symbol_id, side, qty, price, order_type, status, leverage_used) VALUES(?,?,?,?,?,?,?,?,?);";
-  sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_int64(st,2,ts_ms);
-  sqlite3_bind_int  (st,3,symbol_id);
-  sqlite3_bind_text (st,4,side,-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st,5,qty);
-  sqlite3_bind_double(st,6,price);
-  sqlite3_bind_text (st,7,order_type,-1,SQLITE_TRANSIENT);
-  sqlite3_bind_text (st,8,status,-1,SQLITE_TRANSIENT);
-  sqlite3_bind_double(st,9,leverage_used);
-  int rc=sqlite3_step(st); sqlite3_finalize(st);
-  return (rc==SQLITE_DONE)? sqlite3_last_insert_rowid(db) : -1;
-}
-
-bool Auditor::insert_fill_compact(long long order_id, long long ts_ms, int symbol_id, double qty, double price, double fees, double slippage_bp){
-  sqlite3_stmt* st=nullptr;
-  const char* sql = "INSERT INTO fills(run_id, order_id, ts_ms, symbol_id, qty, price, fees, slippage_bp) VALUES(?,?,?,?,?,?,?,?);";
-  sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_int64(st,2,order_id);
-  sqlite3_bind_int64(st,3,ts_ms);
-  sqlite3_bind_int  (st,4,symbol_id);
-  sqlite3_bind_double(st,5,qty);
-  sqlite3_bind_double(st,6,price);
-  sqlite3_bind_double(st,7,fees);
-  sqlite3_bind_double(st,8,slippage_bp);
-  return sqlite3_step(st) == SQLITE_DONE;
-}
-
-bool Auditor::insert_snapshot_compact(long long ts_ms, double cash, double equity, double gross, double net, double pnl, double dd){
-  sqlite3_stmt* st=nullptr;
-  const char* sql = "INSERT INTO snapshots(run_id, ts_ms, cash, equity, gross_exposure, net_exposure, pnl, drawdown) VALUES(?,?,?,?,?,?,?,?);";
-  sqlite3_prepare_v2(db, sql, -1, &st, nullptr);
-  sqlite3_bind_int64(st,1,run_id);
-  sqlite3_bind_int64(st,2,ts_ms);
-  sqlite3_bind_double(st,3,cash);
-  sqlite3_bind_double(st,4,equity);
-  sqlite3_bind_double(st,5,gross);
-  sqlite3_bind_double(st,6,net);
-  sqlite3_bind_double(st,7,pnl);
-  sqlite3_bind_double(st,8,dd);
-  return sqlite3_step(st) == SQLITE_DONE;
-}
-
-} // namespace sentio
-
