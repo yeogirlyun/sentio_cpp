@@ -83,25 +83,25 @@ $(TRACE_ANALYZER_TARGET): tools/trace_analyzer.cpp $(OBJ_DIR)/signal_gate.o $(OB
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 # Strategy diagnostics
-$(STRATEGY_DIAGNOSTICS_TARGET): tools/strategy_diagnostics.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/strategy_volatility_expansion.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o $(OBJ_DIR)/feature_health.o
+$(STRATEGY_DIAGNOSTICS_TARGET): tools/strategy_diagnostics.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o $(OBJ_DIR)/feature_health.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 # Simple strategy diagnostics
-$(SIMPLE_STRATEGY_DIAGNOSTICS_TARGET): tools/simple_strategy_diagnostics.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/strategy_volatility_expansion.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
+$(SIMPLE_STRATEGY_DIAGNOSTICS_TARGET): tools/simple_strategy_diagnostics.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 # Detailed strategy diagnostics
-$(DETAILED_STRATEGY_DIAGNOSTICS_TARGET): tools/detailed_strategy_diagnostics.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/strategy_volatility_expansion.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
+$(DETAILED_STRATEGY_DIAGNOSTICS_TARGET): tools/detailed_strategy_diagnostics.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 # Extended strategy test
-$(EXTENDED_STRATEGY_TEST_TARGET): tools/extended_strategy_test.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/strategy_volatility_expansion.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
+$(EXTENDED_STRATEGY_TEST_TARGET): tools/extended_strategy_test.cpp $(OBJ_DIR)/strategy_market_making.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/rth_calendar.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
