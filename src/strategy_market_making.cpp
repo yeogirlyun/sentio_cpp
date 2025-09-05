@@ -77,9 +77,8 @@ StrategySignal MarketMakingStrategy::calculate_signal(const std::vector<Bar>& ba
         return signal;
     }
     
-    double inventory_skew = get_inventory_skew();
-    
     // **FIXED**: Generate signals based on volatility and volume patterns instead of inventory
+    // Note: inventory tracking removed as it's not currently implemented
     // Since inventory tracking is not implemented, use a simpler approach
     double volatility = rolling_returns_.stddev();
     double avg_volume = rolling_volume_.mean();
