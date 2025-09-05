@@ -1,72 +1,93 @@
 #pragma once
-#include <sqlite3.h>
+#include <cstdint>
+#include <cstdio>
 #include <string>
 #include <optional>
+#include <unordered_map>
+#include <vector>
+#include "core.hpp"
 
 namespace sentio {
 
-struct Auditor {
-  sqlite3* db{};
-  long long run_id{-1};
-  // prepared statements (optional fast path)
-  sqlite3_stmt* st_sig{nullptr};
-  sqlite3_stmt* st_router{nullptr};
-  sqlite3_stmt* st_ord{nullptr};
-  sqlite3_stmt* st_fill{nullptr};
-  sqlite3_stmt* st_snap{nullptr};
-  sqlite3_stmt* st_metrics{nullptr};
+// --- Core enums/structs ----
+enum class SigType : uint8_t { BUY=0, STRONG_BUY=1, SELL=2, STRONG_SELL=3, HOLD=4 };
+enum class Side    : uint8_t { Buy=0, Sell=1 };
 
-  bool open(const std::string& path);
-  void close();
-  bool ensure_schema(); // creates tables if not exists
-  bool begin_tx();
-  bool commit_tx();
-  bool prepare_hot();
-  void finalize_hot();
+// Simple Bar structure for audit system (avoiding conflicts with core.hpp)
+struct AuditBar { 
+  double open{}, high{}, low{}, close{}; 
+  double volume{0.0};
+};
 
-  // start a run (kind: backtest | wf-train | wf-oos | oos-2w)
-  bool start_run(const std::string& kind, const std::string& strategy_name,
-                 const std::string& params_json, const std::string& data_hash,
-                 std::optional<long long> seed, std::optional<std::string> notes);
+struct AuditPosition { 
+  double qty{0.0}; 
+  double avg_px{0.0}; 
+};
 
-  long long insert_signal(const std::string& ts, const std::string& base_sym,
-                          const std::string& side, double price, double score);
+struct AccountState {
+  double cash{0.0};
+  double realized{0.0};
+  double equity{0.0};
+  // computed: equity = cash + realized + sum(qty * mark_px)
+};
 
-  long long insert_router(long long signal_id, const std::string& policy,
-                          const std::string& instrument, double lev, double weight, const std::string& notes);
+struct AuditConfig {
+  std::string run_id;           // stable id for this run
+  std::string file_path;        // where JSONL events are appended
+  bool        flush_each=true;  // fsync-ish (fflush) after each write
+};
 
-  long long insert_order(const std::string& ts, const std::string& instrument, const std::string& side,
-                         double qty, const std::string& order_type, double price, const std::string& status,
-                         double leverage_used);
+// --- Recorder: append events to JSONL ---
+class AuditRecorder {
+public:
+  explicit AuditRecorder(const AuditConfig& cfg);
+  ~AuditRecorder();
 
-  bool insert_fill(long long order_id, const std::string& ts, const std::string& instrument,
-                   double qty, double price, double fees, double slippage_bp);
+  // lifecycle
+  void event_run_start(std::int64_t ts_utc, const std::string& meta_json="{}");
+  void event_run_end(std::int64_t ts_utc, const std::string& meta_json="{}");
 
-  bool insert_snapshot(const std::string& ts, double cash, double equity,
-                       double gross, double net, double pnl, double dd);
+  // data plane
+  void event_bar   (std::int64_t ts_utc, const std::string& instrument, const AuditBar& b);
+  void event_signal(std::int64_t ts_utc, const std::string& base_symbol, SigType type, double confidence);
+  void event_route (std::int64_t ts_utc, const std::string& base_symbol, const std::string& instrument, double target_weight);
+  void event_order (std::int64_t ts_utc, const std::string& instrument, Side side, double qty, double limit_px);
+  void event_fill  (std::int64_t ts_utc, const std::string& instrument, double price, double qty, double fees, Side side);
+  void event_snapshot(std::int64_t ts_utc, const AccountState& acct);
+  void event_metric (std::int64_t ts_utc, const std::string& key, double value);
 
-  bool insert_metrics(int bars,int trades,double ret_total,double ret_ann,double vol_ann,double sharpe,double mdd,double monthly_proj,double daily_trades);
+private:
+  std::string run_id_;
+  std::FILE*  fp_{nullptr};
+  std::uint64_t seq_{0};
+  bool flush_each_;
+  void write_line_(const std::string& s);
+  static std::string sha1_hex_(const std::string& s); // tiny local impl
+  static std::string json_escape_(const std::string& s);
+};
 
-  // Fast-path versions using prepared statements
-  long long insert_signal_fast(const std::string& ts,const std::string& base_sym,const std::string& side,double price,double score);
-  long long insert_router_fast(long long signal_id,const std::string& policy,const std::string& instrument,double lev,double weight,const std::string& notes);
-  long long insert_order_fast(const std::string& ts,const std::string& instrument,const std::string& side,double qty,const std::string& order_type,double price,const std::string& status,double leverage_used);
-  bool insert_fill_fast(long long order_id,const std::string& ts,const std::string& instrument,double qty,double price,double fees,double slippage_bp);
-  bool insert_snapshot_fast(const std::string& ts,double cash,double equity,double gross,double net,double pnl,double dd);
-  bool insert_metrics_upsert(int bars,int trades,double ret_total,double ret_ann,double vol_ann,double sharpe,double mdd,double monthly_proj,double daily_trades);
+// --- Replayer: read JSONL, rebuild state, recompute P&L, verify ---
+struct ReplayResult {
+  // recomputed
+  std::unordered_map<std::string, AuditPosition> positions;
+  AccountState acct{};
+  std::size_t  bars{0}, signals{0}, routes{0}, orders{0}, fills{0};
+  // mismatches discovered
+  std::vector<std::string> issues;
+};
 
-  // Compact dictionary helpers
-  int upsert_symbol_id(const std::string& sym);
-  int upsert_policy_id(const std::string& name);
-  int upsert_instrument_id(const std::string& sym);
+class AuditReplayer {
+public:
+  // price map can be filled from bar events; you may also inject EOD marks
+  struct PriceBook { std::unordered_map<std::string, double> last_px; };
 
-  // Compact insert methods (prefer these for new writes)
-  long long insert_signal_compact(long long ts_ms, int symbol_id, const char* side, double price, double score);
-  long long insert_router_compact(long long signal_id, int policy_id, int instrument_id, double lev, double weight);
-  long long insert_order_compact(long long ts_ms, int symbol_id, const char* side, double qty, const char* order_type, double price, const char* status, double leverage_used);
-  bool insert_fill_compact(long long order_id, long long ts_ms, int symbol_id, double qty, double price, double fees, double slippage_bp);
-  bool insert_snapshot_compact(long long ts_ms, double cash, double equity, double gross, double net, double pnl, double dd);
+  // replay the file; return recomputed account/pnl from fills + marks
+  static std::optional<ReplayResult> replay_file(const std::string& file_path,
+                                                 const std::string& run_id_expect = "");
+private:
+  static bool apply_bar_(PriceBook& pb, const std::string& instrument, const AuditBar& b);
+  static void mark_to_market_(const PriceBook& pb, ReplayResult& rr);
+  static void apply_fill_(ReplayResult& rr, const std::string& inst, double px, double qty, double fees, Side side);
 };
 
 } // namespace sentio
-
