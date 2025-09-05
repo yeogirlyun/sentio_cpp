@@ -21,11 +21,11 @@ ParameterMap VolatilityExpansionStrategy::get_default_params() const {
         {"atr_window", 14.0},
         {"lookback_hh", 20.0},
         {"lookback_ll", 20.0},
-        {"breakout_k", 0.9}, // Was 0.75, increased sensitivity
+        {"breakout_k", 0.3}, // Was 0.6, lowered further for more sensitivity
         {"hold_max_bars", 160.0},
         {"tp_atr_mult", 1.5},
         {"sl_atr_mult", 1.0},
-        {"require_rth", 1.0} // Re-enabled as the RTH logic is now fixed
+        {"require_rth", 0.0} // Disabled to test if RTH is causing issues
     };
 }
 
