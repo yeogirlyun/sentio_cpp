@@ -1,0 +1,100 @@
+#pragma once
+#include "core.hpp"
+#include "signal_diag.hpp"
+#include "router.hpp"  // for StrategySignal
+#include <vector>
+#include <unordered_map>
+#include <string>
+#include <memory>
+#include <functional>
+
+namespace sentio {
+
+// Parameter types and enums
+enum class ParamType { INT, FLOAT };
+struct ParamSpec { 
+    ParamType type;
+    double min_val, max_val;
+    double default_val;
+};
+
+using ParameterMap = std::unordered_map<std::string, double>;
+using ParameterSpace = std::unordered_map<std::string, ParamSpec>;
+
+enum class SignalType { NONE = 0, BUY = 1, SELL = -1, STRONG_BUY = 2, STRONG_SELL = -2 };
+
+struct StrategyState {
+    bool in_position = false;
+    SignalType last_signal = SignalType::NONE;
+    int last_trade_bar = -1000; // Initialize far in the past
+    
+    void reset() {
+        in_position = false;
+        last_signal = SignalType::NONE;
+        last_trade_bar = -1000;
+    }
+};
+
+// StrategySignal is now defined in router.hpp
+
+class BaseStrategy {
+protected:
+    std::string name_;
+    ParameterMap params_;
+    StrategyState state_;
+    SignalDiag diag_;
+
+    bool is_cooldown_active(int current_bar, int cooldown_period) const;
+    
+public:
+    BaseStrategy(const std::string& name) : name_(name) {}
+    virtual ~BaseStrategy() = default;
+
+    // **MODIFIED**: Explicitly delete copy and move operations for this polymorphic base class.
+    // This prevents object slicing and ownership confusion.
+    BaseStrategy(const BaseStrategy&) = delete;
+    BaseStrategy& operator=(const BaseStrategy&) = delete;
+    BaseStrategy(BaseStrategy&&) = delete;
+    BaseStrategy& operator=(BaseStrategy&&) = delete;
+    
+    std::string get_name() const { return name_; }
+    
+    virtual ParameterMap get_default_params() const = 0;
+    virtual ParameterSpace get_param_space() const = 0;
+    virtual void apply_params() = 0;
+    
+    void set_params(const ParameterMap& params);
+    
+    virtual StrategySignal calculate_signal(const std::vector<Bar>& bars, int current_index) = 0;
+    virtual void reset_state();
+    
+    const SignalDiag& get_diag() const { return diag_; }
+};
+
+class StrategyFactory {
+public:
+    using CreateFunction = std::function<std::unique_ptr<BaseStrategy>()>;
+    
+    static StrategyFactory& instance();
+    void register_strategy(const std::string& name, CreateFunction create_func);
+    std::unique_ptr<BaseStrategy> create_strategy(const std::string& name);
+    std::vector<std::string> get_available_strategies() const;
+    
+private:
+    std::unordered_map<std::string, CreateFunction> strategies_;
+};
+
+// **NEW**: The final, more robust registration macro.
+// It takes the C++ ClassName and the "Name" to be used by the CLI.
+#define REGISTER_STRATEGY(ClassName, Name) \
+    namespace { \
+        struct ClassName##Registrar { \
+            ClassName##Registrar() { \
+                StrategyFactory::instance().register_strategy(Name, \
+                    []() { return std::make_unique<ClassName>(); }); \
+            } \
+        }; \
+        static ClassName##Registrar g_##ClassName##_registrar; \
+    }
+
+} // namespace sentio
