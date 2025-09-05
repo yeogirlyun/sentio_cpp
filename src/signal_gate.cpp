@@ -6,9 +6,9 @@ namespace sentio {
 
 SignalHealth::SignalHealth() {
   for (auto r :
-       {DropReason::NO_DATA, DropReason::NOT_RTH, DropReason::HOLIDAY, DropReason::WARMUP,
+       {DropReason::NONE, DropReason::NOT_RTH, DropReason::WARMUP,
         DropReason::NAN_INPUT, DropReason::THRESHOLD_TOO_TIGHT, DropReason::COOLDOWN_ACTIVE,
-        DropReason::DEBOUNCE, DropReason::DUPLICATE_BAR_TS, DropReason::UNKNOWN}) {
+        DropReason::DUPLICATE_BAR_TS}) {
     by_reason.emplace(r, 0ULL);
   }
 }
