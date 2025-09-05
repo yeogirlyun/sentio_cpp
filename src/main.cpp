@@ -30,6 +30,7 @@ namespace { // Anonymous namespace to ensure link-time registration
             auto force_link_scalping = std::make_unique<sentio::OrderFlowScalpingStrategy>();
             auto force_link_imbalance = std::make_unique<sentio::OrderFlowImbalanceStrategy>();
             auto force_link_market = std::make_unique<sentio::MarketMakingStrategy>();
+            auto force_link_hybrid_ppo = std::make_unique<sentio::HybridPPOStrategy>(sentio::HybridPPOCfg{});
         }
     };
     static StrategyRegistrar registrar;

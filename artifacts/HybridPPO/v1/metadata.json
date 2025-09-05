@@ -1,0 +1,12 @@
+{
+  "model_id": "HybridPPO",
+  "version": "v1",
+  "feature_names": ["ret_1m","ret_5m","rsi_14","sma_10","sma_30","vol_1m","spread_bp"],
+  "mean": [0.0,0.0,50.0,0.0,0.0,0.0,1.5],
+  "std": [1.0,1.0,20.0,1.0,1.0,1.0,0.5],
+  "clip": [-5.0,5.0],
+  "actions": ["SELL","HOLD","BUY"],
+  "expected_bar_spacing_sec": 60,
+  "instrument_family": "QQQ",
+  "notes": "kouchi_sentio_hybrid migrated; PPO policy head logits->softmax"
+}

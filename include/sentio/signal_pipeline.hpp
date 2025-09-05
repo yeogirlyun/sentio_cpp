@@ -1,5 +1,5 @@
 #pragma once
-#include "strategy_base.hpp"
+#include "base_strategy.hpp"
 #include "signal_gate.hpp"
 #include "signal_trace.hpp"
 #include <cstdint>

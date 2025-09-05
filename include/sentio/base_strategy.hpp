@@ -10,6 +10,21 @@
 
 namespace sentio {
 
+// Strategy context for bar processing
+struct StrategyCtx {
+  std::string instrument;     // traded instrument for this stream
+  std::int64_t ts_utc_epoch;  // bar timestamp (UTC seconds)
+  bool is_rth{true};          // inject from your RTH checker
+};
+
+// Minimal strategy interface for ML integration
+class IStrategy {
+public:
+  virtual ~IStrategy() = default;
+  virtual void on_bar(const StrategyCtx& ctx, const Bar& b) = 0;
+  virtual std::optional<StrategySignal> latest() const = 0;
+};
+
 // Parameter types and enums
 enum class ParamType { INT, FLOAT };
 struct ParamSpec { 
