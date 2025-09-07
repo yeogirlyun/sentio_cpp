@@ -2,7 +2,6 @@
 #include <string>
 #include <vector>
 #include <optional>
-#include <cstdint>
 
 namespace sentio::ml {
 
@@ -13,7 +12,7 @@ struct ModelOutput {
 };
 
 struct ModelSpec {
-  std::string model_id;       // "HybridPPO"
+  std::string model_id;       // "TransAlpha", "HybridPPO"
   std::string version;        // "v1"
   std::vector<std::string> feature_names;
   std::vector<double> mean, std, clip2; // clip2: [lo, hi]
@@ -21,6 +20,10 @@ struct ModelSpec {
   int expected_spacing_sec{60};
   std::string instrument_family;        // e.g., "QQQ"
   std::string notes;                    // optional metadata
+  // Sequence model extensions
+  int seq_len{1};  // 1 for non-sequence models
+  std::string input_layout{"BTF"};  // "BTF" for batch-time-feature, "BF" for flattened
+  std::string format{"torchscript"};  // "torchscript", "onnx", etc.
 };
 
 // Runtime inference model
@@ -29,7 +32,9 @@ public:
   virtual ~IModel() = default;
   virtual const ModelSpec& spec() const = 0;
   // features must match spec().feature_names length and order
-  virtual std::optional<ModelOutput> predict(const std::vector<float>& features) const = 0;
+  // T, F, layout parameters for sequence models
+  virtual std::optional<ModelOutput> predict(const std::vector<float>& features,
+                                             int T, int F, const std::string& layout) const = 0;
 };
 
 } // namespace sentio::ml

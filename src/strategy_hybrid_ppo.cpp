@@ -7,14 +7,14 @@ namespace sentio {
 HybridPPOStrategy::HybridPPOStrategy()
 : BaseStrategy("HybridPPO"),
   cfg_(),
-  handle_(ml::ModelRegistry::load_onnx("HybridPPO", cfg_.version, cfg_.artifacts_dir)),
+  handle_(ml::ModelRegistryTS::load_torchscript("HybridPPO", cfg_.version, cfg_.artifacts_dir, cfg_.use_cuda)),
   fpipe_(handle_.spec)
 {}
 
 HybridPPOStrategy::HybridPPOStrategy(const HybridPPOCfg& cfg)
 : BaseStrategy("HybridPPO"),
   cfg_(cfg),
-  handle_(ml::ModelRegistry::load_onnx("HybridPPO", cfg.version, cfg.artifacts_dir)),
+  handle_(ml::ModelRegistryTS::load_torchscript("HybridPPO", cfg.version, cfg.artifacts_dir, cfg.use_cuda)),
   fpipe_(handle_.spec)
 {}
 
@@ -44,7 +44,7 @@ StrategySignal HybridPPOStrategy::calculate_signal(const std::vector<Bar>& bars,
   auto z = fpipe_.transform(raw_);
   if (!z) return StrategySignal{};
 
-  auto out = handle_.model->predict(*z);
+  auto out = handle_.model->predict(*z, 1, (int)z->size(), "BF");
   if (!out) return StrategySignal{};
 
   StrategySignal sig = map_output(*out);
@@ -76,6 +76,6 @@ StrategySignal HybridPPOStrategy::map_output(const ml::ModelOutput& mo) const {
 
 
 // Register the strategy with the factory
-REGISTER_STRATEGY(HybridPPOStrategy, "hybrid_ppo")
+// REGISTER_STRATEGY(HybridPPOStrategy, "hybrid_ppo")  // Disabled - not working
 
 } // namespace sentio

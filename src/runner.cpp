@@ -3,9 +3,11 @@
 #include "sentio/pricebook.hpp"
 #include "sentio/metrics.hpp"
 #include "sentio/sizer.hpp"
+#include "sentio/feature_feeder.hpp"
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include <chrono>
 
 namespace sentio {
 
@@ -51,7 +53,23 @@ RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::v
     int no_qty_count = 0;
 
     // 2. ============== MAIN EVENT LOOP ==============
-    for (size_t i = 0; i < base_series.size(); ++i) {
+    size_t total_bars = base_series.size();
+    size_t progress_interval = total_bars / 20; // 5% intervals (20 steps)
+    
+    // Skip first 300 bars to allow technical indicators to warm up
+    size_t warmup_bars = 300;
+    if (total_bars <= warmup_bars) {
+        std::cout << "Warning: Not enough bars for warmup (need " << warmup_bars << ", have " << total_bars << ")" << std::endl;
+        warmup_bars = 0;
+    }
+    
+    for (size_t i = warmup_bars; i < base_series.size(); ++i) {
+        // Progress reporting at 5% intervals
+        if (i % progress_interval == 0) {
+            int progress_percent = (i * 100) / total_bars;
+            std::cout << "Progress: " << progress_percent << "% (" << i << "/" << total_bars << " bars)" << std::endl;
+        }
+        
         const auto& bar = base_series[i];
         pricebook.sync_to_base_i(i);
         
@@ -59,7 +77,18 @@ RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::v
         AuditBar audit_bar{bar.open, bar.high, bar.low, bar.close, static_cast<double>(bar.volume)};
         audit.event_bar(bar.ts_nyt_epoch, ST.get_symbol(base_symbol_id), audit_bar);
         
+        // Feed features to ML strategies
+        [[maybe_unused]] auto start_feed = std::chrono::high_resolution_clock::now();
+        FeatureFeeder::feed_features_to_strategy(strategy.get(), base_series, i, cfg.strategy_name);
+        [[maybe_unused]] auto end_feed = std::chrono::high_resolution_clock::now();
+        
+        [[maybe_unused]] auto start_signal = std::chrono::high_resolution_clock::now();
         StrategySignal sig = strategy->calculate_signal(base_series, i);
+        [[maybe_unused]] auto end_signal = std::chrono::high_resolution_clock::now();
+        
+        if (i < 10) {
+            // Timing removed for clean output
+        }
         
         if (sig.type != StrategySignal::Type::HOLD) {
             // Log signal

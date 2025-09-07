@@ -11,3 +11,6 @@
 #include "strategy_order_flow_scalping.hpp"
 #include "strategy_vwap_reversion.hpp"
 #include "strategy_hybrid_ppo.hpp"
+#include "strategy_transformer_ts.hpp"
+// TFB strategy removed - focusing on TFA only
+#include "strategy_tfa.hpp"

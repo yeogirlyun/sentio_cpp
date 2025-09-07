@@ -41,21 +41,25 @@ bool load_csv(const std::string& filename, std::vector<Bar>& out) {
         Bar bar;
         bar.ts_utc = timestamp_str;
         
-        // **MODIFIED**: Parse ISO 8601 timestamp using cctz
+        // **MODIFIED**: Parse ISO 8601 timestamp directly as UTC
         try {
-            // Parse the RFC3339 / ISO 8601 timestamp string (e.g., "2023-10-27T09:30:00-04:00")
-            cctz::time_zone tz;
-            if (cctz::load_time_zone("America/New_York", &tz)) {
-                cctz::time_point<cctz::seconds> tp;
-                if (cctz::parse("%Y-%m-%dT%H:%M:%S%Ez", timestamp_str, tz, &tp)) {
-                    // Convert to UTC epoch seconds
-                    bar.ts_nyt_epoch = tp.time_since_epoch().count();
+            // Parse the RFC3339 / ISO 8601 timestamp string (e.g., "2023-10-27T13:30:00Z")
+            cctz::time_zone utc_tz;
+            if (cctz::load_time_zone("UTC", &utc_tz)) {
+                cctz::time_point<cctz::seconds> utc_tp;
+                if (cctz::parse("%Y-%m-%dT%H:%M:%S%Ez", timestamp_str, utc_tz, &utc_tp)) {
+                    bar.ts_nyt_epoch = utc_tp.time_since_epoch().count();
                 } else {
-                    // Try alternative format
-                    if (cctz::parse("%Y-%m-%d %H:%M:%S%Ez", timestamp_str, tz, &tp)) {
-                        bar.ts_nyt_epoch = tp.time_since_epoch().count();
+                    // Try alternative format with Z suffix
+                    if (cctz::parse("%Y-%m-%dT%H:%M:%SZ", timestamp_str, utc_tz, &utc_tp)) {
+                        bar.ts_nyt_epoch = utc_tp.time_since_epoch().count();
                     } else {
-                        bar.ts_nyt_epoch = 0; // Could not parse
+                        // Try space format
+                        if (cctz::parse("%Y-%m-%d %H:%M:%S%Ez", timestamp_str, utc_tz, &utc_tp)) {
+                            bar.ts_nyt_epoch = utc_tp.time_since_epoch().count();
+                        } else {
+                            bar.ts_nyt_epoch = 0;
+                        }
                     }
                 }
             } else {
