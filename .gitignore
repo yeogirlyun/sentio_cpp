@@ -1,2 +1,6 @@
 megadocs/
 megadocs/*
+megadocs/
+data/*.csv
+data/*.bin
+artifacts/*/cache/*
