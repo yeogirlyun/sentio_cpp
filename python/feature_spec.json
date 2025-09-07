@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "features": [
+    { "name": "close",   "op": "IDENT",  "source": "close" },
+    { "name": "logret",  "op": "LOGRET", "source": "close" },
+    { "name": "ema20",   "op": "EMA",    "source": "close", "window": 20 },
+    { "name": "ema50",   "op": "EMA",    "source": "close", "window": 50 },
+    { "name": "rsi14",   "op": "RSI",    "source": "close", "window": 14 },
+    { "name": "zlog20",  "op": "ZWIN",   "source": "logret","window": 20 }
+  ],
+  "alignment_policy": {
+    "emit_from_index": 64,
+    "pad_value": 0.0
+  },
+  "dtype": "float32"
+}

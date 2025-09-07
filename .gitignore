@@ -4,3 +4,17 @@ megadocs/
 data/*.csv
 data/*.bin
 artifacts/*/cache/*
+
+# Keep sentio_trainer/ in git but exclude Python caches
+sentio_trainer/**/__pycache__/
+sentio_trainer/**/*.pyc
+sentio_trainer/**/*.pyo
+
+# Keep configs/ and python/ in git - essential for training
+# configs/
+# python/
+
+# Exclude temporary training files but keep model artifacts
+artifacts/**/X.npy
+artifacts/**/y.npy
+*.tmp
