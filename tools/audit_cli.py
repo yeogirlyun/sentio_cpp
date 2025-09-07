@@ -1,6 +1,6 @@
 from __future__ import annotations
 import argparse, pathlib
-from audit_analyzer_v2 import AuditAnalyzer
+from audit_analyzer import AuditAnalyzer
 
 def main():
     ap = argparse.ArgumentParser(description="Analyze Sentio audit files")
