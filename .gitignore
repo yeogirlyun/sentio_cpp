@@ -1,9 +1,25 @@
-megadocs/
-megadocs/*
-megadocs/
+# Data files
 data/*.csv
 data/*.bin
 data/*.json
+data/**/*.csv
+data/**/*.bin
+data/**/*.json
+data/**/*.npy
+
+# Audit and log files
+audit/
+audit/*
+audit/**/*
+*.log
+*.jsonl
+
+# Build outputs
+build/
+build/*
+build/**/*
+
+# Artifacts cache
 artifacts/*/cache/*
 
 # Keep sentio_trainer/ in git but exclude Python caches
@@ -11,11 +27,10 @@ sentio_trainer/**/__pycache__/
 sentio_trainer/**/*.pyc
 sentio_trainer/**/*.pyo
 
-# Keep configs/ and python/ in git - essential for training
-# configs/
-# python/
-
-# Exclude temporary training files but keep model artifacts
-artifacts/**/X.npy
-artifacts/**/y.npy
+# Temporary files
 *.tmp
+/tmp/
+
+# Tools cache
+tools/__pycache__/
+tools/**/__pycache__/
