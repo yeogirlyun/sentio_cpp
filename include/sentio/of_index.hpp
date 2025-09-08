@@ -23,9 +23,9 @@ inline std::vector<BarTickSpan> build_tick_spans(const std::vector<Bar>& bars,
 
     // assume bars have strictly increasing ts; ticks nondecreasing
     for (; i < N; ++i) {
-        const int64_t ts = bars[i].ts_nyt_epoch;
+        const int64_t ts = bars[i].ts_utc_epoch;
         // advance k until tick.ts > ts
-        while (k < M && ticks[k].ts_nyt_epoch <= ts) ++k;
+        while (k < M && ticks[k].ts_utc_epoch <= ts) ++k;
         span[i].start = cur_start;
         span[i].end   = k;        // [cur_start, k) are ticks for bar i
         cur_start = k;

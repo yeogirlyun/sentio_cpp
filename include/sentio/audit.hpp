@@ -54,6 +54,17 @@ public:
   void event_snapshot(std::int64_t ts_utc, const AccountState& acct);
   void event_metric (std::int64_t ts_utc, const std::string& key, double value);
 
+  // Extended events with chain id and richer context for precise trade linking and P/L deltas.
+  void event_signal_ex(std::int64_t ts_utc, const std::string& base_symbol, SigType type, double confidence,
+                       const std::string& chain_id);
+  void event_route_ex (std::int64_t ts_utc, const std::string& base_symbol, const std::string& instrument, double target_weight,
+                       const std::string& chain_id);
+  void event_order_ex (std::int64_t ts_utc, const std::string& instrument, Side side, double qty, double limit_px,
+                       const std::string& chain_id);
+  void event_fill_ex  (std::int64_t ts_utc, const std::string& instrument, double price, double qty, double fees, Side side,
+                       double realized_pnl_delta, double equity_after, double position_after,
+                       const std::string& chain_id);
+
   // Get current config (for creating new instances)
   AuditConfig get_config() const { return {run_id_, file_path_, flush_each_}; }
 

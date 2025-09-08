@@ -1,0 +1,46 @@
+# Sentio C++ Project Rules
+
+## 1. Documentation Policy
+- **NO DOCUMENTS** without explicit instruction
+- Only two major documents allowed: `architecture` and `readme`
+- All other documents are **PROHIBITED** unless explicitly requested
+- Exception: Bug reports and requirements via mega-documents when requested
+
+## 2. Mega Document Creation
+- **ALWAYS** use `tools/create_mega_document.py`
+- **MUST** include all relevant source modules
+- **MUST** include requested bug report or requirement document
+- Auto-generate comprehensive documentation for AI model understanding
+
+## 3. Task Review/Summary Standards
+- **Concise and specific** reporting
+- Focus on **core technology** details
+- Emphasize **performance metrics**
+- No verbose explanations unless critical
+
+## 4. Profit Maximization Mandate
+**PRIMARY GOAL: MAXIMIZE PROFIT**
+
+Unless explicitly instructed otherwise:
+- Optimize for **maximum monthly projected return rate**
+- Optimize for **highest Sharpe score**
+- Target **healthy daily trading range: 10-100 trades/day**
+- Remove artificial constraints that limit capital deployment
+- Let SOTA systems determine optimal sizing and allocation
+
+## 5. Communication Standards
+- **DO NOT** use `echo` command in chat discussions
+- Focus on actionable results and performance improvements
+- Prioritize implementation over explanation
+
+## 6. Development Priorities
+1. **Performance** over safety margins
+2. **Capital efficiency** over conservative limits
+3. **Profit optimization** over risk reduction
+4. **SOTA theoretical foundations** over heuristics
+
+## 7. Configuration Philosophy
+- Remove artificial caps and restrictions
+- Let utility-maximizing frameworks determine optimal allocation
+- Bias towards aggressive profit-seeking parameters
+- Only constrain when mathematically/theoretically justified

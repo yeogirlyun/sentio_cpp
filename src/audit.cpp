@@ -117,6 +117,36 @@ void AuditRecorder::event_metric(std::int64_t ts, const std::string& key, double
   write_line_("\"type\":\"metric\",\"ts\":"+num_i(ts)+",\"key\":\""+json_escape_(key)+"\",\"val\":"+num_s(val)+"}");
 }
 
+// ----------------- Extended events --------------------
+void AuditRecorder::event_signal_ex(std::int64_t ts, const std::string& base, SigType t, double conf,
+                                    const std::string& chain_id){
+  write_line_("\"type\":\"signal\",\"ts\":"+num_i(ts)+",\"base\":\""+json_escape_(base)+"\",\"sig\":" + num_i((int)t) + ",\"conf\":"+num_s(conf)+",\"chain\":\""+json_escape_(chain_id)+"\"}");
+}
+void AuditRecorder::event_route_ex (std::int64_t ts, const std::string& base, const std::string& inst, double tw,
+                                    const std::string& chain_id){
+  write_line_("\"type\":\"route\",\"ts\":"+num_i(ts)+",\"base\":\""+json_escape_(base)+"\",\"inst\":\""+json_escape_(inst)+"\",\"tw\":"+num_s(tw)+",\"chain\":\""+json_escape_(chain_id)+"\"}");
+}
+void AuditRecorder::event_order_ex (std::int64_t ts, const std::string& inst, Side side, double qty, double limit_px,
+                                    const std::string& chain_id){
+  write_line_("\"type\":\"order\",\"ts\":"+num_i(ts)+",\"inst\":\""+json_escape_(inst)+"\",\"side\":"+num_i((int)side)+",\"qty\":"+num_s(qty)+",\"limit\":"+num_s(limit_px)+",\"chain\":\""+json_escape_(chain_id)+"\"}");
+}
+void AuditRecorder::event_fill_ex  (std::int64_t ts, const std::string& inst, double price, double qty, double fees, Side side,
+                                    double realized_pnl_delta, double equity_after, double position_after,
+                                    const std::string& chain_id){
+  write_line_(
+    "\"type\":\"fill\",\"ts\":"+num_i(ts)+
+    ",\"inst\":\""+json_escape_(inst)+
+    "\",\"px\":"+num_s(price)+
+    ",\"qty\":"+num_s(qty)+
+    ",\"fees\":"+num_s(fees)+
+    ",\"side\":"+num_i((int)side)+
+    ",\"pnl_d\":"+num_s(realized_pnl_delta)+
+    ",\"eq_after\":"+num_s(equity_after)+
+    ",\"pos_after\":"+num_s(position_after)+
+    ",\"chain\":\""+json_escape_(chain_id)+"\"}"
+  );
+}
+
 // ----------------- Replayer --------------------
 
 static inline bool parse_kv(const std::string& s, const char* key, std::string& out) {

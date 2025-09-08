@@ -26,6 +26,8 @@ struct RouterCfg {
   // sizing
   double min_shares = 1.0;
   double lot_size   = 1.0; // for ETFs typically 1
+  // IRE-specific gating for short side (use only SQQQ when confidence above threshold)
+  double ire_min_conf_strong_short = 0.85; // trade SQQQ only if strong-sell confidence >= this
 };
 
 struct RouteDecision {

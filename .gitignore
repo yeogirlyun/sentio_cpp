@@ -3,6 +3,7 @@ megadocs/*
 megadocs/
 data/*.csv
 data/*.bin
+data/*.json
 artifacts/*/cache/*
 
 # Keep sentio_trainer/ in git but exclude Python caches

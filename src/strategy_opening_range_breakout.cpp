@@ -50,8 +50,8 @@ StrategySignal OpeningRangeBreakoutStrategy::calculate_signal(const std::vector<
 
     // **MODIFIED**: Robust and performant new-day detection
     const int SECONDS_IN_DAY = 86400;
-    long current_day = bars[current_index].ts_nyt_epoch / SECONDS_IN_DAY;
-    long prev_day = bars[current_index - 1].ts_nyt_epoch / SECONDS_IN_DAY;
+    long current_day = bars[current_index].ts_utc_epoch / SECONDS_IN_DAY;
+    long prev_day = bars[current_index - 1].ts_utc_epoch / SECONDS_IN_DAY;
 
     if (current_day != prev_day) {
         reset_state(); // Reset everything for the new day

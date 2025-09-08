@@ -26,7 +26,7 @@ struct Pricebook {
     inline void advance_to_ts(const std::vector<Bar>& V, int& j, int64_t base_ts) {
         const int n = (int)V.size();
         // Move index forward as long as the *next* bar is still at or before the target time
-        while (j + 1 < n && V[j + 1].ts_nyt_epoch <= base_ts) {
+        while (j + 1 < n && V[j + 1].ts_utc_epoch <= base_ts) {
             ++j;
         }
     }
@@ -34,7 +34,7 @@ struct Pricebook {
     // Syncs all symbol prices to the timestamp of the i-th bar of the base symbol
     inline void sync_to_base_i(int i) {
         if (S[base_id].empty()) return;
-        const int64_t ts = S[base_id][i].ts_nyt_epoch;
+        const int64_t ts = S[base_id][i].ts_utc_epoch;
         
         for (int sid = 0; sid < (int)S.size(); ++sid) {
             if (!S[sid].empty()) {

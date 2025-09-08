@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "features": [
+    {"name":"close",   "op":"IDENT",  "source":"close"},
+    {"name":"open",    "op":"IDENT",  "source":"open"},
+    {"name":"high",    "op":"IDENT",  "source":"high"},
+    {"name":"low",     "op":"IDENT",  "source":"low"},
+    {"name":"volume",  "op":"IDENT",  "source":"volume"},
+
+    {"name":"logret",  "op":"LOGRET", "source":"close"},
+    {"name":"logret_open", "op":"LOGRET", "source":"open"},
+    {"name":"logret_high", "op":"LOGRET", "source":"high"},
+    {"name":"logret_low",  "op":"LOGRET", "source":"low"},
+    {"name":"logret_vol",  "op":"LOGRET", "source":"volume"},
+
+    {"name":"ema_5",   "op":"EMA",    "source":"close","window":5},
+    {"name":"ema_10",  "op":"EMA",    "source":"close","window":10},
+    {"name":"ema_12",  "op":"EMA",    "source":"close","window":12},
+    {"name":"ema_20",  "op":"EMA",    "source":"close","window":20},
+    {"name":"ema_26",  "op":"EMA",    "source":"close","window":26},
+    {"name":"ema_30",  "op":"EMA",    "source":"close","window":30},
+    {"name":"ema_50",  "op":"EMA",    "source":"close","window":50},
+    {"name":"ema_100", "op":"EMA",    "source":"close","window":100},
+    {"name":"ema_200", "op":"EMA",    "source":"close","window":200},
+
+    {"name":"ema_open_10",  "op":"EMA", "source":"open","window":10},
+    {"name":"ema_open_20",  "op":"EMA", "source":"open","window":20},
+    {"name":"ema_high_10",  "op":"EMA", "source":"high","window":10},
+    {"name":"ema_high_20",  "op":"EMA", "source":"high","window":20},
+    {"name":"ema_low_10",   "op":"EMA", "source":"low","window":10},
+    {"name":"ema_low_20",   "op":"EMA", "source":"low","window":20},
+
+    {"name":"ema_vol_5",   "op":"EMA", "source":"volume","window":5},
+    {"name":"ema_vol_10",  "op":"EMA", "source":"volume","window":10},
+    {"name":"ema_vol_20",  "op":"EMA", "source":"volume","window":20},
+    {"name":"ema_vol_50",  "op":"EMA", "source":"volume","window":50},
+
+    {"name":"rsi_3",   "op":"RSI",    "source":"close","window":3},
+    {"name":"rsi_7",   "op":"RSI",    "source":"close","window":7},
+    {"name":"rsi_14",  "op":"RSI",    "source":"close","window":14},
+    {"name":"rsi_21",  "op":"RSI",    "source":"close","window":21},
+    {"name":"rsi_30",  "op":"RSI",    "source":"close","window":30},
+
+    {"name":"rsi_open_14",  "op":"RSI", "source":"open","window":14},
+    {"name":"rsi_high_14",  "op":"RSI", "source":"high","window":14},
+    {"name":"rsi_low_14",   "op":"RSI", "source":"low","window":14},
+    {"name":"rsi_vol_14",   "op":"RSI", "source":"volume","window":14},
+
+    {"name":"zlog_5",  "op":"ZWIN",   "source":"logret","window":5},
+    {"name":"zlog_10", "op":"ZWIN",   "source":"logret","window":10},
+    {"name":"zlog_15", "op":"ZWIN",   "source":"logret","window":15},
+    {"name":"zlog_20", "op":"ZWIN",   "source":"logret","window":20},
+    {"name":"zlog_30", "op":"ZWIN",   "source":"logret","window":30},
+    {"name":"zlog_50", "op":"ZWIN",   "source":"logret","window":50},
+
+    {"name":"zopen_10", "op":"ZWIN",  "source":"logret_open","window":10},
+    {"name":"zopen_20", "op":"ZWIN",  "source":"logret_open","window":20},
+    {"name":"zhigh_10", "op":"ZWIN",  "source":"logret_high","window":10},
+    {"name":"zhigh_20", "op":"ZWIN",  "source":"logret_high","window":20},
+    {"name":"zlow_10",  "op":"ZWIN",  "source":"logret_low","window":10},
+    {"name":"zlow_20",  "op":"ZWIN",  "source":"logret_low","window":20},
+    {"name":"zvol_10",  "op":"ZWIN",  "source":"logret_vol","window":10},
+    {"name":"zvol_20",  "op":"ZWIN",  "source":"logret_vol","window":20},
+
+    {"name":"ema_fast_slow_5_10",   "op":"EMA", "source":"close","window":15},
+    {"name":"ema_fast_slow_10_20",  "op":"EMA", "source":"close","window":35},
+    {"name":"ema_fast_slow_20_50",  "op":"EMA", "source":"close","window":75},
+
+    {"name":"cross_ref_1", "op":"EMA", "source":"close","window":40},
+    {"name":"cross_ref_2", "op":"EMA", "source":"close","window":60}
+  ],
+  "alignment_policy": { "emit_from_index": 64, "pad_value": 0.0 },
+  "dtype": "float32"
+}

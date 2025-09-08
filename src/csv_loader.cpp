@@ -48,26 +48,26 @@ bool load_csv(const std::string& filename, std::vector<Bar>& out) {
             if (cctz::load_time_zone("UTC", &utc_tz)) {
                 cctz::time_point<cctz::seconds> utc_tp;
                 if (cctz::parse("%Y-%m-%dT%H:%M:%S%Ez", timestamp_str, utc_tz, &utc_tp)) {
-                    bar.ts_nyt_epoch = utc_tp.time_since_epoch().count();
+                    bar.ts_utc_epoch = utc_tp.time_since_epoch().count();
                 } else {
                     // Try alternative format with Z suffix
                     if (cctz::parse("%Y-%m-%dT%H:%M:%SZ", timestamp_str, utc_tz, &utc_tp)) {
-                        bar.ts_nyt_epoch = utc_tp.time_since_epoch().count();
+                        bar.ts_utc_epoch = utc_tp.time_since_epoch().count();
                     } else {
                         // Try space format
                         if (cctz::parse("%Y-%m-%d %H:%M:%S%Ez", timestamp_str, utc_tz, &utc_tp)) {
-                            bar.ts_nyt_epoch = utc_tp.time_since_epoch().count();
+                            bar.ts_utc_epoch = utc_tp.time_since_epoch().count();
                         } else {
-                            bar.ts_nyt_epoch = 0;
+                            bar.ts_utc_epoch = 0;
                         }
                     }
                 }
             } else {
-                bar.ts_nyt_epoch = 0; // Could not load timezone
+                bar.ts_utc_epoch = 0; // Could not load timezone
             }
         } catch (const std::exception& e) {
             std::cerr << "Warning: Could not parse timestamp '" << timestamp_str << "'. Error: " << e.what() << std::endl;
-            bar.ts_nyt_epoch = 0;
+            bar.ts_utc_epoch = 0;
         }
         
         try {

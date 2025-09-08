@@ -14,3 +14,5 @@
 #include "strategy_transformer_ts.hpp"
 // TFB strategy removed - focusing on TFA only
 #include "strategy_tfa.hpp"
+#include "strategy_kochi_ppo.hpp"
+#include "strategy_ire.hpp"

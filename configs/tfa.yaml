@@ -1,10 +1,15 @@
 symbol: "QQQ"
 bars_csv: "data/equities/QQQ_RTH_NH.csv"
-feature_spec: "python/feature_spec.json"
+
+# Point to the 55-feature spec (minimal: close source only)
+feature_spec: "configs/features/feature_spec_55_minimal.json"
+
+# Optional but recommended: where the generator writes cache (CSV/NPY)
+feature_cache: "data"
 
 out_dir: "artifacts/TFA/v1"
-batch_size: 8192
-epochs: 10
+batch_size: 256
+epochs: 20
 lr: 0.001
 num_workers: 6
 prefetch_factor: 4

@@ -90,6 +90,25 @@ public:
     // Return with the correct sign (long/short)
     return (target_weight > 0) ? final_qty : -final_qty;
   }
+
+  // **NEW**: Weight-to-shares helper for portfolio allocator integration
+  long long target_shares_from_weight(double target_weight, double equity, double price, const SizerCfg& cfg) const {
+    if (price <= 0 || equity <= 0) return 0;
+    
+    // weight = position_notional / equity ⇒ shares = weight * equity / price
+    double desired_notional = target_weight * equity;
+    long long shares = (long long)std::floor(std::abs(desired_notional) / price);
+    
+    // Apply min notional filter
+    if (shares * price < cfg.min_notional) {
+      shares = 0;
+    }
+    
+    // Apply sign
+    if (target_weight < 0) shares = -shares;
+    
+    return shares;
+  }
 };
 
 } // namespace sentio

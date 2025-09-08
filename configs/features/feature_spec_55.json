@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0",
+  "features": [
+    {"name":"close",   "op":"IDENT",  "source":"close"},
+    {"name":"logret",  "op":"LOGRET", "source":"close"},
+
+    {"name":"sma_5",   "op":"SMA",    "source":"close","window":5},
+    {"name":"sma_10",  "op":"SMA",    "source":"close","window":10},
+    {"name":"sma_20",  "op":"SMA",    "source":"close","window":20},
+    {"name":"sma_50",  "op":"SMA",    "source":"close","window":50},
+    {"name":"ema_12",  "op":"EMA",    "source":"close","window":12},
+    {"name":"ema_26",  "op":"EMA",    "source":"close","window":26},
+    {"name":"ema_50",  "op":"EMA",    "source":"close","window":50},
+
+    {"name":"mom_5",   "op":"MOMENTUM","source":"close","window":5},
+    {"name":"mom_10",  "op":"MOMENTUM","source":"close","window":10},
+    {"name":"roc_10",  "op":"MOMENTUM","source":"close","window":10},
+
+    {"name":"rsi_14",  "op":"RSI",    "source":"close","window":14},
+    {"name":"rsi_7",   "op":"RSI",    "source":"close","window":7},
+
+    {"name":"std_10",  "op":"VOLATILITY","source":"logret","window":10},
+    {"name":"std_20",  "op":"VOLATILITY","source":"logret","window":20},
+    {"name":"zlog_20", "op":"ZWIN",   "source":"logret","window":20},
+
+    {"name":"boll_mid_20", "op":"BOLLINGER_MIDDLE",   "source":"close","window":20,"k":2.0},
+    {"name":"boll_up_20",  "op":"BOLLINGER_UPPER", "source":"close","window":20,"k":2.0},
+    {"name":"boll_dn_20",  "op":"BOLLINGER_LOWER", "source":"close","window":20,"k":2.0},
+
+    {"name":"macd_line",   "op":"MACD_LINE",   "source":"close","fast":12,"slow":26,"signal":9},
+    {"name":"macd_signal", "op":"MACD_SIGNAL", "source":"close","fast":12,"slow":26,"signal":9},
+    {"name":"macd_hist",   "op":"MACD_HISTOGRAM",   "source":"close","fast":12,"slow":26,"signal":9},
+
+    {"name":"atr_14",  "op":"ATR", "window":14},
+
+    {"name":"hl_spread", "op":"MOMENTUM", "source":"high","window":1},
+    {"name":"lc_spread", "op":"MOMENTUM", "source":"low","window":1},
+
+    {"name":"vol",    "op":"IDENT","source":"volume"},
+    {"name":"vol_sma10","op":"SMA","source":"volume","window":10},
+    {"name":"vol_sma20","op":"SMA","source":"volume","window":20},
+    {"name":"vol_ema10","op":"EMA","source":"volume","window":10},
+    {"name":"vol_ema20","op":"EMA","source":"volume","window":20},
+    {"name":"vol_chg", "op":"MOMENTUM","source":"volume","window":1},
+
+    {"name":"rng",     "op":"MOMENTUM","source":"high","window":1},
+    {"name":"rng2",    "op":"MOMENTUM","source":"low","window":1},
+
+    {"name":"mom_20",  "op":"MOMENTUM","source":"close","window":20},
+    {"name":"mom_50",  "op":"MOMENTUM","source":"close","window":50},
+
+    {"name":"sma_100", "op":"SMA","source":"close","window":100},
+    {"name":"ema_100", "op":"EMA","source":"close","window":100},
+
+    {"name":"std_5",   "op":"VOLATILITY","source":"logret","window":5},
+    {"name":"std_50",  "op":"VOLATILITY","source":"logret","window":50},
+
+    {"name":"zlog_10", "op":"ZWIN","source":"logret","window":10},
+    {"name":"zlog_50", "op":"ZWIN","source":"logret","window":50},
+
+    {"name":"rsi_3",   "op":"RSI","source":"close","window":3},
+    {"name":"rsi_21",  "op":"RSI","source":"close","window":21},
+
+    {"name":"macd_line_slow",   "op":"MACD_LINE","source":"close","fast":19,"slow":39,"signal":9},
+    {"name":"macd_signal_slow", "op":"MACD_SIGNAL","source":"close","fast":19,"slow":39,"signal":9},
+    {"name":"macd_hist_slow",   "op":"MACD_HISTOGRAM","source":"close","fast":19,"slow":39,"signal":9},
+
+    {"name":"boll_mid_50", "op":"BOLLINGER_MIDDLE","source":"close","window":50,"k":2.0},
+    {"name":"boll_up_50",  "op":"BOLLINGER_UPPER","source":"close","window":50,"k":2.0},
+    {"name":"boll_dn_50",  "op":"BOLLINGER_LOWER","source":"close","window":50,"k":2.0},
+
+    {"name":"sma_200", "op":"SMA","source":"close","window":200},
+    {"name":"ema_200", "op":"EMA","source":"close","window":200}
+  ],
+  "alignment_policy": { "emit_from_index": 64, "pad_value": 0.0 },
+  "dtype": "float32"
+}

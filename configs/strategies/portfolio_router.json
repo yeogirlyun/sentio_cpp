@@ -1,0 +1,31 @@
+{
+  "data_glob": "data/equities/*.csv",
+
+  "router": {
+    "buy_lo": 0.60, "buy_hi": 0.75,
+    "sell_hi": 0.40, "sell_lo": 0.25,
+    "hysteresis": 0.02, "cooldown_bars": 5, "min_hold_bars": 3
+  },
+
+  "sizer": {
+    "mode": "VolTarget",
+    "target_annual_vol": 0.15,
+    "max_gross_leverage": 2.0,
+    "round_lot": 1, "min_notional": 50.0
+  },
+
+  "sota_policy": {
+    "gamma": 4.0,
+    "k_ret": 1.0,
+    "lam_tc": 5e-4,
+    "min_edge": 2.0,
+    "max_abs_w": 0.20
+  },
+
+  "target_gross": 0.60,
+  "target_trades_per_day": 40,
+  "max_gross": 1.50,
+  "max_weight_abs": 0.20,
+  "min_edge_bp": 2.0,
+  "long_only": false
+}

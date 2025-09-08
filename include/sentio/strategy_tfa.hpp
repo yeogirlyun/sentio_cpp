@@ -3,6 +3,7 @@
 #include "sentio/ml/model_registry.hpp"
 #include "sentio/ml/feature_window.hpp"
 #include "sentio/feature/column_projector.hpp"
+#include "sentio/feature/column_projector_safe.hpp"
 #include <optional>
 #include <memory>
 
@@ -41,7 +42,9 @@ private:
   
   // Feature projection system
   mutable std::unique_ptr<ColumnProjector> projector_;
+  mutable std::unique_ptr<ColumnProjectorSafe> projector_safe_;
   mutable bool projector_initialized_{false};
+  mutable int expected_feat_dim_{56};
 };
 
 } // namespace sentio

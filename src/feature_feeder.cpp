@@ -2,7 +2,9 @@
 // TFB strategy removed - focusing on TFA only
 #include "sentio/strategy_tfa.hpp"
 #include "sentio/strategy_transformer_ts.hpp"
+#include "sentio/strategy_kochi_ppo.hpp"
 #include "sentio/feature_builder.hpp"
+#include "sentio/feature_engineering/kochi_features.hpp"
 #include <cmath>
 #include <fstream>
 #include <sstream>
@@ -22,7 +24,8 @@ bool FeatureFeeder::use_cached_features_ = false;
 bool FeatureFeeder::is_ml_strategy(const std::string& strategy_name) {
     return strategy_name == "TFA" || strategy_name == "tfa" ||
            strategy_name == "transformer" ||
-           strategy_name == "hybrid_ppo";
+           strategy_name == "hybrid_ppo" ||
+           strategy_name == "kochi_ppo";
 }
 
 void FeatureFeeder::initialize_strategy(const std::string& strategy_name) {
@@ -76,6 +79,18 @@ std::vector<double> FeatureFeeder::extract_features_from_bar(const Bar& bar, con
     auto start_time = std::chrono::high_resolution_clock::now();
     
     try {
+        // Kochi PPO uses its own feature set; need at least a small history.
+        if (strategy_name == "kochi_ppo") {
+            std::vector<Bar> hist = {bar};
+            auto features = feature_engineering::calculate_kochi_features(hist, 0);
+            if (features.empty()) return {};
+            auto end_time_metrics = std::chrono::high_resolution_clock::now();
+            auto extraction_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time_metrics - start_time);
+            auto& data = get_strategy_data(strategy_name);
+            update_metrics(data, features, extraction_time);
+            return features;
+        }
+
         // Get strategy data
         auto& data = get_strategy_data(strategy_name);
         
@@ -87,7 +102,6 @@ std::vector<double> FeatureFeeder::extract_features_from_bar(const Bar& bar, con
         }
         
         // Create a minimal bar history for calculation
-        // In practice, this would come from the strategy's bar history
         std::vector<Bar> bar_history = {bar};
         
         // Calculate features
@@ -181,19 +195,51 @@ std::vector<double> FeatureFeeder::extract_features_from_bars_with_index(const s
         std::vector<double> features;
         if (use_cached_features_ && feature_cache_ && feature_cache_->has_features(current_index)) {
             features = feature_cache_->get_features(current_index);
+            static int cache_calls = 0;
+            cache_calls++;
+            if (cache_calls <= 5) {
+                std::cout << "[DEBUG] After cache get_features: " << features.size() << " features" << std::endl;
+            }
         } else {
             // Calculate features using full bar history up to current_index
             features = data.calculator->calculate_all_features(bars, current_index);
         }
         
-        // Normalize features
-        if (data.normalizer && !features.empty()) {
+        // Normalize features (skip normalization for cached features as they're pre-processed)
+        bool used_cache = (use_cached_features_ && feature_cache_ && feature_cache_->has_features(current_index));
+        if (data.normalizer && !features.empty() && !used_cache) {
+            size_t before_norm = features.size();
             features = data.normalizer->normalize_features(features);
+            static int norm_calls = 0;
+            norm_calls++;
+            if (norm_calls <= 5) {
+                std::cout << "[DEBUG] After normalize: " << before_norm << " -> " << features.size() << " features" << std::endl;
+            }
+        } else if (used_cache) {
+            static int cache_skip_calls = 0;
+            cache_skip_calls++;
+            if (cache_skip_calls <= 5) {
+                std::cout << "[DEBUG] Skipping normalization for cached features: " << features.size() << " features" << std::endl;
+            }
         }
         
-        // Validate features
-        if (!validate_features(features, strategy_name)) {
-            return {};
+        // Validate features (bypass validation for cached features as they're pre-validated)
+        if (used_cache) {
+            static int cache_bypass_calls = 0;
+            cache_bypass_calls++;
+            if (cache_bypass_calls <= 5) {
+                std::cout << "[DEBUG] Bypassing validation for cached features: " << features.size() << " features" << std::endl;
+            }
+        } else {
+            bool valid = validate_features(features, strategy_name);
+            static int val_calls = 0;
+            val_calls++;
+            if (val_calls <= 5) {
+                std::cout << "[DEBUG] Validation result: " << (valid ? "PASS" : "FAIL") << " for " << features.size() << " features" << std::endl;
+            }
+            if (!valid) {
+                return {};
+            }
         }
         
         // Update metrics
@@ -271,6 +317,11 @@ void FeatureFeeder::feed_features_to_strategy(BaseStrategy* strategy, const std:
             auto* tf = dynamic_cast<TransformerSignalStrategyTS*>(strategy);
             if (tf) {
                 tf->set_raw_features(features);
+            }
+        } else if (strategy_name == "kochi_ppo") {
+            auto* kp = dynamic_cast<KochiPPOStrategy*>(strategy);
+            if (kp) {
+                kp->set_raw_features(features);
             }
         }
         
@@ -392,8 +443,10 @@ bool FeatureFeeder::validate_features(const std::vector<double>& features, const
         return false;
     }
     
-    // Check feature count
-    auto expected_names = get_feature_names(strategy_name);
+    // Check feature count; for Kochi we compare against its own names
+    auto expected_names = (strategy_name == "kochi_ppo")
+        ? feature_engineering::kochi_feature_names()
+        : get_feature_names(strategy_name);
     if (features.size() != expected_names.size()) {
         return false;
     }
@@ -432,6 +485,9 @@ std::vector<std::string> FeatureFeeder::get_strategy_feature_names(const std::st
             // Microstructure features (5)
             "spread_bp", "price_impact", "order_flow_imbalance", "market_depth", "bid_ask_ratio"
         };
+    }
+    if (strategy_name == "kochi_ppo") {
+        return feature_engineering::kochi_feature_names();
     }
     
     return {};

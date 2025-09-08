@@ -20,7 +20,7 @@ inline void save_bin(const std::string& path, const std::vector<Bar>& v) {
         std::fwrite(bar.ts_utc.c_str(), 1, str_len, fp);
         
         // Write other fields
-        std::fwrite(&bar.ts_nyt_epoch, sizeof(bar.ts_nyt_epoch), 1, fp);
+        std::fwrite(&bar.ts_utc_epoch, sizeof(bar.ts_utc_epoch), 1, fp);
         std::fwrite(&bar.open, sizeof(bar.open), 1, fp);
         std::fwrite(&bar.high, sizeof(bar.high), 1, fp);
         std::fwrite(&bar.low, sizeof(bar.low), 1, fp);
@@ -52,7 +52,7 @@ inline std::vector<Bar> load_bin(const std::string& path) {
         }
         
         // Read other fields
-        std::fread(&bar.ts_nyt_epoch, sizeof(bar.ts_nyt_epoch), 1, fp);
+        std::fread(&bar.ts_utc_epoch, sizeof(bar.ts_utc_epoch), 1, fp);
         std::fread(&bar.open, sizeof(bar.open), 1, fp);
         std::fread(&bar.high, sizeof(bar.high), 1, fp);
         std::fread(&bar.low, sizeof(bar.low), 1, fp);

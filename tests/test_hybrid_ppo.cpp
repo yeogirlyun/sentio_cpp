@@ -31,7 +31,7 @@ int main() {
         std::vector<sentio::Bar> bars;
         sentio::Bar b;
         b.ts_utc = "2024-01-01T09:30:00Z";
-        b.ts_nyt_epoch = 1000000;
+        b.ts_utc_epoch = 1000000;
         b.open = 100.0;
         b.high = 101.0;
         b.low = 99.0;

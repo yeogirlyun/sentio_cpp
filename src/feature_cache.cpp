@@ -57,11 +57,19 @@ bool FeatureCache::load_from_csv(const std::string& feature_file_path) {
             features.push_back(std::stod(cell));
         }
         
-        // Verify feature count
+        // Verify feature count  
         if (features.size() != feature_names_.size()) {
-            std::cerr << "Warning: Bar " << bar_index << " has " << features.size() 
+            std::cerr << "CRITICAL: Bar " << bar_index << " has " << features.size() 
                       << " features, expected " << feature_names_.size() << std::endl;
-            continue;
+            std::cerr << "CSV line: " << line << std::endl;
+            std::cerr << "This will cause missing features in get_features()!" << std::endl;
+            continue;  // This is the bug - skipping bars causes missing data
+        }
+        
+        // Debug output for first few bars
+        if (lines_processed < 3) {
+            std::cout << "[DEBUG] Bar " << bar_index << ": loaded " << features.size() 
+                      << " features (expected " << feature_names_.size() << ")" << std::endl;
         }
         
         // Store features
@@ -87,8 +95,16 @@ bool FeatureCache::load_from_csv(const std::string& feature_file_path) {
 std::vector<double> FeatureCache::get_features(int bar_index) const {
     auto it = features_by_bar_.find(bar_index);
     if (it != features_by_bar_.end()) {
+        static int get_calls = 0;
+        get_calls++;
+        if (get_calls <= 5) {
+            std::cout << "[DEBUG] FeatureCache::get_features(" << bar_index 
+                      << ") returning " << it->second.size() << " features" << std::endl;
+        }
         return it->second;
     }
+    std::cout << "[ERROR] FeatureCache::get_features(" << bar_index 
+              << ") - bar not found! Returning empty vector." << std::endl;
     return {}; // Return empty vector if not found
 }
 

@@ -2,7 +2,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include "sentio/core/bar.hpp"
+#include "sentio/core.hpp"
 #include "sentio/feature/feature_matrix.hpp"
 #include "sentio/feature/feature_builder_ops.hpp"
 #include "sentio/feature/ops.hpp"

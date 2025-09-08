@@ -1,0 +1,18 @@
+symbol: "QQQ"
+bars_csv: "data/equities/QQQ_RTH_NH.csv"
+feature_spec: "configs/features/feature_spec_55_minimal.json"
+
+out_dir: "artifacts/TFA/v1"
+T: 64
+batch_size: 256
+epochs: 15
+lr: 0.0003
+num_workers: 0
+
+hidden: 192
+d_model: 96
+nhead: 4
+num_layers: 2
+cutoff_bp: 0.0
+
+

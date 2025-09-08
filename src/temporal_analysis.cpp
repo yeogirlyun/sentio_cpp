@@ -27,9 +27,10 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
         return TemporalAnalysisSummary{};
     }
     
-    // Calculate quarters based on data
-    int bars_per_quarter = total_bars / cfg.num_quarters;
-    int current_year = 2021; // Starting year
+    // Calculate quarters based on actual time periods (66 trading days per quarter)
+    // Assume ~390 bars per trading day (6.5 hours * 60 mins = 390 1-min bars)
+    int bars_per_quarter = 66 * 390; // 66 trading days * 390 bars/day = 25,740 bars per quarter
+    int current_year = 2021;
     int current_quarter = 1;
     
     std::cout << "Starting TPA (Temporal Performance Analysis) Test..." << std::endl;
@@ -41,7 +42,15 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
     
     std::cout << "\nInitializing data processing..." << std::endl;
     
-    for (int q = 0; q < cfg.num_quarters; ++q) {
+    // Build audit filename prefix with strategy and timestamp
+    const std::string test_name = "tpa_test";
+    const auto ts_epoch = static_cast<long long>(std::time(nullptr));
+
+    // Determine the last cfg.num_quarters quarters from the end
+    int total_quarters_available = std::max(1, total_bars / std::max(1, bars_per_quarter));
+    int start_quarter = std::max(0, total_quarters_available - cfg.num_quarters);
+    for (int qi = 0; qi < cfg.num_quarters; ++qi) {
+        int q = start_quarter + qi;
         int start_idx = q * bars_per_quarter;
         int end_idx = std::min(start_idx + bars_per_quarter, total_bars);
         
@@ -68,8 +77,8 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
         
         // Run backtest for this quarter
         AuditConfig audit_cfg;
-        audit_cfg.run_id = "temporal_q" + std::to_string(q + 1);
-        audit_cfg.file_path = "audit/temporal_q" + std::to_string(q + 1) + ".jsonl";
+        audit_cfg.run_id = rcfg.strategy_name + "_" + test_name + "_q" + std::to_string(q + 1) + "_" + std::to_string(ts_epoch);
+        audit_cfg.file_path = "audit/" + rcfg.strategy_name + "_" + test_name + "_" + std::to_string(ts_epoch) + "_q" + std::to_string(q + 1) + ".jsonl";
         audit_cfg.flush_each = true;
         AuditRecorder audit(audit_cfg);
         
@@ -93,8 +102,15 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
             actual_trading_days = std::max(1, (end_idx - start_idx) / 390); // ~390 bars per day
         }
         
-        double months_in_quarter = actual_trading_days / 21.0; // ~21 trading days per month
-        metrics.monthly_return_pct = (result.total_return * 12.0) / months_in_quarter;
+        // Convert total return percent for the slice into a day-compounded monthly return
+        // result.total_return is percent for the tested slice; convert to decimal for compounding
+        double ret_dec = result.total_return / 100.0;
+        double monthly_compounded = 0.0;
+        if (actual_trading_days > 0) {
+            // Compound to a 21-trading-day month
+            monthly_compounded = (std::pow(1.0 + ret_dec, 21.0 / static_cast<double>(actual_trading_days)) - 1.0) * 100.0;
+        }
+        metrics.monthly_return_pct = monthly_compounded;
         
         metrics.sharpe_ratio = result.sharpe_ratio;
         metrics.total_trades = result.total_fills;  // Use total_fills as proxy for trades
@@ -102,7 +118,7 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
         metrics.avg_daily_trades = actual_trading_days > 0 ? static_cast<double>(result.total_fills) / actual_trading_days : 0.0;
         metrics.max_drawdown = result.max_drawdown;
         metrics.win_rate = 0.0;  // Not available in RunResult, set to 0
-        metrics.total_return_pct = result.total_return * 100.0;
+        metrics.total_return_pct = result.total_return;
         
         analyzer.add_quarterly_result(metrics);
         
@@ -122,10 +138,7 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
         
         // Update year/quarter for next iteration
         current_quarter++;
-        if (current_quarter > 4) {
-            current_quarter = 1;
-            current_year++;
-        }
+        if (current_quarter > 4) { current_quarter = 1; current_year++; }
     }
     
     // Final progress bar update

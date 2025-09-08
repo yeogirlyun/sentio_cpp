@@ -1,0 +1,10 @@
+{
+  "rules": ["SMA_CROSS", "VWAP_REVERSION", "BBANDS_SQUEEZE_BRK", "MOMENTUM_VOLUME", "OFI_PROXY"],
+  "base_weights": [1.0, 1.0, 1.0, 1.0, 1.0],
+  "score_logistic_k": 1.2,
+  "reliability_window": 512,
+  "agreement_boost": 0.25,
+  "min_rules": 1
+}
+
+

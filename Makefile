@@ -44,9 +44,14 @@ BUILDER_GUARD_TEST_TARGET = $(BUILD_DIR)/test_builder_guard
 LEVERAGE_EXAMPLE_TARGET = $(BUILD_DIR)/leverage_guarded_example
 TFA_CORRUPTION_TEST_TARGET = $(BUILD_DIR)/test_tfa_corruption
 PYTHON_MODULE_TARGET = sentio_features.cpython-313-darwin.so
+REPLAY_AUDIT_TARGET = $(BUILD_DIR)/replay_audit
+PNL_TEST_TARGET = $(BUILD_DIR)/test_pnl_engine
+KOCHI_BIN_RUNNER = $(BUILD_DIR)/kochi_bin_runner
+RULE_ENSEMBLE_TARGET = $(BUILD_DIR)/run_rule_ensemble
+IRE_SWEEP_TARGET = $(BUILD_DIR)/ire_param_sweep
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(HYBRID_PPO_TEST_TARGET) $(TS_TEST_TARGET) $(TS_PARITY_TEST_TARGET) $(FEATURE_BUILDER_TEST_TARGET) $(PERF_TEST_TARGET) $(PROD_PERF_TEST_TARGET) $(PROGRESS_BAR_TEST_TARGET) $(WF_PROGRESS_TEST_TARGET) $(LEVERAGE_TEST_TARGET) $(BUILDER_GUARD_TEST_TARGET) $(LEVERAGE_EXAMPLE_TARGET) $(PYTHON_MODULE_TARGET)
+all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(HYBRID_PPO_TEST_TARGET) $(TS_TEST_TARGET) $(TS_PARITY_TEST_TARGET) $(FEATURE_BUILDER_TEST_TARGET) $(PERF_TEST_TARGET) $(PROD_PERF_TEST_TARGET) $(PROGRESS_BAR_TEST_TARGET) $(WF_PROGRESS_TEST_TARGET) $(LEVERAGE_TEST_TARGET) $(BUILDER_GUARD_TEST_TARGET) $(LEVERAGE_EXAMPLE_TARGET) $(PYTHON_MODULE_TARGET) $(REPLAY_AUDIT_TARGET) $(PNL_TEST_TARGET) $(KOCHI_BIN_RUNNER) $(RULE_ENSEMBLE_TARGET) $(IRE_SWEEP_TARGET)
 
 # Main executable
 $(MAIN_TARGET): $(OBJECTS)
@@ -182,9 +187,29 @@ $(TFA_CORRUPTION_TEST_TARGET): tests/test_tfa_corruption.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBS)
 
 # Python module
-$(PYTHON_MODULE_TARGET): bindings/featurebridge.cpp
+$(PYTHON_MODULE_TARGET): bindings/featurebridge.cpp $(OBJ_DIR)/feature_builder.o $(OBJ_DIR)/feature_engineering/technical_indicators.o $(OBJ_DIR)/feature_engineering/kochi_features.o
 	@echo "Building Python module $@"
-	$(CXX) -std=c++17 -O3 -shared -fPIC $(PYTHON_INCLUDES) -o $@ $< $(PYTHON_LIBS)
+	$(CXX) -std=c++17 -O3 -shared -fPIC $(PYTHON_INCLUDES) -o $@ $^ $(PYTHON_LIBS)
+
+# Kochi binary runner
+
+# Header-only deps; compile single TU
+$(KOCHI_BIN_RUNNER): tools/kochi_bin_runner.cpp
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+
+# Rule ensemble runner
+$(RULE_ENSEMBLE_TARGET): src/strategy/run_rule_ensemble.cpp
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+
+# IRE parameter sweep tool
+$(IRE_SWEEP_TARGET): tools/ire_param_sweep.cpp
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBS)
 
 # Object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
@@ -252,7 +277,7 @@ sanity-test: $(SANITY_TEST_TARGET)
 	@$(SANITY_TEST_TARGET)
 
 # Run sanity integration example
-sanity-integration: $(SANITY_INTEGRATION_TARGET)
+santity-integration: $(SANITY_INTEGRATION_TARGET)
 	@echo "Running sanity integration example..."
 	@$(SANITY_INTEGRATION_TARGET)
 

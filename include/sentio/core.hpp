@@ -10,7 +10,7 @@ namespace sentio {
 
 struct Bar {
     std::string ts_utc;
-    int64_t ts_nyt_epoch;
+    int64_t ts_utc_epoch;
     double open, high, low, close;
     uint64_t volume;
 };

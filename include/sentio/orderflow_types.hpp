@@ -7,7 +7,7 @@
 namespace sentio {
 
 struct Tick {
-    int64_t ts_nyt_epoch;     // strictly nondecreasing
+    int64_t ts_utc_epoch;     // strictly nondecreasing
     double  bid_px, ask_px;
     double  bid_sz, ask_sz;   // L1 sizes (or synthetic from L2)
     // (Optional: trade prints, aggressor flags, etc.)
