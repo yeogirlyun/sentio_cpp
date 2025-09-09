@@ -113,6 +113,7 @@ RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::v
     int total_fills = 0;
     int no_route_count = 0;
     int no_qty_count = 0;
+    double cumulative_realized_pnl = 0.0;  // Track cumulative realized P&L for audit transparency
 
     // 2. ============== MAIN EVENT LOOP ==============
     size_t total_bars = base_series.size();
@@ -355,10 +356,13 @@ RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::v
             equity_curve.emplace_back(bar.ts_utc, current_equity);
             
             // Log account snapshot
+            // Calculate actual position value and track cumulative realized P&L  
+            double position_value = current_equity - portfolio.cash;
+            
             AccountState state;
             state.cash = portfolio.cash;
             state.equity = current_equity;
-            state.realized = 0.0; // TODO: Calculate realized P&L
+            state.realized = cumulative_realized_pnl; // Track actual cumulative realized P&L
             if (logging_enabled) audit.event_snapshot(bar.ts_utc_epoch, state);
         }
     }

@@ -200,6 +200,7 @@ int main(int argc, char* argv[]) {
         if (base_symbol == "QQQ") {
             symbols_to_load.push_back("TQQQ");
             symbols_to_load.push_back("SQQQ");
+            symbols_to_load.push_back("PSQ");
         }
 
         std::cout << "Loading data for symbols: ";
@@ -351,6 +352,7 @@ int main(int argc, char* argv[]) {
         if (base_symbol == "QQQ") {
             symbols_to_load.push_back("TQQQ");
             symbols_to_load.push_back("SQQQ");
+            symbols_to_load.push_back("PSQ");
         }
 
         std::cout << "Loading data for symbols: ";
@@ -358,8 +360,11 @@ int main(int argc, char* argv[]) {
         std::cout << std::endl;
 
         for (const auto& sym : symbols_to_load) {
+            std::cout << "DEBUG: Starting to load symbol: " << sym << std::endl;
             std::vector<sentio::Bar> bars;
             std::string data_path = sentio::resolve_csv(sym);
+            std::cout << "DEBUG: Resolved data path for " << sym << ": " << data_path << std::endl;
+            
             if (!sentio::load_csv(data_path, bars)) {
                 std::cerr << "ERROR: Failed to load data for " << sym << " from " << data_path << std::endl;
                 continue;
@@ -367,10 +372,13 @@ int main(int argc, char* argv[]) {
             std::cout << " -> Loaded " << bars.size() << " bars for " << sym << std::endl;
             
             int symbol_id = ST.intern(sym);
+            std::cout << "DEBUG: Symbol " << sym << " assigned ID: " << symbol_id << std::endl;
             if (static_cast<size_t>(symbol_id) >= series.size()) {
                 series.resize(symbol_id + 1);
+                std::cout << "DEBUG: Resized series to " << (symbol_id + 1) << " for " << sym << std::endl;
             }
             series[symbol_id] = std::move(bars);
+            std::cout << "DEBUG: Successfully stored " << series[symbol_id].size() << " bars for " << sym << " at ID " << symbol_id << std::endl;
         }
         
         int base_symbol_id = ST.get_id(base_symbol);
@@ -635,7 +643,7 @@ int main(int argc, char* argv[]) {
         // Load QQQ family (QQQ, TQQQ, SQQQ)
         sentio::SymbolTable ST;
         std::vector<std::vector<sentio::Bar>> series;
-        std::vector<std::string> symbols_to_load = {base_symbol, "TQQQ", "SQQQ"};
+        std::vector<std::string> symbols_to_load = {base_symbol, "TQQQ", "SQQQ", "PSQ"};
         for (const auto& sym : symbols_to_load) {
             std::vector<sentio::Bar> bars;
             std::string data_path = sentio::resolve_csv(sym);
@@ -933,7 +941,7 @@ int main(int argc, char* argv[]) {
         
         // Write header
         if (format_type == "csv") {
-            *out << "Timestamp,Type,Symbol,Side,Quantity,Price,PnL,Cash,Equity,Real_Position" << std::endl;
+            *out << "Timestamp,Type,Symbol,Side,Quantity,Price,Trade_PnL,Cash,Realized_PnL,Unrealized_PnL,Total_Equity" << std::endl;
         } else {
             *out << "HUMAN-READABLE AUDIT LOG" << std::endl;
             *out << "========================" << std::endl;
@@ -971,14 +979,20 @@ int main(int argc, char* argv[]) {
                              << "," << record.value("qty", 0.0)
                              << "," << record.value("price", 0.0)
                              << "," << record.value("pnl", 0.0)
-                             << ",,";
+                             << ",,,";
                     } else if (type == "snapshot") {
+                        double cash = record.value("cash", 0.0);
+                        double equity = record.value("equity", 0.0);
+                        double realized = record.value("real", 0.0);
+                        double unrealized = equity - cash - realized;
+                        
                         *out << ",,,,,"
-                             << "," << record.value("cash", 0.0)
-                             << "," << record.value("equity", 0.0)
-                             << "," << record.value("real", 0.0);
+                             << "," << cash
+                             << "," << realized
+                             << "," << unrealized
+                             << "," << equity;
                     } else {
-                        *out << ",,,,,,,";
+                        *out << ",,,,,,,,";
                     }
                     *out << std::endl;
                 } else {
@@ -995,9 +1009,16 @@ int main(int argc, char* argv[]) {
                              << " @ $" << std::fixed << std::setprecision(2) << record.value("price", 0.0)
                              << " (PnL: $" << record.value("pnl", 0.0) << ")" << std::endl;
                     } else if (type == "snapshot") {
-                        *out << "PORTFOLIO - Cash: $" << std::fixed << std::setprecision(2) << record.value("cash", 0.0)
-                             << ", Equity: $" << record.value("equity", 0.0)
-                             << ", Positions: $" << record.value("real", 0.0) << std::endl;
+                        double cash = record.value("cash", 0.0);
+                        double equity = record.value("equity", 0.0);
+                        double realized = record.value("real", 0.0);
+                        double unrealized = equity - cash - realized;
+                        
+                        *out << "PORTFOLIO - Cash: $" << std::fixed << std::setprecision(2) << cash
+                             << ", Realized P&L: $" << realized
+                             << ", Unrealized P&L: $" << unrealized 
+                             << ", Total Equity: $" << equity
+                             << " (Cash + Realized + Unrealized = " << (cash + realized + unrealized) << ")" << std::endl;
                     } else if (type == "signal") {
                         *out << "SIGNAL - " << record.value("inst", "")
                              << " p=" << std::fixed << std::setprecision(3) << record.value("p", 0.0)

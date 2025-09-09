@@ -1,0 +1,289 @@
+Loading data for symbols: QQQ TQQQ SQQQ PSQ 
+DEBUG: Starting to load symbol: QQQ
+DEBUG: Resolved data path for QQQ: /Users/yeogirlyun/C++/sentio_cpp/data/equities/QQQ_RTH_NH_ALIGNED_4ETF.csv
+ -> Loaded 253411 bars for QQQ
+DEBUG: Symbol QQQ assigned ID: 0
+DEBUG: Resized series to 1 for QQQ
+DEBUG: Successfully stored 253411 bars for QQQ at ID 0
+DEBUG: Starting to load symbol: TQQQ
+DEBUG: Resolved data path for TQQQ: /Users/yeogirlyun/C++/sentio_cpp/data/equities/TQQQ_RTH_NH_ALIGNED_4ETF.csv
+ -> Loaded 253411 bars for TQQQ
+DEBUG: Symbol TQQQ assigned ID: 1
+DEBUG: Resized series to 2 for TQQQ
+DEBUG: Successfully stored 253411 bars for TQQQ at ID 1
+DEBUG: Starting to load symbol: SQQQ
+DEBUG: Resolved data path for SQQQ: /Users/yeogirlyun/C++/sentio_cpp/data/equities/SQQQ_RTH_NH_ALIGNED_4ETF.csv
+ -> Loaded 253411 bars for SQQQ
+DEBUG: Symbol SQQQ assigned ID: 2
+DEBUG: Resized series to 3 for SQQQ
+DEBUG: Successfully stored 253411 bars for SQQQ at ID 2
+DEBUG: Starting to load symbol: PSQ
+DEBUG: Resolved data path for PSQ: /Users/yeogirlyun/C++/sentio_cpp/data/equities/PSQ_RTH_NH_ALIGNED_4ETF.csv
+ -> Loaded 253411 bars for PSQ
+DEBUG: Symbol PSQ assigned ID: 3
+DEBUG: Resized series to 4 for PSQ
+DEBUG: Successfully stored 253411 bars for PSQ at ID 3
+Data period: 2022-09-08 → 2025-08-29 (1086.3 days)
+Bars(QQQ): 253411
+
+Running TPA (Temporal Performance Analysis) Test...
+Strategy: IRE, Quarters: 1
+Starting TPA (Temporal Performance Analysis) Test...
+Total bars: 253411, Bars per quarter: 25740
+TPA Test: IRE: [>                                                 ] 0.0% (0/1) Elapsed: 0s
+Initializing data processing...
+
+Processing Quarter 2021Q1 (bars 205920-231660)...
+MAIN LOOP i=300 warmup=300 strategy=IRE
+IRE SIMPLE i=300 prob=0.5 price=534.4 momentum=0.0%
+MAIN LOOP i=301 warmup=300 strategy=IRE
+IRE SIMPLE i=301 prob=0.5 price=534.6 momentum=0.1%
+MAIN LOOP i=302 warmup=300 strategy=IRE
+IRE SIMPLE i=302 prob=0.5 price=534.7 momentum=0.1%
+IRE SIMPLE i=303 prob=0.5 price=534.9 momentum=0.1%
+IRE SIMPLE i=304 prob=0.5 price=534.9 momentum=0.1%
+DYNAMIC LEVERAGE i=1000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=1000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+Progress: 5% (1287/25740 bars)
+IRE SIMPLE i=1300 prob=0.5 price=514.3 momentum=-0.0%
+DYNAMIC LEVERAGE i=2000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=2000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=2300 prob=0.5 price=500.9 momentum=0.2%
+Progress: 10% (2574/25740 bars)
+DYNAMIC LEVERAGE i=3000 prob=0.4 allocations_size=4 PSQ:0.4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0
+EXECUTION BLOCK REACHED i=3000 allocations_size=4
+CHECKING: PSQ weight=0.4 abs=0.4 threshold=0.0 → EXECUTING fills_before=569 fills_after=570
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=3300 prob=0.5 price=496.5 momentum=0.2%
+Progress: 15% (3861/25740 bars)
+DYNAMIC LEVERAGE i=4000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=4000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=4300 prob=0.6 price=486.7 momentum=0.3%
+DYNAMIC LEVERAGE i=5000 prob=0.6 allocations_size=4 QQQ:0.4 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=5000 allocations_size=4
+CHECKING: QQQ weight=0.4 abs=0.4 threshold=0.0 → EXECUTING fills_before=1302 fills_after=1303
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+Progress: 20% (5148/25740 bars)
+IRE SIMPLE i=5300 prob=0.5 price=472.0 momentum=-0.1%
+DYNAMIC LEVERAGE i=6000 prob=0.7 allocations_size=4 QQQ:0.4 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=6000 allocations_size=4
+CHECKING: QQQ weight=0.4 abs=0.4 threshold=0.0 → EXECUTING fills_before=1594 fills_after=1595
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=6300 prob=0.5 price=478.8 momentum=-0.1%
+Progress: 25% (6435/25740 bars)
+DYNAMIC LEVERAGE i=7000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=7000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=7300 prob=0.6 price=484.7 momentum=0.4%
+Progress: 30% (7722/25740 bars)
+DYNAMIC LEVERAGE i=8000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=8000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=8300 prob=0.5 price=490.4 momentum=0.0%
+DYNAMIC LEVERAGE i=9000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=9000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+Progress: 35% (9009/25740 bars)
+IRE SIMPLE i=9300 prob=0.5 price=483.5 momentum=-0.0%
+DYNAMIC LEVERAGE i=10000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=10000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+Progress: 40% (10296/25740 bars)
+IRE SIMPLE i=10300 prob=0.4 price=468.5 momentum=-0.4%
+DYNAMIC LEVERAGE i=11000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=11000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=11300 prob=0.6 price=437.1 momentum=0.6%
+Progress: 45% (11583/25740 bars)
+DYNAMIC LEVERAGE i=12000 prob=0.6 allocations_size=4 QQQ:0.4 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=12000 allocations_size=4
+CHECKING: QQQ weight=0.4 abs=0.4 threshold=0.0 → EXECUTING fills_before=3022 fills_after=3023
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=12300 prob=0.5 price=421.4 momentum=-0.2%
+Progress: 50% (12870/25740 bars)
+DYNAMIC LEVERAGE i=13000 prob=0.6 allocations_size=4 QQQ:0.4 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=13000 allocations_size=4
+CHECKING: QQQ weight=0.4 abs=0.4 threshold=0.0 → EXECUTING fills_before=3716 fills_after=3717
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=13300 prob=0.6 price=449.1 momentum=0.2%
+DYNAMIC LEVERAGE i=14000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=14000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+Progress: 55% (14157/25740 bars)
+IRE SIMPLE i=14300 prob=0.4 price=449.4 momentum=-0.5%
+DYNAMIC LEVERAGE i=15000 prob=0.4 allocations_size=4 PSQ:0.3 QQQ:0.0 TQQQ:0.0 SQQQ:0.0
+EXECUTION BLOCK REACHED i=15000 allocations_size=4
+CHECKING: PSQ weight=0.3 abs=0.3 threshold=0.0 → EXECUTING fills_before=4409 fills_after=4410
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=15300 prob=0.5 price=429.6 momentum=0.1%
+Progress: 60% (15444/25740 bars)
+DYNAMIC LEVERAGE i=16000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=16000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=16300 prob=0.4 price=461.8 momentum=-0.2%
+Progress: 65% (16731/25740 bars)
+DYNAMIC LEVERAGE i=17000 prob=0.6 allocations_size=4 QQQ:0.3 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=17000 allocations_size=4
+CHECKING: QQQ weight=0.3 abs=0.3 threshold=0.0 → EXECUTING fills_before=4916 fills_after=4917
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=17300 prob=0.5 price=470.9 momentum=0.1%
+DYNAMIC LEVERAGE i=18000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=18000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+Progress: 70% (18018/25740 bars)
+IRE SIMPLE i=18300 prob=0.5 price=482.8 momentum=-0.0%
+DYNAMIC LEVERAGE i=19000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=19000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=19300 prob=0.5 price=482.5 momentum=0.0%
+Progress: 75% (19305/25740 bars)
+DYNAMIC LEVERAGE i=20000 prob=0.4 allocations_size=4 PSQ:0.3 QQQ:0.0 TQQQ:0.0 SQQQ:0.0
+EXECUTION BLOCK REACHED i=20000 allocations_size=4
+CHECKING: PSQ weight=0.3 abs=0.3 threshold=0.0 → EXECUTING fills_before=5423 fills_after=5424
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=20300 prob=0.5 price=491.2 momentum=-0.0%
+Progress: 80% (20592/25740 bars)
+DYNAMIC LEVERAGE i=21000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=21000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=21300 prob=0.5 price=516.6 momentum=-0.0%
+Progress: 85% (21879/25740 bars)
+DYNAMIC LEVERAGE i=22000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=22000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=22300 prob=0.5 price=518.8 momentum=-0.0%
+DYNAMIC LEVERAGE i=23000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=23000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+Progress: 90% (23166/25740 bars)
+IRE SIMPLE i=23300 prob=0.5 price=519.5 momentum=0.1%
+DYNAMIC LEVERAGE i=24000 prob=0.4 allocations_size=4 PSQ:0.4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0
+EXECUTION BLOCK REACHED i=24000 allocations_size=4
+CHECKING: PSQ weight=0.4 abs=0.4 threshold=0.0 → EXECUTING fills_before=5815 fills_after=5816
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=24300 prob=0.5 price=510.8 momentum=-0.0%
+Progress: 95% (24453/25740 bars)
+DYNAMIC LEVERAGE i=25000 prob=0.5 allocations_size=4 QQQ:0.0 TQQQ:0.0 SQQQ:0.0 PSQ:0.0
+EXECUTION BLOCK REACHED i=25000 allocations_size=4
+CHECKING: QQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: TQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: SQQQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+CHECKING: PSQ weight=0.0 abs=0.0 threshold=0.0 → SKIPPED
+IRE SIMPLE i=25300 prob=0.5 price=528.2 momentum=0.0%
+[SIG IRE] emitted=0 dropped=0  min_bars=0 session=0 nan=0 zerovol=0 thr=0 cooldown=0 dup=0
+TPA Test: IRE: [==================================================] 100.0% (1/1) Elapsed: 0s
+[KTPA Test: IRE [==================================================] 100.0% | Q2021Q1 | Ret: 4.48% | Sharpe: 2.651 | Trades: 83.9 | HEALTHY
+  Monthly Return: 4.48%
+  Sharpe Ratio: 2.651
+  Daily Trades: 83.9 (Health: HEALTHY)
+  Total Trades: 5959
+
+
+TPA Test completed! Generating summary...
+
+TPA test completed in 0.2s
+
+================================================================================
+TEMPORAL PERFORMANCE ANALYSIS REPORT
+================================================================================
+
+QUARTERLY PERFORMANCE BREAKDOWN:
+
+Quarter Monthly Ret%Sharpe    Trades  Daily Avg   Health    Drawdown% 
+--------------------------------------------------------------------------------
+2021Q1  4.48        2.651     5959    83.9        HEALTHY   6.66      
+
+--------------------------------------------------------------------------------
+SUMMARY STATISTICS:
+
+Overall Performance:
+  Average Monthly Return: 4.48%
+  Average Sharpe Ratio: 2.651
+
+Consistency Metrics:
+  Return Volatility (std): 0.00%
+  Sharpe Volatility (std): 0.000
+  Trade Frequency Volatility (std): 0.0 trades/day
+
+Trade Frequency Health:
+  Healthy Quarters: 1/1 (100.0%)
+  Low Frequency: 0 quarters
+  High Frequency: 0 quarters
+
+HEALTH ASSESSMENT:
+  ✅ EXCELLENT: 100.0% of quarters have healthy trade frequency
+
+TPA READINESS ASSESSMENT:
+  Readiness Score: 0.0/100
+
+  Testing Readiness:
+  ❌ Virtual Market Testing: NOT READY
+  ❌ Paper Trading: NOT READY
+  ❌ Live Trading: NOT READY
+================================================================================
