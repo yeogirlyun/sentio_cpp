@@ -541,6 +541,257 @@ features:
   momentum_signals: true
 ```
 
+## Strategy Evaluation Framework
+
+### 1. Signal Quality Evaluation
+
+#### Universal Evaluation Metrics
+The system includes a comprehensive evaluation framework for all probability-based trading strategies:
+
+```python
+# Core evaluation components
+from sentio_trainer.utils.strategy_evaluation import StrategyEvaluator
+
+# Signal quality metrics
+evaluator = StrategyEvaluator("StrategyName")
+results = evaluator.evaluate_strategy_signal(predictions, actual_returns)
+```
+
+#### Evaluation Dimensions
+1. **Signal Quality**: Probability range, mean, standard deviation, signal strength
+2. **Calibration**: How well probabilities match actual frequencies
+3. **Information Content**: Log loss, Brier score, AUC, information ratio
+4. **Trading Performance**: Accuracy, precision, recall, F1 score, Sharpe ratio
+5. **Overall Assessment**: Weighted score with rating (Excellent/Good/Fair/Poor)
+
+#### Calibration Analysis
+- **Calibration Error**: < 0.05 = Excellent, 0.05-0.10 = Good, > 0.10 = Poor
+- **Information Ratio**: > 0.2 = High, 0.1-0.2 = Moderate, < 0.1 = Low
+- **AUC Score**: 0.5 = Random, 1.0 = Perfect prediction
+
+### 2. Backend Trading System Evaluation
+
+#### Complete Pipeline Evaluation
+The system evaluates the complete trading pipeline beyond signal quality:
+
+```
+Signal (Probability) → Router → Sizer → Runner → Actual PnL
+     ↑                    ↑        ↑        ↑
+  Signal              Portfolio    Risk     Execution
+  Evaluation          Management   Management Management
+```
+
+#### Backend Components Evaluation
+1. **Router Performance**: Instrument selection effectiveness, PnL per instrument
+2. **Sizer Performance**: Position sizing optimization, risk-adjusted returns
+3. **Runner Performance**: Execution costs, slippage, timing efficiency
+4. **Signal Effectiveness**: Correlation between signal strength and actual profits
+
+#### Performance Metrics
+- **Overall Performance**: Total PnL, win rate, Sharpe ratio, max drawdown, Calmar ratio
+- **Execution Quality**: Commission rate, slippage rate, execution cost per trade
+- **Risk Management**: Value at Risk (VaR), expected shortfall, turnover rate
+- **Signal Correlation**: Signal-to-PnL correlation, signal effectiveness
+
+### 3. Virtual Market Testing (VMTest)
+
+#### VMTest Overview
+VMTest provides comprehensive virtual market simulation for strategy testing using multiple data generation approaches. The system supports both synthetic data generation and integration with the MarS (Market Simulation Engine) for realistic market microstructure modeling.
+
+#### VMTest Architecture
+```
+Data Generation Layer → Strategy Execution → Monte Carlo Testing → Results
+         ↑                    ↑                    ↑              ↑
+    MarS Engine          SentioStrategy       Statistical    Performance
+    Fast Historical      Real Runner          Analysis        Metrics
+    Synthetic Data       Integration
+```
+
+#### Data Generation Approaches
+
+##### 1. Fast Historical Bridge
+- **Purpose**: Instant generation of realistic market data based on historical patterns
+- **Speed**: < 1 second per simulation
+- **Realism**: Uses actual historical QQQ patterns for volatility, volume, and intraday behavior
+- **Time Handling**: Generates timestamps from today's market open (9:30 AM ET)
+- **Pattern Analysis**: Extracts mean return, volatility, volume patterns, and hourly multipliers
+
+##### 2. MarS Integration
+- **Purpose**: AI-powered market simulation with realistic microstructure
+- **Features**: Order-level simulation, market maker behavior, realistic spreads
+- **Historical Context**: Uses HistoricalContextAgent for realistic starting conditions
+- **AI Continuation**: Optional MarS AI for sophisticated market behavior
+- **Performance**: High-quality simulation with realistic market dynamics
+
+##### 3. Synthetic Data Generation
+- **Purpose**: Basic synthetic data for rapid testing
+- **Speed**: Very fast generation
+- **Use Case**: Quick validation and debugging
+- **Limitations**: Less realistic than historical or MarS data
+
+#### VMTest CLI Commands
+
+##### Basic VM Test (Fast Historical)
+```bash
+# Standard VM test with fast historical data
+./build/sentio_cli vmtest IRE QQQ --days 30 --simulations 100
+
+# Extended testing with custom parameters
+./build/sentio_cli vmtest IRE QQQ --days 70 --simulations 100 --params '{"buy_hi": 0.6, "sell_lo": 0.4}'
+
+# Custom historical data source
+./build/sentio_cli vmtest IRE QQQ --days 14 --simulations 50 --historical-data data/equities/QQQ_RTH_NH.csv
+```
+
+##### MarS-Powered VM Test
+```bash
+# MarS simulation with AI
+./build/sentio_cli marstest IRE QQQ --days 7 --simulations 20 --regime normal --use-mars-ai
+
+# MarS with historical context
+./build/sentio_cli marstest TFA QQQ --days 14 --simulations 10 --regime volatile --historical-data data/equities/QQQ_RTH_NH.csv
+```
+
+##### Fast Historical Test
+```bash
+# Direct fast historical test
+./build/sentio_cli fasttest IRE QQQ --historical-data data/equities/QQQ_RTH_NH.csv --continuation-minutes 1440 --simulations 50
+```
+
+#### VMTest Parameters
+
+##### Common Parameters
+- **--days <n>**: Number of days to simulate (default: 30)
+- **--hours <n>**: Number of hours to simulate (alternative to days)
+- **--simulations <n>**: Number of Monte Carlo simulations (default: 100)
+- **--params <json>**: Strategy parameters as JSON string
+- **--historical-data <file>**: Historical data file for pattern analysis
+
+##### MarS-Specific Parameters
+- **--regime <type>**: Market regime (normal, bull_trending, bear_trending, sideways_low_vol, volatile)
+- **--use-mars-ai**: Enable MarS AI for sophisticated market behavior
+- **--continuation-minutes <n>**: Minutes to simulate beyond historical data
+
+#### VMTest Output Metrics
+- **Return Statistics**: Mean, median, standard deviation, min/max returns
+- **Confidence Intervals**: 5th, 25th, 75th, 95th percentiles
+- **Probability Analysis**: Probability of profit across simulations
+- **Performance Metrics**: 
+  - Mean Sharpe Ratio
+  - Mean MPR (Monthly Projected Return)
+  - Mean Daily Trades
+- **Signal Diagnostics**: Signal generation and validation metrics
+- **Data Quality**: Generated data statistics (price range, volume range, time range)
+
+#### MarS Integration Details
+
+##### Historical Context Agent
+```python
+class HistoricalContextAgent:
+    """Provides realistic starting conditions for MarS simulations"""
+    
+    def __init__(self, symbol, historical_bars, continuation_minutes):
+        self.symbol = symbol
+        self.historical_bars = historical_bars
+        self.continuation_minutes = continuation_minutes
+        
+        # Analyze historical patterns
+        self.mean_return, self.volatility, self.mean_volume = \
+            self._analyze_historical_patterns(historical_bars)
+    
+    def generate_continuation_orders(self, time):
+        """Generate realistic orders based on historical patterns"""
+        # Use historical volatility and volume patterns
+        # Generate market-making orders with realistic spreads
+        # Transition smoothly from historical to synthetic data
+```
+
+##### Fast Historical Bridge
+```python
+def generate_realistic_bars(patterns, start_price, duration_minutes):
+    """Generate realistic bars instantly using historical patterns"""
+    
+    # Use today's market open time
+    market_open = get_today_market_open()
+    
+    # Generate bars with historical patterns
+    for i in range(num_bars):
+        # Apply hourly volume and volatility multipliers
+        volume_multiplier = patterns.hourly_volume_multipliers[hour]
+        volatility_multiplier = patterns.hourly_volatility_multipliers[hour]
+        
+        # Generate realistic price movement
+        price_change = np.random.normal(patterns.mean_return, 
+                                      patterns.volatility * volatility_multiplier)
+        
+        # Generate volume with time-of-day patterns
+        volume = int(patterns.mean_volume * volume_multiplier * random_factor)
+        
+        # Create bar with realistic OHLC relationships
+        bar = create_bar_with_realistic_ohlc(current_price, price_change, volume)
+```
+
+#### VMTest Performance Characteristics
+
+##### Speed Comparison
+- **Fast Historical**: < 1 second per simulation
+- **MarS (No AI)**: 10-30 seconds per simulation
+- **MarS (With AI)**: 30-120 seconds per simulation
+- **Synthetic Data**: < 0.1 seconds per simulation
+
+##### Data Quality Ranking
+1. **MarS with AI**: Highest realism, sophisticated market behavior
+2. **MarS without AI**: High realism, basic market microstructure
+3. **Fast Historical**: Good realism, instant generation
+4. **Synthetic Data**: Basic realism, fastest generation
+
+##### Use Case Recommendations
+- **Development/Testing**: Fast Historical or Synthetic Data
+- **Strategy Validation**: MarS without AI
+- **Production Simulation**: MarS with AI
+- **Quick Diagnostics**: Synthetic Data
+
+### 4. Evaluation Integration
+
+#### Automatic Evaluation During Training
+```python
+# TFA trainer includes automatic evaluation
+python train_models.py --config configs/tfa.yaml
+# Output: Comprehensive evaluation metrics + results saved to evaluation_results.json
+```
+
+#### Standalone Evaluation Tools
+```python
+# CLI tool for strategy evaluation
+python sentio_trainer/evaluate_strategies.py single --data strategy_data.json --name "MyStrategy"
+python sentio_trainer/evaluate_strategies.py compare --data-files strategy1.json strategy2.json
+```
+
+#### Programmatic Evaluation
+```python
+# Quick evaluation
+from sentio_trainer.utils.strategy_evaluation import quick_evaluate
+results = quick_evaluate(predictions, actual_returns, "StrategyName")
+
+# Detailed evaluation
+evaluator = StrategyEvaluator("StrategyName")
+results = evaluator.evaluate_strategy_signal(predictions, actual_returns, verbose=True)
+evaluator.save_results("results.json")
+```
+
+### 5. Evaluation Data Requirements
+
+#### Input Format
+- **Predictions**: Raw model outputs (logits), converted to probabilities
+- **Actual Returns**: Binary values (1 = price up, 0 = price down)
+- **Data Sources**: JSON, NPZ, or CSV formats supported
+
+#### Evaluation Standards
+- **Sufficient Data**: Minimum 1000 samples for reliable metrics
+- **Balanced Classes**: Avoid extreme class imbalance
+- **Clean Data**: Remove outliers and invalid predictions
+- **Consistent Time Periods**: Compare strategies on identical data
+
 ## Testing and Validation
 
 ### 1. Unit Testing
@@ -577,6 +828,83 @@ features:
 - **Historical Data**: Comprehensive historical data storage
 - **Data Validation**: Automated data quality checks
 - **Backup Systems**: Redundant data storage
+
+## Diagnostic Strategy Framework
+
+### 1. Diagnostic Strategy Requirements
+
+The system includes a comprehensive diagnostic strategy framework designed to validate system components and provide baseline performance metrics.
+
+#### Diagnostic Strategy Specifications
+- **Purpose**: System validation and infrastructure testing
+- **Signal Generation**: RSI-based with aggressive thresholds
+- **Frequency**: Minimum 100 signals per day
+- **Leverage Support**: QQQ (40%), TQQQ (30%), SQQQ (30%)
+- **Objective**: System diagnostics, NOT profit optimization
+
+#### Technical Implementation
+```cpp
+class DiagnosticStrategy : public BaseStrategy {
+private:
+    std::vector<double> price_history_;
+    int rsi_period_;
+    int signal_count_;
+    double last_rsi_;
+    std::vector<std::string> leverage_symbols_;
+    int current_symbol_index_;
+    
+public:
+    double calculate_probability(const std::vector<Bar>& bars, int current_index) override {
+        // Calculate RSI from price history
+        double rsi = calculate_rsi(price_history_, rsi_period_);
+        
+        // Generate signals based on RSI thresholds
+        if (rsi < 30) return 0.8;      // Strong buy
+        if (rsi > 70) return 0.2;      // Strong sell
+        if (rsi < 50) return 0.6;      // Moderate buy
+        if (rsi > 50) return 0.4;      // Moderate sell
+        return 0.5;                    // Neutral
+    }
+    
+    std::vector<AllocationDecision> get_allocation_decisions(...) override {
+        // Rotate through leverage symbols
+        std::string symbol = select_leverage_ticker();
+        double weight = (probability - 0.5) * 2.0; // Convert to -1 to 1
+        
+        return {{symbol, weight, confidence, "Diagnostic signal"}};
+    }
+};
+```
+
+#### Validation Criteria
+- **Signal Generation**: ≥100 signals per day
+- **Signal Distribution**: 40% QQQ, 30% TQQQ, 30% SQQQ
+- **System Integration**: Successful VM test execution
+- **Infrastructure Validation**: Confirms Runner, Router, Sizer functionality
+
+### 2. System Validation Workflow
+
+#### Diagnostic Testing Pipeline
+```
+Diagnostic Strategy → VM Test → System Validation → Performance Baseline
+        ↑              ↑              ↑                    ↑
+    RSI Signals    MarS/Fast      Component         Expected
+    Generation     Historical     Validation        Metrics
+```
+
+#### Validation Steps
+1. **Signal Generation Test**: Verify diagnostic strategy generates expected signal frequency
+2. **VM Test Integration**: Confirm VM test infrastructure processes signals correctly
+3. **Runner Integration**: Validate signal execution and trade generation
+4. **Router Validation**: Test multi-symbol routing (QQQ, TQQQ, SQQQ)
+5. **Sizer Validation**: Confirm position sizing calculations
+6. **Performance Baseline**: Establish expected performance metrics
+
+#### Diagnostic Value
+- **Infrastructure Verification**: Confirms all system components are functional
+- **Performance Baseline**: Establishes expected signal generation rates
+- **Comparison Framework**: Enables comparison with other strategies
+- **Debugging Tool**: Helps isolate system vs. strategy issues
 
 ## Future Enhancements
 
