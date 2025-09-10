@@ -15,6 +15,7 @@
 // TFB strategy removed - focusing on TFA only
 #include "sentio/strategy_tfa.hpp" // For TFA strategy
 #include "sentio/strategy_registry.hpp" // For configuration-based strategy registration
+#include "sentio/virtual_market.hpp" // For native VM testing
 
 #include <iostream>
 #include <unordered_map>
@@ -119,11 +120,18 @@ void usage() {
               << "  tpatest <symbol> [--strategy <name>] [--params <k=v,...>] [--quarters <n>] [--weeks <n>] [--days <n>]\n"
               << "  test-models [--strategy <name>] [--data <file>] [--start <date>] [--end <date>]\n"
               << "  tune_ire <symbol> [--test_quarters <n>]\n"
+              << "  vmtest <strategy> <symbol> [--days <n>] [--hours <n>] [--simulations <n>] [--params <json>] [--historical-data <file>]\n"
               << "\nTime Period Options (most recent periods):\n"
               << "  --quarters <n>  Analyze the most recent n quarters\n"
               << "  --weeks <n>      Analyze the most recent n weeks\n"
               << "  --days <n>       Analyze the most recent n days\n"
               << "  (no option)      Analyze entire dataset\n"
+              << "\nVMTest Options:\n"
+              << "  --days <n>        Number of days to simulate (default: 30)\n"
+              << "  --hours <n>       Number of hours to simulate (alternative to days)\n"
+              << "  --simulations <n> Number of Monte Carlo simulations (default: 100)\n"
+              << "  --params <json>   Strategy parameters as JSON string\n"
+              << "  --historical-data <file> Historical data file (default: data/equities/<symbol>_RTH_NH.csv)\n"
               << "\nNote: Audit functionality moved to tools/audit_cli\n";
 }
 
@@ -619,6 +627,134 @@ int main(int argc, char* argv[]) {
         sentio::TemporalAnalysisConfig tcfg_test; tcfg_test.num_quarters = test_quarters; tcfg_test.print_detailed_report = true;
         auto test_summary = sentio::run_temporal_analysis(ST, test_series, base_symbol_id, rcfg_best, tcfg_test);
         test_summary.assess_readiness(tcfg_test);
+
+    } else if (command == "vmtest") {
+        if (argc < 4) {
+            std::cout << "Usage: sentio_cli vmtest <strategy> <symbol> [--days <n>] [--hours <n>] [--simulations <n>] [--params <json>] [--historical-data <file>]\n";
+            return 1;
+        }
+        
+        std::string strategy_name = argv[2];
+        std::string symbol = argv[3];
+        int days = 30;
+        int hours = 0;
+        int simulations = 100;
+        std::string params_json = "{}";
+        std::string historical_data_file = "data/equities/" + symbol + "_RTH_NH.csv";
+        
+        for (int i = 4; i < argc; i++) {
+            std::string arg = argv[i];
+            if (arg == "--days" && i + 1 < argc) {
+                days = std::stoi(argv[++i]);
+            } else if (arg == "--hours" && i + 1 < argc) {
+                hours = std::stoi(argv[++i]);
+            } else if (arg == "--simulations" && i + 1 < argc) {
+                simulations = std::stoi(argv[++i]);
+            } else if (arg == "--params" && i + 1 < argc) {
+                params_json = argv[++i];
+            } else if (arg == "--historical-data" && i + 1 < argc) {
+                historical_data_file = argv[++i];
+            }
+        }
+        
+        std::cout << "🚀 Starting Virtual Market Test (Fast Historical Bridge)..." << std::endl;
+        std::cout << "📊 Strategy: " << strategy_name << std::endl;
+        std::cout << "📈 Symbol: " << symbol << std::endl;
+        std::cout << "⏱️  Duration: " << (hours > 0 ? std::to_string(hours) + " hours" : std::to_string(days) + " days") << std::endl;
+        std::cout << "🎲 Simulations: " << simulations << std::endl;
+        std::cout << "📊 Historical data: " << historical_data_file << std::endl;
+        std::cout << "⚡ Using optimized historical patterns" << std::endl;
+        
+        // Convert days/hours to continuation minutes
+        int continuation_minutes = hours > 0 ? hours * 60 : days * 390; // 390 minutes per trading day
+        
+        // Run fast historical test
+        sentio::VirtualMarketEngine vm_engine;
+        auto results = vm_engine.run_fast_historical_test(strategy_name, symbol, historical_data_file, 
+                                                         continuation_minutes, simulations, params_json);
+        
+        std::cout << "\n✅ Virtual Market Test completed successfully" << std::endl;
+
+    } else if (command == "marstest") {
+        if (argc < 4) {
+            std::cout << "Usage: sentio_cli marstest <strategy> <symbol> [--days <n>] [--simulations <n>] [--regime <regime>] [--params <json>]\n";
+            return 1;
+        }
+        
+        std::string strategy_name = argv[2];
+        std::string symbol = argv[3];
+        int days = 1; // Start with 1 day for MarS
+        int simulations = 10; // Fewer simulations for MarS (more expensive)
+        std::string market_regime = "normal";
+        std::string params_json = "{}";
+        
+        for (int i = 4; i < argc; i++) {
+            std::string arg = argv[i];
+            if (arg == "--days" && i + 1 < argc) {
+                days = std::stoi(argv[++i]);
+            } else if (arg == "--simulations" && i + 1 < argc) {
+                simulations = std::stoi(argv[++i]);
+            } else if (arg == "--regime" && i + 1 < argc) {
+                market_regime = argv[++i];
+            } else if (arg == "--params" && i + 1 < argc) {
+                params_json = argv[++i];
+            }
+        }
+        
+        std::cout << "🚀 Starting MarS Virtual Market Test..." << std::endl;
+        std::cout << "📊 Strategy: " << strategy_name << std::endl;
+        std::cout << "📈 Symbol: " << symbol << std::endl;
+        std::cout << "⏱️  Duration: " << days << " days" << std::endl;
+        std::cout << "🎲 Simulations: " << simulations << std::endl;
+        std::cout << "🌊 Market Regime: " << market_regime << std::endl;
+        std::cout << "🤖 Using MarS AI-powered market simulation" << std::endl;
+        
+        // Run MarS virtual market test
+        sentio::VirtualMarketEngine vm_engine;
+        auto results = vm_engine.run_mars_vm_test(strategy_name, symbol, days, simulations, market_regime, params_json);
+        
+        std::cout << "\n✅ MarS VM test completed successfully" << std::endl;
+
+    } else if (command == "fasttest") {
+        if (argc < 4) {
+            std::cout << "Usage: sentio_cli fasttest <strategy> <symbol> [--historical-data <file>] [--continuation-minutes <n>] [--simulations <n>] [--params <json>]\n";
+            return 1;
+        }
+        
+        std::string strategy_name = argv[2];
+        std::string symbol = argv[3];
+        std::string historical_data_file = "data/equities/" + symbol + "_RTH_NH.csv";
+        int continuation_minutes = 60;
+        int simulations = 10;
+        std::string params_json = "{}";
+        
+        for (int i = 4; i < argc; i++) {
+            std::string arg = argv[i];
+            if (arg == "--historical-data" && i + 1 < argc) {
+                historical_data_file = argv[++i];
+            } else if (arg == "--continuation-minutes" && i + 1 < argc) {
+                continuation_minutes = std::stoi(argv[++i]);
+            } else if (arg == "--simulations" && i + 1 < argc) {
+                simulations = std::stoi(argv[++i]);
+            } else if (arg == "--params" && i + 1 < argc) {
+                params_json = argv[++i];
+            }
+        }
+        
+        std::cout << "⚡ Starting Fast Historical Test..." << std::endl;
+        std::cout << "📊 Strategy: " << strategy_name << std::endl;
+        std::cout << "📈 Symbol: " << symbol << std::endl;
+        std::cout << "📊 Historical data: " << historical_data_file << std::endl;
+        std::cout << "⏱️  Continuation: " << continuation_minutes << " minutes" << std::endl;
+        std::cout << "🎲 Simulations: " << simulations << std::endl;
+        std::cout << "🚀 Using optimized historical patterns" << std::endl;
+        
+        // Run fast historical test
+        sentio::VirtualMarketEngine vm_engine;
+        auto results = vm_engine.run_fast_historical_test(strategy_name, symbol, historical_data_file, 
+                                                         continuation_minutes, simulations, params_json);
+        
+        std::cout << "\n✅ Fast historical test completed successfully" << std::endl;
 
     } else {
         usage();

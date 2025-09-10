@@ -232,16 +232,16 @@ double IREStrategy::calculate_target_weight(const std::vector<Bar>& bars, int i)
     }
     debug_count++;
     
-    // **SIMPLIFIED**: No target weight calculation - just return probability for runner
-    return 0.0; // Runner will handle all allocation logic
+    // **FIXED**: Return the calculated momentum signal probability
+    return momentum_signal; // Return actual probability for signal generation
 }
 
 void IREStrategy::ensure_governor_built_() {
     if (governor_) return;
     IntradayPositionGovernor::Config gov_config;
     gov_config.lookback_window = 45;        // Shorter for more responsiveness to Alpha Kernel
-    gov_config.buy_percentile = 0.80;       // More aggressive to capture Alpha signals
-    gov_config.sell_percentile = 0.20;      // More aggressive to capture Alpha signals
+    gov_config.buy_percentile = params_["buy_hi"];   // Use actual strategy parameter
+    gov_config.sell_percentile = params_["sell_lo"]; // Use actual strategy parameter
     gov_config.max_base_weight = 1.0; 
     gov_config.min_abs_edge = 0.03;         // Lower threshold to allow Alpha Kernel through
     governor_ = std::make_unique<IntradayPositionGovernor>(gov_config);
