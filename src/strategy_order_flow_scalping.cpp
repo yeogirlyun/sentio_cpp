@@ -46,12 +46,10 @@ double OrderFlowScalpingStrategy::calculate_bar_pressure(const Bar& bar) const {
     return (bar.close - bar.low) / range;
 }
 
-StrategySignal OrderFlowScalpingStrategy::calculate_signal(const std::vector<Bar>& bars, int current_index) {
-    StrategySignal signal;
-
+double OrderFlowScalpingStrategy::calculate_probability(const std::vector<Bar>& bars, int current_index) {
     if (current_index < lookback_period_) {
         diag_.drop(DropReason::MIN_BARS);
-        return signal;
+        return 0.5; // Neutral
     }
 
     const auto& bar = bars[current_index];
@@ -62,18 +60,20 @@ StrategySignal OrderFlowScalpingStrategy::calculate_signal(const std::vector<Bar
     if (of_state_ == OFState::Long || of_state_ == OFState::Short) {
         bars_in_trade_++;
         if (bars_in_trade_ >= hold_max_bars_) {
-            signal.type = (of_state_ == OFState::Long) ? StrategySignal::Type::SELL : StrategySignal::Type::BUY;
+            double exit_prob = (of_state_ == OFState::Long) ? 0.3 : 0.7; // SELL or BUY
             diag_.emitted++;
             reset_state();
+            return exit_prob;
         }
-        return signal;
+        return 0.5; // Hold current position
     }
     
     if (is_cooldown_active(current_index, cool_down_period_)) {
         diag_.drop(DropReason::COOLDOWN);
-        return signal;
+        return 0.5; // Neutral
     }
 
+    double probability = 0.5; // Default neutral
     switch (of_state_) {
         case OFState::Idle:
             if (avg_pressure > imbalance_threshold_) of_state_ = OFState::ArmedLong;
@@ -83,7 +83,7 @@ StrategySignal OrderFlowScalpingStrategy::calculate_signal(const std::vector<Bar
             
         case OFState::ArmedLong:
             if (pressure > 0.5) { // Confirmation bar must be bullish
-                signal.type = StrategySignal::Type::BUY;
+                probability = 0.7; // Buy signal
                 of_state_ = OFState::Long;
             } else { // Failed confirmation
                 of_state_ = OFState::Idle;
@@ -93,7 +93,7 @@ StrategySignal OrderFlowScalpingStrategy::calculate_signal(const std::vector<Bar
 
         case OFState::ArmedShort:
             if (pressure < 0.5) { // Confirmation bar must be bearish
-                signal.type = StrategySignal::Type::SELL;
+                probability = 0.3; // Sell signal
                 of_state_ = OFState::Short;
             } else { // Failed confirmation
                 of_state_ = OFState::Idle;
@@ -103,15 +103,72 @@ StrategySignal OrderFlowScalpingStrategy::calculate_signal(const std::vector<Bar
         default: break;
     }
     
-    if (signal.type != StrategySignal::Type::HOLD) {
-        signal.confidence = 0.7;
+    if (probability != 0.5) {
         diag_.emitted++;
         bars_in_trade_ = 0;
         // **FIXED**: This now correctly refers to the 'state_' member from BaseStrategy
         state_.last_trade_bar = current_index;
     }
     
-    return signal;
+    return probability;
+}
+
+std::vector<BaseStrategy::AllocationDecision> OrderFlowScalpingStrategy::get_allocation_decisions(
+    const std::vector<Bar>& bars, 
+    int current_index,
+    const std::string& base_symbol,
+    const std::string& bull3x_symbol,
+    const std::string& bear3x_symbol,
+    const std::string& bear1x_symbol) {
+    
+    std::vector<AllocationDecision> decisions;
+    
+    // Get probability from strategy
+    double probability = calculate_probability(bars, current_index);
+    
+    // OrderFlowScalping uses simple allocation based on signal strength
+    if (probability > 0.6) {
+        // Buy signal
+        double conviction = (probability - 0.6) / 0.4; // Scale 0.6-1.0 to 0-1
+        double base_weight = 0.2 + (conviction * 0.3); // 20-50% allocation (scalping is smaller)
+        
+        decisions.push_back({base_symbol, base_weight, conviction, "OrderFlowScalping buy: 100% QQQ"});
+    } else if (probability < 0.4) {
+        // Sell signal
+        double conviction = (0.4 - probability) / 0.4; // Scale 0.0-0.4 to 0-1
+        double base_weight = 0.2 + (conviction * 0.3); // 20-50% allocation (scalping is smaller)
+        
+        decisions.push_back({bear1x_symbol, base_weight, conviction, "OrderFlowScalping sell: 100% PSQ"});
+    }
+    
+    // Ensure all instruments are flattened if not in allocation
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    for (const auto& inst : all_instruments) {
+        bool found = false;
+        for (const auto& decision : decisions) {
+            if (decision.instrument == inst) { found = true; break; }
+        }
+        if (!found) {
+            decisions.push_back({inst, 0.0, 0.0, "OrderFlowScalping: Flatten unused instrument"});
+        }
+    }
+    
+    return decisions;
+}
+
+RouterCfg OrderFlowScalpingStrategy::get_router_config() const {
+    RouterCfg cfg;
+    cfg.bull3x = "TQQQ";
+    cfg.bear3x = "SQQQ";
+    cfg.bear1x = "PSQ";
+    return cfg;
+}
+
+SizerCfg OrderFlowScalpingStrategy::get_sizer_config() const {
+    SizerCfg cfg;
+    cfg.max_position_pct = 0.5; // 50% max position for scalping
+    cfg.volatility_target = 0.10; // 10% volatility target
+    return cfg;
 }
 
 REGISTER_STRATEGY(OrderFlowScalpingStrategy, "OrderFlowScalping");

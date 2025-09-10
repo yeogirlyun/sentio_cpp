@@ -1,16 +1,18 @@
 # Sentio C++ Project Rules
 
 ## 1. Documentation Policy
-- **NO DOCUMENTS** without explicit instruction
-- Only two major documents allowed: `architecture` and `readme`
-- All other documents are **PROHIBITED** unless explicitly requested
-- Exception: Bug reports and requirements via mega-documents when requested
+- **MAINTAIN ONLY TWO DOCUMENTS**: `docs/architecture.md` and `docs/readme.md`
+- **NO OTHER DOCUMENTS** allowed in `docs/` folder unless explicitly requested
+- **MEGA-DOCS EXCEPTION**: Mega-documents stay in `megadocs/` folder and are not part of the document system
+- **ARCHITECTURE DOCUMENT**: Must be comprehensive and cover all system components
+- **README DOCUMENT**: Must provide quick start guide and essential usage information
 
 ## 2. Mega Document Creation
 - **ALWAYS** use `tools/create_mega_document.py`
 - **MUST** include all relevant source modules
 - **MUST** include requested bug report or requirement document
 - Auto-generate comprehensive documentation for AI model understanding
+- **MEGA-DOCS LOCATION**: Store in `megadocs/` folder, not `docs/`
 
 ## 3. Task Review/Summary Standards
 - **Concise and specific** reporting

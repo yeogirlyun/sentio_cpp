@@ -49,12 +49,10 @@ double OrderFlowImbalanceStrategy::calculate_bar_pressure(const Bar& bar) const 
     return (bar.close - bar.low) / range;
 }
 
-StrategySignal OrderFlowImbalanceStrategy::calculate_signal(const std::vector<Bar>& bars, int current_index) {
-    StrategySignal signal;
-
+double OrderFlowImbalanceStrategy::calculate_probability(const std::vector<Bar>& bars, int current_index) {
     if (current_index < lookback_period_) {
         diag_.drop(DropReason::MIN_BARS);
-        return signal;
+        return 0.5; // Neutral
     }
 
     double pressure = calculate_bar_pressure(bars[current_index]);
@@ -64,39 +62,97 @@ StrategySignal OrderFlowImbalanceStrategy::calculate_signal(const std::vector<Ba
     if (ofi_state_ == OFIState::Flat) {
         if (is_cooldown_active(current_index, cool_down_period_)) {
             diag_.drop(DropReason::COOLDOWN);
-            return signal;
+            return 0.5; // Neutral
         }
 
+        double probability;
         if (avg_pressure > entry_threshold_long_) {
-            signal.type = StrategySignal::Type::BUY;
+            probability = 0.7; // Buy signal
             ofi_state_ = OFIState::Long;
             // **FIXED**: Correctly access the 'state_' member from BaseStrategy
             state_.last_trade_bar = current_index;
         } else if (avg_pressure < entry_threshold_short_) {
-            signal.type = StrategySignal::Type::SELL;
+            probability = 0.3; // Sell signal
             ofi_state_ = OFIState::Short;
             // **FIXED**: Correctly access the 'state_' member from BaseStrategy
             state_.last_trade_bar = current_index;
         } else {
             diag_.drop(DropReason::THRESHOLD);
-            return signal;
+            return 0.5; // Neutral
         }
 
-        signal.confidence = 0.7;
         diag_.emitted++;
-        bars_in_trade_ = 0;
+        return probability;
 
     } else { // In a trade, check for exit
         bars_in_trade_++;
         if (bars_in_trade_ >= hold_max_bars_) {
             // **FIXED**: Use 'ofi_state_' to determine exit signal direction
-            signal.type = (ofi_state_ == OFIState::Long) ? StrategySignal::Type::SELL : StrategySignal::Type::BUY;
+            double exit_prob = (ofi_state_ == OFIState::Long) ? 0.3 : 0.7; // SELL or BUY
             diag_.emitted++;
             reset_state();
+            return exit_prob;
+        }
+        return 0.5; // Hold current position
+    }
+}
+
+std::vector<BaseStrategy::AllocationDecision> OrderFlowImbalanceStrategy::get_allocation_decisions(
+    const std::vector<Bar>& bars, 
+    int current_index,
+    const std::string& base_symbol,
+    const std::string& bull3x_symbol,
+    const std::string& bear3x_symbol,
+    const std::string& bear1x_symbol) {
+    
+    std::vector<AllocationDecision> decisions;
+    
+    // Get probability from strategy
+    double probability = calculate_probability(bars, current_index);
+    
+    // OrderFlowImbalance uses simple allocation based on signal strength
+    if (probability > 0.6) {
+        // Buy signal
+        double conviction = (probability - 0.6) / 0.4; // Scale 0.6-1.0 to 0-1
+        double base_weight = 0.3 + (conviction * 0.4); // 30-70% allocation
+        
+        decisions.push_back({base_symbol, base_weight, conviction, "OrderFlowImbalance buy: 100% QQQ"});
+    } else if (probability < 0.4) {
+        // Sell signal
+        double conviction = (0.4 - probability) / 0.4; // Scale 0.0-0.4 to 0-1
+        double base_weight = 0.3 + (conviction * 0.4); // 30-70% allocation
+        
+        decisions.push_back({bear1x_symbol, base_weight, conviction, "OrderFlowImbalance sell: 100% PSQ"});
+    }
+    
+    // Ensure all instruments are flattened if not in allocation
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    for (const auto& inst : all_instruments) {
+        bool found = false;
+        for (const auto& decision : decisions) {
+            if (decision.instrument == inst) { found = true; break; }
+        }
+        if (!found) {
+            decisions.push_back({inst, 0.0, 0.0, "OrderFlowImbalance: Flatten unused instrument"});
         }
     }
+    
+    return decisions;
+}
 
-    return signal;
+RouterCfg OrderFlowImbalanceStrategy::get_router_config() const {
+    RouterCfg cfg;
+    cfg.bull3x = "TQQQ";
+    cfg.bear3x = "SQQQ";
+    cfg.bear1x = "PSQ";
+    return cfg;
+}
+
+SizerCfg OrderFlowImbalanceStrategy::get_sizer_config() const {
+    SizerCfg cfg;
+    cfg.max_position_pct = 0.7; // 70% max position
+    cfg.volatility_target = 0.12; // 12% volatility target
+    return cfg;
 }
 
 REGISTER_STRATEGY(OrderFlowImbalanceStrategy, "OrderFlowImbalance");

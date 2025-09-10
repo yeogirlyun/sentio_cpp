@@ -50,23 +50,22 @@ void BollingerSqueezeBreakoutStrategy::reset_state() {
     sd_history_.clear();
 }
 
-StrategySignal BollingerSqueezeBreakoutStrategy::calculate_signal(const std::vector<Bar>& bars, int current_index) {
-    StrategySignal signal;
-
+double BollingerSqueezeBreakoutStrategy::calculate_probability(const std::vector<Bar>& bars, int current_index) {
     if (current_index < squeeze_lookback_) {
         diag_.drop(DropReason::MIN_BARS);
-        return signal;
+        return 0.5; // Neutral
     }
     
     if (state_ == State::Long || state_ == State::Short) {
         bars_in_trade_++;
         if (bars_in_trade_ >= hold_max_bars_) {
-            signal.type = (state_ == State::Long) ? StrategySignal::Type::SELL : StrategySignal::Type::BUY;
+            // Exit signal: return opposite of current position
+            double exit_prob = (state_ == State::Long) ? 0.2 : 0.8; // SELL or BUY
             reset_state();
             diag_.emitted++;
-            return signal;
+            return exit_prob;
         }
-        return signal;
+        return 0.5; // Hold current position
     }
 
     update_state_machine(bars[current_index]);
@@ -75,28 +74,28 @@ StrategySignal BollingerSqueezeBreakoutStrategy::calculate_signal(const std::vec
         if (squeeze_duration_ < min_squeeze_bars_) {
             diag_.drop(DropReason::THRESHOLD);
             state_ = State::Idle;
-            return signal;
+            return 0.5; // Neutral
         }
 
         double mid, lo, hi, sd;
         bollinger_.step(bars[current_index].close, mid, lo, hi, sd);
         
+        double probability;
         if (state_ == State::ArmedLong) {
-            signal.type = StrategySignal::Type::BUY;
+            probability = 0.8; // Strong buy signal
             state_ = State::Long;
         } else {
-            signal.type = StrategySignal::Type::SELL;
+            probability = 0.2; // Strong sell signal  
             state_ = State::Short;
         }
         
-        signal.confidence = 0.8;
         diag_.emitted++;
         bars_in_trade_ = 0;
+        return probability;
     } else {
         diag_.drop(DropReason::THRESHOLD);
+        return 0.5; // Neutral
     }
-
-    return signal;
 }
 
 void BollingerSqueezeBreakoutStrategy::update_state_machine(const Bar& bar) {
@@ -140,6 +139,64 @@ double BollingerSqueezeBreakoutStrategy::calculate_volatility_percentile(double 
     
     int index = static_cast<int>(percentile * (sorted_history.size() - 1));
     return sorted_history[index];
+}
+
+std::vector<BaseStrategy::AllocationDecision> BollingerSqueezeBreakoutStrategy::get_allocation_decisions(
+    const std::vector<Bar>& bars, 
+    int current_index,
+    const std::string& base_symbol,
+    const std::string& bull3x_symbol,
+    const std::string& bear3x_symbol,
+    const std::string& bear1x_symbol) {
+    
+    std::vector<AllocationDecision> decisions;
+    
+    // Get probability from strategy
+    double probability = calculate_probability(bars, current_index);
+    
+    // BollingerSqueezeBreakout uses simple allocation based on signal strength
+    if (probability > 0.7) {
+        // Strong buy signal
+        double conviction = (probability - 0.7) / 0.3; // Scale 0.7-1.0 to 0-1
+        double base_weight = 0.4 + (conviction * 0.6); // 40-100% allocation
+        
+        decisions.push_back({base_symbol, base_weight, conviction, "Bollinger strong buy: 100% QQQ"});
+    } else if (probability < 0.3) {
+        // Strong sell signal
+        double conviction = (0.3 - probability) / 0.3; // Scale 0.0-0.3 to 0-1
+        double base_weight = 0.4 + (conviction * 0.6); // 40-100% allocation
+        
+        decisions.push_back({bear1x_symbol, base_weight, conviction, "Bollinger strong sell: 100% PSQ"});
+    }
+    
+    // Ensure all instruments are flattened if not in allocation
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    for (const auto& inst : all_instruments) {
+        bool found = false;
+        for (const auto& decision : decisions) {
+            if (decision.instrument == inst) { found = true; break; }
+        }
+        if (!found) {
+            decisions.push_back({inst, 0.0, 0.0, "Bollinger: Flatten unused instrument"});
+        }
+    }
+    
+    return decisions;
+}
+
+RouterCfg BollingerSqueezeBreakoutStrategy::get_router_config() const {
+    RouterCfg cfg;
+    cfg.bull3x = "TQQQ";
+    cfg.bear3x = "SQQQ";
+    cfg.bear1x = "PSQ";
+    return cfg;
+}
+
+SizerCfg BollingerSqueezeBreakoutStrategy::get_sizer_config() const {
+    SizerCfg cfg;
+    cfg.max_position_pct = 1.0; // 100% max position
+    cfg.volatility_target = 0.15; // 15% volatility target
+    return cfg;
 }
 
 REGISTER_STRATEGY(BollingerSqueezeBreakoutStrategy, "BollingerSqueezeBreakout");

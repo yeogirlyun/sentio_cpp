@@ -48,12 +48,86 @@ void IREStrategy::apply_params() {
     pnl_history_.clear(); // Initialize Kelly state
 }
 
-StrategySignal IREStrategy::calculate_signal(const std::vector<Bar>&, int) {
-  // Legacy compatibility - not used by new architecture
-  StrategySignal out; 
-  out.type = StrategySignal::Type::HOLD; 
-  out.confidence = 0.0;
-  return out;
+double IREStrategy::calculate_probability(const std::vector<Bar>& bars, int current_index) {
+  // Use the existing calculate_target_weight method which already returns probability
+  return calculate_target_weight(bars, current_index);
+}
+
+std::vector<BaseStrategy::AllocationDecision> IREStrategy::get_allocation_decisions(
+    const std::vector<Bar>& bars, 
+    int current_index,
+    const std::string& base_symbol,
+    const std::string& bull3x_symbol,
+    const std::string& bear3x_symbol,
+    const std::string& bear1x_symbol) {
+    
+    std::vector<AllocationDecision> decisions;
+    
+    // Get probability from strategy
+    double probability = calculate_probability(bars, current_index);
+    
+    // **DYNAMIC LEVERAGE ALLOCATION LOGIC BASED ON SIGNAL STRENGTH**
+    if (probability > 0.80) {
+        // **STRONG BUY**: High conviction - aggressive leverage
+        double conviction = (probability - 0.80) / 0.20; // 0-1 scale within strong range
+        double base_weight = 0.6 + (conviction * 0.4); // 60-100% allocation
+        
+        decisions.push_back({bull3x_symbol, base_weight * 0.7, conviction, "Strong buy: 70% TQQQ"});
+        decisions.push_back({base_symbol, base_weight * 0.3, conviction, "Strong buy: 30% QQQ"});
+    } 
+    else if (probability > 0.55) {
+        // **MODERATE BUY**: Good conviction - conservative allocation
+        double conviction = (probability - 0.55) / 0.25; // 0-1 scale within moderate range
+        double base_weight = 0.3 + (conviction * 0.3); // 30-60% allocation
+        
+        decisions.push_back({base_symbol, base_weight, conviction, "Moderate buy: 100% QQQ"});
+    }
+    else if (probability < 0.20) {
+        // **STRONG SELL**: High conviction - aggressive inverse leverage
+        double conviction = (0.20 - probability) / 0.20; // 0-1 scale within strong range
+        double base_weight = 0.6 + (conviction * 0.4); // 60-100% allocation
+        
+        decisions.push_back({bear3x_symbol, base_weight, conviction, "Strong sell: 100% SQQQ"});
+    }
+    else if (probability < 0.45) {
+        // **MODERATE SELL**: Good conviction - conservative inverse
+        double conviction = (0.45 - probability) / 0.25; // 0-1 scale within moderate range  
+        double base_weight = 0.3 + (conviction * 0.3); // 30-60% allocation
+        
+        decisions.push_back({bear1x_symbol, base_weight, conviction, "Moderate sell: 100% PSQ"});
+    }
+    // **NEUTRAL ZONE** (0.45-0.55): No allocations = stay flat
+    
+    // **ENSURE ALL INSTRUMENTS ARE FLATTENED IF NOT IN ALLOCATION**
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    for (const auto& inst : all_instruments) {
+        bool found = false;
+        for (const auto& decision : decisions) {
+            if (decision.instrument == inst) { found = true; break; }
+        }
+        if (!found) {
+            decisions.push_back({inst, 0.0, 0.0, "Flatten unused instrument"});
+        }
+    }
+    
+    return decisions;
+}
+
+RouterCfg IREStrategy::get_router_config() const {
+    // IRE uses default router configuration
+    RouterCfg cfg;
+    cfg.bull3x = "TQQQ";
+    cfg.bear3x = "SQQQ";
+    cfg.bear1x = "PSQ";
+    return cfg;
+}
+
+SizerCfg IREStrategy::get_sizer_config() const {
+    // IRE uses default sizer configuration
+    SizerCfg cfg;
+    cfg.max_position_pct = 1.0; // 100% max position
+    cfg.volatility_target = 0.15; // 15% volatility target
+    return cfg;
 }
 
 double IREStrategy::calculate_target_weight(const std::vector<Bar>& bars, int i) {
@@ -155,10 +229,6 @@ double IREStrategy::calculate_target_weight(const std::vector<Bar>& bars, int i)
             ma_20_debug /= 20.0;
             momentum_pct = (bars[i].close - ma_20_debug) / ma_20_debug * 100.0;
         }
-        std::cout << "IRE SIMPLE i=" << i 
-                  << " prob=" << latest_probability_ 
-                  << " price=" << bars[i].close
-                  << " momentum=" << momentum_pct << "%" << std::endl;
     }
     debug_count++;
     

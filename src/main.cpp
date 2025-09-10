@@ -14,6 +14,7 @@
 #include "sentio/feature/feature_matrix.hpp" // For FeatureMatrix
 // TFB strategy removed - focusing on TFA only
 #include "sentio/strategy_tfa.hpp" // For TFA strategy
+#include "sentio/strategy_registry.hpp" // For configuration-based strategy registration
 
 #include <iostream>
 #include <unordered_map>
@@ -108,57 +109,33 @@ static void load_strategy_config_if_any(const std::string& strategy_name, sentio
     }
 }
 
-namespace { // Anonymous namespace to ensure link-time registration
-    struct StrategyRegistrar {
-        StrategyRegistrar() {
-            // Register strategies in the factory
-            sentio::StrategyFactory::instance().register_strategy("VWAPReversion", []() -> std::unique_ptr<sentio::BaseStrategy> {
-                return std::make_unique<sentio::VWAPReversionStrategy>();
-            });
-            sentio::StrategyFactory::instance().register_strategy("MomentumVolume", []() -> std::unique_ptr<sentio::BaseStrategy> {
-                return std::make_unique<sentio::MomentumVolumeProfileStrategy>();
-            });
-            sentio::StrategyFactory::instance().register_strategy("BollingerSqueeze", []() -> std::unique_ptr<sentio::BaseStrategy> {
-                return std::make_unique<sentio::BollingerSqueezeBreakoutStrategy>();
-            });
-            sentio::StrategyFactory::instance().register_strategy("OpeningRange", []() -> std::unique_ptr<sentio::BaseStrategy> {
-                return std::make_unique<sentio::OpeningRangeBreakoutStrategy>();
-            });
-            sentio::StrategyFactory::instance().register_strategy("OrderFlowScalping", []() -> std::unique_ptr<sentio::BaseStrategy> {
-                return std::make_unique<sentio::OrderFlowScalpingStrategy>();
-            });
-            sentio::StrategyFactory::instance().register_strategy("OrderFlowImbalance", []() -> std::unique_ptr<sentio::BaseStrategy> {
-                return std::make_unique<sentio::OrderFlowImbalanceStrategy>();
-            });
-            sentio::StrategyFactory::instance().register_strategy("MarketMaking", []() -> std::unique_ptr<sentio::BaseStrategy> {
-                return std::make_unique<sentio::MarketMakingStrategy>();
-            });
-            // TransformerTS inherits from IStrategy, not BaseStrategy, so skip for now
-            // TFB strategy removed - focusing on TFA only
-            sentio::StrategyFactory::instance().register_strategy("tfa", []() -> std::unique_ptr<sentio::BaseStrategy> {
-                return std::unique_ptr<sentio::BaseStrategy>(new sentio::TFAStrategy(sentio::TFACfg{}));
-            });
-        }
-    };
-    static StrategyRegistrar registrar;
-}
+// Strategy registration is now handled by StrategyRegistry::load_from_config()
+// This eliminates code duplication and allows dynamic strategy configuration
 
 
 void usage() {
     std::cout << "Usage: sentio_cli <command> [options]\n"
               << "Commands:\n"
-              << "  backtest <symbol> [--strategy <name>] [--params <k=v,...>]\n"
-              << "  tpa_test <symbol> [--strategy <name>] [--params <k=v,...>] [--quarters <n>]\n"
+              << "  tpatest <symbol> [--strategy <name>] [--params <k=v,...>] [--quarters <n>] [--weeks <n>] [--days <n>]\n"
               << "  test-models [--strategy <name>] [--data <file>] [--start <date>] [--end <date>]\n"
               << "  tune_ire <symbol> [--test_quarters <n>]\n"
-              << "  audit_replay <audit_file.jsonl> [--summary] [--trades] [--metrics]\n"
-              << "  audit_format <audit_file.jsonl> [--output <output_file>] [--type <txt|csv>]\n";
+              << "\nTime Period Options (most recent periods):\n"
+              << "  --quarters <n>  Analyze the most recent n quarters\n"
+              << "  --weeks <n>      Analyze the most recent n weeks\n"
+              << "  --days <n>       Analyze the most recent n days\n"
+              << "  (no option)      Analyze entire dataset\n"
+              << "\nNote: Audit functionality moved to tools/audit_cli\n";
 }
 
 int main(int argc, char* argv[]) {
     // Configure LibTorch threading to prevent oversubscription (disabled for audit commands)
     // at::set_num_threads(1);         // intra-op
     // at::set_num_interop_threads(1); // inter-op
+    
+    // Initialize strategy registry from configuration
+    if (!sentio::StrategyRegistry::load_from_config()) {
+        std::cerr << "Warning: Failed to load strategy configuration, using default registrations" << std::endl;
+    }
     
     if (argc < 2) {
         usage();
@@ -167,165 +144,18 @@ int main(int argc, char* argv[]) {
 
     std::string command = argv[1];
     
-    if (command == "backtest") {
+    if (command == "tpatest") {
         if (argc < 3) {
-            std::cout << "Usage: sentio_cli backtest <symbol> [--strategy <name>] [--params <k=v,...>]\n";
-            return 1;
-        }
-        
-        std::string base_symbol = argv[2];
-        std::string strategy_name = "VWAPReversion";
-        std::unordered_map<std::string, std::string> strategy_params;
-        
-        for (int i = 3; i < argc; i++) {
-            std::string arg = argv[i];
-            if (arg == "--strategy" && i + 1 < argc) {
-                strategy_name = argv[++i];
-            } else if (arg == "--params" && i + 1 < argc) {
-                std::string params_str = argv[++i];
-                std::stringstream ss(params_str);
-                std::string pair;
-                while (std::getline(ss, pair, ',')) {
-                    size_t eq_pos = pair.find('=');
-                    if (eq_pos != std::string::npos) {
-                        strategy_params[pair.substr(0, eq_pos)] = pair.substr(eq_pos + 1);
-                    }
-                }
-            }
-        }
-        
-        sentio::SymbolTable ST;
-        std::vector<std::vector<sentio::Bar>> series;
-        std::vector<std::string> symbols_to_load = {base_symbol};
-        if (base_symbol == "QQQ") {
-            symbols_to_load.push_back("TQQQ");
-            symbols_to_load.push_back("SQQQ");
-            symbols_to_load.push_back("PSQ");
-        }
-
-        std::cout << "Loading data for symbols: ";
-        for(const auto& sym : symbols_to_load) std::cout << sym << " ";
-        std::cout << std::endl;
-
-        for (const auto& sym : symbols_to_load) {
-            std::vector<sentio::Bar> bars;
-            std::string data_path = sentio::resolve_csv(sym);
-            if (!sentio::load_csv(data_path, bars)) {
-                std::cerr << "ERROR: Failed to load data for " << sym << " from " << data_path << std::endl;
-                continue;
-            }
-            std::cout << " -> Loaded " << bars.size() << " bars for " << sym << std::endl;
-            
-            int symbol_id = ST.intern(sym);
-            if (static_cast<size_t>(symbol_id) >= series.size()) {
-                series.resize(symbol_id + 1);
-            }
-            series[symbol_id] = std::move(bars);
-        }
-        
-        int base_symbol_id = ST.get_id(base_symbol);
-        if (series.empty() || series[base_symbol_id].empty()) {
-            std::cerr << "FATAL: No data loaded for base symbol " << base_symbol << std::endl;
-            return 1;
-        }
-
-        // Report data period and bars for transparency
-        auto& base_bars = series[base_symbol_id];
-        auto fmt_date = [](std::int64_t epoch_sec){
-            std::time_t tt = static_cast<std::time_t>(epoch_sec);
-            std::tm tm{}; gmtime_r(&tt, &tm);
-            char buf[32]; std::strftime(buf, sizeof(buf), "%Y-%m-%d", &tm); return std::string(buf);
-        };
-        std::int64_t min_ts = base_bars.front().ts_utc_epoch;
-        std::int64_t max_ts = base_bars.back().ts_utc_epoch;
-        std::size_t   n_bars = base_bars.size();
-        double span_days = double(max_ts - min_ts) / (24.0*3600.0);
-        std::cout << "Data period: " << fmt_date(min_ts) << " → " << fmt_date(max_ts)
-                  << " (" << std::fixed << std::setprecision(1) << span_days << " days)\n";
-        std::cout << "Bars(" << base_symbol << "): " << n_bars << "\n";
-        if ((max_ts - min_ts) < (365LL*24LL*3600LL)) {
-            std::cerr << "WARNING: Data period is shorter than 1 year. Results may be unrepresentative.\n";
-        }
-
-        // **NEW**: Data Sanity Check - Verify RTH filtering post-load.
-        // This acts as a safety net. If your data was generated with RTH filtering,
-        // this check ensures the filtering was successful.
-        std::cout << "\nVerifying data integrity for RTH..." << std::endl;
-        bool rth_filter_failed = false;
-        sentio::TradingCalendar calendar = sentio::make_default_nyse_calendar();
-        for (size_t sid = 0; sid < series.size(); ++sid) {
-            if (series[sid].empty()) continue;
-            for (const auto& bar : series[sid]) {
-                if (!calendar.is_rth_utc(bar.ts_utc_epoch, "UTC")) {
-                    std::cerr << "\nFATAL ERROR: Non-RTH data found after filtering!\n"
-                              << " -> Symbol: " << ST.get_symbol(sid) << "\n"
-                              << " -> Timestamp (UTC): " << bar.ts_utc << "\n"
-                              << " -> UTC Epoch: " << bar.ts_utc_epoch << "\n\n"
-                              << "This indicates your data files (*.csv, *.bin) were generated with an old or incorrect RTH filter.\n"
-                              << "Please DELETE your existing data files and REGENERATE them using the updated poly_fetch tool.\n"
-                              << std::endl;
-                    rth_filter_failed = true;
-                    break;
-                }
-            }
-            if (rth_filter_failed) break;
-        }
-
-        if (rth_filter_failed) {
-            std::exit(1); // Exit with an error as requested
-        }
-        std::cout << " -> Data verification passed." << std::endl;
-
-        // Alignment check (all loaded symbols must align to base timestamps)
-        if (!verify_series_alignment(ST, series, base_symbol_id)) {
-            std::cerr << "FATAL: Data alignment check failed. Aborting run." << std::endl;
-            return 1;
-        }
-
-        // Merge defaults from configs/<strategy>.json (overridden by CLI params)
-        sentio::RunnerCfg tmp_cfg; tmp_cfg.strategy_name = strategy_name;
-        load_strategy_config_if_any(strategy_name, tmp_cfg);
-        for (const auto& kv : tmp_cfg.strategy_params){ if (!strategy_params.count(kv.first)) strategy_params[kv.first] = kv.second; }
-        sentio::RunnerCfg cfg;
-        cfg.strategy_name = strategy_name;
-        cfg.strategy_params = strategy_params;
-        cfg.audit_level = sentio::AuditLevel::Full;
-        cfg.snapshot_stride = 100;
-        // **FIX**: Apply full router and sizer config from JSON
-        cfg.router = tmp_cfg.router;
-        cfg.sizer = tmp_cfg.sizer;
-        
-        // Create audit recorder
-        sentio::AuditConfig audit_cfg;
-        long long ts_epoch = std::time(nullptr);
-        audit_cfg.run_id = strategy_name + std::string("_backtest_") + base_symbol + "_" + std::to_string(ts_epoch);
-        audit_cfg.file_path = "audit/" + strategy_name + std::string("_backtest_") + base_symbol + "_" + std::to_string(ts_epoch) + ".jsonl";
-        audit_cfg.flush_each = true;
-        sentio::AuditRecorder audit(audit_cfg);
-        
-        sentio::Tsc timer;
-        timer.tic();
-        auto result = sentio::run_backtest(audit, ST, series, base_symbol_id, cfg);
-        double elapsed = timer.toc_sec();
-        
-        std::cout << "\nBacktest completed in " << elapsed << "s\n";
-        std::cout << "Final Equity: " << result.final_equity << "\n";
-        std::cout << "Total Return: " << result.total_return << "%\n";
-        std::cout << "Sharpe Ratio: " << result.sharpe_ratio << "\n";
-        std::cout << "Max Drawdown: " << result.max_drawdown << "%\n";
-        std::cout << "Total Fills: " << result.total_fills << "\n";
-        std::cout << "Diagnostics -> No Route: " << result.no_route << " | No Quantity: " << result.no_qty << "\n";
-
-    } else if (command == "tpa_test") {
-        if (argc < 3) {
-            std::cout << "Usage: sentio_cli tpa_test <symbol> [--strategy <name>] [--params <k=v,...>] [--quarters <n>]\n";
+            std::cout << "Usage: sentio_cli tpatest <symbol> [--strategy <name>] [--params <k=v,...>] [--quarters <n>] [--weeks <n>] [--days <n>]\n";
             return 1;
         }
         
         std::string base_symbol = argv[2];
         std::string strategy_name = "TFA";
         std::unordered_map<std::string, std::string> strategy_params;
-        int num_quarters = 1; // default: most recent quarter
+        int num_quarters = 0; // default: all data
+        int num_weeks = 0;
+        int num_days = 0;
         
         for (int i = 3; i < argc; i++) {
             std::string arg = argv[i];
@@ -343,6 +173,10 @@ int main(int argc, char* argv[]) {
                 }
             } else if (arg == "--quarters" && i + 1 < argc) {
                 num_quarters = std::stoi(argv[++i]);
+            } else if (arg == "--weeks" && i + 1 < argc) {
+                num_weeks = std::stoi(argv[++i]);
+            } else if (arg == "--days" && i + 1 < argc) {
+                num_days = std::stoi(argv[++i]);
             }
         }
         
@@ -360,10 +194,8 @@ int main(int argc, char* argv[]) {
         std::cout << std::endl;
 
         for (const auto& sym : symbols_to_load) {
-            std::cout << "DEBUG: Starting to load symbol: " << sym << std::endl;
             std::vector<sentio::Bar> bars;
             std::string data_path = sentio::resolve_csv(sym);
-            std::cout << "DEBUG: Resolved data path for " << sym << ": " << data_path << std::endl;
             
             if (!sentio::load_csv(data_path, bars)) {
                 std::cerr << "ERROR: Failed to load data for " << sym << " from " << data_path << std::endl;
@@ -372,13 +204,10 @@ int main(int argc, char* argv[]) {
             std::cout << " -> Loaded " << bars.size() << " bars for " << sym << std::endl;
             
             int symbol_id = ST.intern(sym);
-            std::cout << "DEBUG: Symbol " << sym << " assigned ID: " << symbol_id << std::endl;
             if (static_cast<size_t>(symbol_id) >= series.size()) {
                 series.resize(symbol_id + 1);
-                std::cout << "DEBUG: Resized series to " << (symbol_id + 1) << " for " << sym << std::endl;
             }
             series[symbol_id] = std::move(bars);
-            std::cout << "DEBUG: Successfully stored " << series[symbol_id].size() << " bars for " << sym << " at ID " << symbol_id << std::endl;
         }
         
         int base_symbol_id = ST.get_id(base_symbol);
@@ -448,10 +277,22 @@ int main(int argc, char* argv[]) {
         
         sentio::TemporalAnalysisConfig temporal_cfg;
         temporal_cfg.num_quarters = num_quarters;
+        temporal_cfg.num_weeks = num_weeks;
+        temporal_cfg.num_days = num_days;
         temporal_cfg.print_detailed_report = true;
         
         std::cout << "\nRunning TPA (Temporal Performance Analysis) Test..." << std::endl;
-        std::cout << "Strategy: " << strategy_name << ", Quarters: " << num_quarters << std::endl;
+        std::cout << "Strategy: " << strategy_name;
+        if (num_days > 0) {
+            std::cout << ", Days: " << num_days;
+        } else if (num_weeks > 0) {
+            std::cout << ", Weeks: " << num_weeks;
+        } else if (num_quarters > 0) {
+            std::cout << ", Quarters: " << num_quarters;
+        } else {
+            std::cout << ", Full Dataset";
+        }
+        std::cout << std::endl;
         
         sentio::Tsc timer;
         timer.tic();
@@ -462,6 +303,16 @@ int main(int argc, char* argv[]) {
         
         if (temporal_cfg.print_detailed_report) {
             sentio::TemporalAnalyzer analyzer;
+            // Set the correct period name based on the configuration
+            if (num_days > 0) {
+                analyzer.set_period_name("day");
+            } else if (num_weeks > 0) {
+                analyzer.set_period_name("week");
+            } else if (num_quarters > 0) {
+                analyzer.set_period_name("quarter");
+            } else {
+                analyzer.set_period_name("full period");
+            }
             for (const auto& q : summary.quarterly_results) {
                 analyzer.add_quarterly_result(q);
             }
@@ -769,283 +620,6 @@ int main(int argc, char* argv[]) {
         auto test_summary = sentio::run_temporal_analysis(ST, test_series, base_symbol_id, rcfg_best, tcfg_test);
         test_summary.assess_readiness(tcfg_test);
 
-    } else if (command == "audit_replay") {
-        if (argc < 3) {
-            std::cout << "Usage: sentio_cli audit_replay <audit_file.jsonl> [--summary] [--trades] [--metrics]\n";
-            return 1;
-        }
-        
-        std::string audit_file = argv[2];
-        bool show_summary = false, show_trades = false, show_metrics = false;
-        
-        // Parse flags
-        for (int i = 3; i < argc; i++) {
-            std::string arg = argv[i];
-            if (arg == "--summary") show_summary = true;
-            else if (arg == "--trades") show_trades = true;
-            else if (arg == "--metrics") show_metrics = true;
-        }
-        
-        // Default to showing everything if no specific flags
-        if (!show_summary && !show_trades && !show_metrics) {
-            show_summary = show_trades = show_metrics = true;
-        }
-        
-        // Process audit file
-        std::ifstream file(audit_file);
-        if (!file.is_open()) {
-            std::cerr << "ERROR: Cannot open audit file: " << audit_file << std::endl;
-            return 1;
-        }
-        
-        std::vector<nlohmann::json> trades, snapshots, signals;
-        std::string run_id, strategy_name;
-        int total_records = 0;
-        
-        std::string line;
-        while (std::getline(file, line)) {
-            if (line.empty()) continue;
-            total_records++;
-            
-            try {
-                // Parse the line - handle the {data},sha1:{hash} format
-                size_t sha1_pos = line.find("\",\"sha1\":");
-                std::string json_part = line.substr(0, sha1_pos + 1) + "}";
-                
-                nlohmann::json record = nlohmann::json::parse(json_part);
-                
-                std::string type = record.value("type", "");
-                if (run_id.empty()) run_id = record.value("run", "");
-                
-                if (type == "run_start") {
-                    auto meta = record.value("meta", nlohmann::json::object());
-                    strategy_name = meta.value("strategy", "");
-                } else if (type == "trade") {
-                    trades.push_back(record);
-                } else if (type == "snapshot") {
-                    snapshots.push_back(record);
-                } else if (type == "signal") {
-                    signals.push_back(record);
-                }
-            } catch (const std::exception& e) {
-                // Skip malformed lines
-                continue;
-            }
-        }
-        file.close();
-        
-        // Display results
-        if (show_summary) {
-            std::cout << "=== AUDIT REPLAY SUMMARY ===" << std::endl;
-            std::cout << "Run ID: " << run_id << std::endl;
-            std::cout << "Strategy: " << strategy_name << std::endl;
-            std::cout << "Total Records: " << total_records << std::endl;
-            std::cout << "Trades: " << trades.size() << std::endl;
-            std::cout << "Snapshots: " << snapshots.size() << std::endl;
-            std::cout << "Signals: " << signals.size() << std::endl;
-            std::cout << std::endl;
-        }
-        
-        if (show_metrics && !snapshots.empty()) {
-            auto initial = snapshots.front();
-            auto final = snapshots.back();
-            
-            double initial_equity = initial.value("equity", 100000.0);
-            double final_equity = final.value("equity", 100000.0);
-            double total_return = (final_equity - initial_equity) / initial_equity;
-            double monthly_return = std::pow(final_equity / initial_equity, 1.0/3.0) - 1.0;
-            
-            std::cout << "=== PERFORMANCE METRICS ===" << std::endl;
-            std::cout << "Initial Equity: $" << std::fixed << std::setprecision(2) << initial_equity << std::endl;
-            std::cout << "Final Equity: $" << std::fixed << std::setprecision(2) << final_equity << std::endl;
-            std::cout << "Total Return: " << std::fixed << std::setprecision(4) << total_return << " (" << total_return*100 << "%)" << std::endl;
-            std::cout << "Monthly Return: " << std::fixed << std::setprecision(4) << monthly_return << " (" << monthly_return*100 << "%)" << std::endl;
-            
-            if (!trades.empty()) {
-                std::cout << "Total Trades: " << trades.size() << std::endl;
-                std::cout << "Avg Trades/Day: " << std::fixed << std::setprecision(1) << trades.size() / 63.0 << std::endl;
-            }
-            std::cout << std::endl;
-        }
-        
-        if (show_trades && !trades.empty()) {
-            std::cout << "=== RECENT TRADES (Last 10) ===" << std::endl;
-            std::cout << "Time                Side Instr   Quantity    Price      PnL" << std::endl;
-            std::cout << "----------------------------------------------------------------" << std::endl;
-            
-            size_t start_idx = trades.size() > 10 ? trades.size() - 10 : 0;
-            for (size_t i = start_idx; i < trades.size(); i++) {
-                auto& trade = trades[i];
-                
-                std::string side = trade.value("side", "");
-                std::string inst = trade.value("inst", "");
-                double qty = trade.value("qty", 0.0);
-                double price = trade.value("price", 0.0);
-                double pnl = trade.value("pnl", 0.0);
-                int64_t ts = trade.value("ts", 0);
-                
-                // Convert timestamp
-                std::time_t tt = static_cast<std::time_t>(ts);
-                std::tm tm{};
-                gmtime_r(&tt, &tm);
-                char time_buf[32];
-                std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M", &tm);
-                
-                std::cout << std::setw(19) << time_buf
-                          << std::setw(5) << side
-                          << std::setw(7) << inst
-                          << std::setw(10) << std::fixed << std::setprecision(0) << qty
-                          << std::setw(10) << std::fixed << std::setprecision(2) << price
-                          << std::setw(10) << std::fixed << std::setprecision(2) << pnl
-                          << std::endl;
-            }
-        }
-
-    } else if (command == "audit_format") {
-        if (argc < 3) {
-            std::cout << "Usage: sentio_cli audit_format <audit_file.jsonl> [--output <file>] [--type <txt|csv>]\n";
-            return 1;
-        }
-        
-        std::string audit_file = argv[2];
-        std::string output_file = "";
-        std::string format_type = "txt";
-        
-        for (int i = 3; i < argc; i++) {
-            std::string arg = argv[i];
-            if (arg == "--output" && i + 1 < argc) {
-                output_file = argv[++i];
-            } else if (arg == "--type" && i + 1 < argc) {
-                format_type = argv[++i];
-            }
-        }
-        
-        // Process audit file
-        std::ifstream file(audit_file);
-        if (!file.is_open()) {
-            std::cerr << "ERROR: Cannot open audit file: " << audit_file << std::endl;
-            return 1;
-        }
-        
-        std::ostream* out = &std::cout;
-        std::ofstream out_file;
-        if (!output_file.empty()) {
-            out_file.open(output_file);
-            if (out_file.is_open()) {
-                out = &out_file;
-            } else {
-                std::cerr << "ERROR: Cannot create output file: " << output_file << std::endl;
-                return 1;
-            }
-        }
-        
-        // Write header
-        if (format_type == "csv") {
-            *out << "Timestamp,Type,Symbol,Side,Quantity,Price,Trade_PnL,Cash,Realized_PnL,Unrealized_PnL,Total_Equity" << std::endl;
-        } else {
-            *out << "HUMAN-READABLE AUDIT LOG" << std::endl;
-            *out << "========================" << std::endl;
-            *out << std::endl;
-        }
-        
-        std::string line;
-        int line_num = 0;
-        while (std::getline(file, line)) {
-            if (line.empty()) continue;
-            line_num++;
-            
-            try {
-                // Parse the line
-                size_t sha1_pos = line.find("\",\"sha1\":");
-                std::string json_part = line.substr(0, sha1_pos + 1) + "}";
-                nlohmann::json record = nlohmann::json::parse(json_part);
-                
-                std::string type = record.value("type", "");
-                int64_t ts = record.value("ts", 0);
-                
-                // Convert timestamp
-                std::time_t tt = static_cast<std::time_t>(ts);
-                std::tm tm{};
-                gmtime_r(&tt, &tm);
-                char time_buf[32];
-                std::strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", &tm);
-                
-                if (format_type == "csv") {
-                    *out << time_buf << "," << type;
-                    
-                    if (type == "trade") {
-                        *out << "," << record.value("inst", "")
-                             << "," << record.value("side", "")
-                             << "," << record.value("qty", 0.0)
-                             << "," << record.value("price", 0.0)
-                             << "," << record.value("pnl", 0.0)
-                             << ",,,";
-                    } else if (type == "snapshot") {
-                        double cash = record.value("cash", 0.0);
-                        double equity = record.value("equity", 0.0);
-                        double realized = record.value("real", 0.0);
-                        double unrealized = equity - cash - realized;
-                        
-                        *out << ",,,,,"
-                             << "," << cash
-                             << "," << realized
-                             << "," << unrealized
-                             << "," << equity;
-                    } else {
-                        *out << ",,,,,,,,";
-                    }
-                    *out << std::endl;
-                } else {
-                    // Human readable format
-                    *out << "[" << std::setw(4) << line_num << "] " << time_buf << " ";
-                    
-                    if (type == "run_start") {
-                        auto meta = record.value("meta", nlohmann::json::object());
-                        *out << "RUN START - Strategy: " << meta.value("strategy", "")
-                             << ", Series: " << meta.value("total_series", 0) << std::endl;
-                    } else if (type == "trade") {
-                        *out << "TRADE - " << record.value("side", "") << " "
-                             << record.value("qty", 0.0) << " " << record.value("inst", "")
-                             << " @ $" << std::fixed << std::setprecision(2) << record.value("price", 0.0)
-                             << " (PnL: $" << record.value("pnl", 0.0) << ")" << std::endl;
-                    } else if (type == "snapshot") {
-                        double cash = record.value("cash", 0.0);
-                        double equity = record.value("equity", 0.0);
-                        double realized = record.value("real", 0.0);
-                        double unrealized = equity - cash - realized;
-                        
-                        *out << "PORTFOLIO - Cash: $" << std::fixed << std::setprecision(2) << cash
-                             << ", Realized P&L: $" << realized
-                             << ", Unrealized P&L: $" << unrealized 
-                             << ", Total Equity: $" << equity
-                             << " (Cash + Realized + Unrealized = " << (cash + realized + unrealized) << ")" << std::endl;
-                    } else if (type == "signal") {
-                        *out << "SIGNAL - " << record.value("inst", "")
-                             << " p=" << std::fixed << std::setprecision(3) << record.value("p", 0.0)
-                             << " conf=" << record.value("conf", 0.0) << std::endl;
-                    } else if (type == "bar") {
-                        *out << "BAR - " << record.value("inst", "")
-                             << " O:" << std::fixed << std::setprecision(2) << record.value("o", 0.0)
-                             << " H:" << record.value("h", 0.0)
-                             << " L:" << record.value("l", 0.0)
-                             << " C:" << record.value("c", 0.0)
-                             << " V:" << std::fixed << std::setprecision(0) << record.value("v", 0.0) << std::endl;
-                    } else {
-                        *out << type << " - " << record.dump() << std::endl;
-                    }
-                }
-            } catch (const std::exception& e) {
-                if (format_type != "csv") {
-                    *out << "[" << std::setw(4) << line_num << "] ERROR: Malformed line" << std::endl;
-                }
-            }
-        }
-        file.close();
-        
-        if (out_file.is_open()) {
-            out_file.close();
-            std::cout << "Human-readable audit log written to: " << output_file << std::endl;
-        }
     } else {
         usage();
         return 1;

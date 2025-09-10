@@ -46,17 +46,15 @@ void MomentumVolumeProfileStrategy::reset_state() {
     avg_volume_ = RollingMean(profile_period_);
 }
 
-StrategySignal MomentumVolumeProfileStrategy::calculate_signal(const std::vector<Bar>& bars, int current_index) {
-    StrategySignal signal;
-
+double MomentumVolumeProfileStrategy::calculate_probability(const std::vector<Bar>& bars, int current_index) {
     if (current_index < profile_period_) {
         diag_.drop(DropReason::MIN_BARS);
-        return signal;
+        return 0.5; // Neutral
     }
     
     if (is_cooldown_active(current_index, cool_down_period_)) {
         diag_.drop(DropReason::COOLDOWN);
-        return signal;
+        return 0.5; // Neutral
     }
     
     // Periodically rebuild the expensive volume profile
@@ -67,7 +65,7 @@ StrategySignal MomentumVolumeProfileStrategy::calculate_signal(const std::vector
     
     if (volume_profile_.value_area_high <= 0) {
         diag_.drop(DropReason::NAN_INPUT); // Profile not ready or invalid
-        return signal;
+        return 0.5; // Neutral
     }
 
     const auto& bar = bars[current_index];
@@ -78,30 +76,29 @@ StrategySignal MomentumVolumeProfileStrategy::calculate_signal(const std::vector
 
     if (!breakout_up && !breakout_down) {
         diag_.drop(DropReason::THRESHOLD);
-        return signal;
+        return 0.5; // Neutral
     }
 
     if (!is_momentum_confirmed(bars, current_index)) {
         diag_.drop(DropReason::THRESHOLD);
-        return signal;
+        return 0.5; // Neutral
     }
     
     if (bar.volume < avg_volume_.mean() * volume_surge_mult_) {
         diag_.drop(DropReason::ZERO_VOL);
-        return signal;
+        return 0.5; // Neutral
     }
 
+    double probability;
     if (breakout_up) {
-        signal.type = StrategySignal::Type::BUY;
+        probability = 0.85; // Strong buy signal
     } else {
-        signal.type = StrategySignal::Type::SELL;
+        probability = 0.15; // Strong sell signal
     }
     
-    signal.confidence = 0.85;
     diag_.emitted++;
     state_.last_trade_bar = current_index;
-
-    return signal;
+    return probability;
 }
 
 bool MomentumVolumeProfileStrategy::is_momentum_confirmed(const std::vector<Bar>& bars, int index) const {
@@ -140,6 +137,64 @@ void MomentumVolumeProfileStrategy::build_volume_profile(const std::vector<Bar>&
 
 void MomentumVolumeProfileStrategy::calculate_value_area() {
     // This is now handled within build_volume_profile for simplicity
+}
+
+std::vector<BaseStrategy::AllocationDecision> MomentumVolumeProfileStrategy::get_allocation_decisions(
+    const std::vector<Bar>& bars, 
+    int current_index,
+    const std::string& base_symbol,
+    const std::string& bull3x_symbol,
+    const std::string& bear3x_symbol,
+    const std::string& bear1x_symbol) {
+    
+    std::vector<AllocationDecision> decisions;
+    
+    // Get probability from strategy
+    double probability = calculate_probability(bars, current_index);
+    
+    // MomentumVolume uses simple allocation based on signal strength
+    if (probability > 0.7) {
+        // Strong buy signal
+        double conviction = (probability - 0.7) / 0.3; // Scale 0.7-1.0 to 0-1
+        double base_weight = 0.4 + (conviction * 0.6); // 40-100% allocation
+        
+        decisions.push_back({base_symbol, base_weight, conviction, "MomentumVolume strong buy: 100% QQQ"});
+    } else if (probability < 0.3) {
+        // Strong sell signal
+        double conviction = (0.3 - probability) / 0.3; // Scale 0.0-0.3 to 0-1
+        double base_weight = 0.4 + (conviction * 0.6); // 40-100% allocation
+        
+        decisions.push_back({bear1x_symbol, base_weight, conviction, "MomentumVolume strong sell: 100% PSQ"});
+    }
+    
+    // Ensure all instruments are flattened if not in allocation
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    for (const auto& inst : all_instruments) {
+        bool found = false;
+        for (const auto& decision : decisions) {
+            if (decision.instrument == inst) { found = true; break; }
+        }
+        if (!found) {
+            decisions.push_back({inst, 0.0, 0.0, "MomentumVolume: Flatten unused instrument"});
+        }
+    }
+    
+    return decisions;
+}
+
+RouterCfg MomentumVolumeProfileStrategy::get_router_config() const {
+    RouterCfg cfg;
+    cfg.bull3x = "TQQQ";
+    cfg.bear3x = "SQQQ";
+    cfg.bear1x = "PSQ";
+    return cfg;
+}
+
+SizerCfg MomentumVolumeProfileStrategy::get_sizer_config() const {
+    SizerCfg cfg;
+    cfg.max_position_pct = 1.0; // 100% max position
+    cfg.volatility_target = 0.15; // 15% volatility target
+    return cfg;
 }
 
 REGISTER_STRATEGY(MomentumVolumeProfileStrategy, "MomentumVolumeProfile");

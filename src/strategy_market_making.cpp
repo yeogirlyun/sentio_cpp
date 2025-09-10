@@ -57,8 +57,7 @@ void MarketMakingStrategy::reset_state() {
     rolling_volume_.reset(std::max(1, static_cast<int>(params_.at("volume_window"))));
 }
 
-StrategySignal MarketMakingStrategy::calculate_signal(const std::vector<Bar>& bars, int current_index) {
-    StrategySignal signal;
+double MarketMakingStrategy::calculate_probability(const std::vector<Bar>& bars, int current_index) {
     
     // Always update indicators to have a full history for the next bar
     if(current_index > 0) {
@@ -70,11 +69,11 @@ StrategySignal MarketMakingStrategy::calculate_signal(const std::vector<Bar>& ba
     // Wait for indicators to warm up
     if (rolling_volume_.size() < static_cast<size_t>(params_.at("volume_window"))) {
         diag_.drop(DropReason::MIN_BARS);
-        return signal;
+        return 0.5; // Neutral
     }
 
     if (!should_participate(bars[current_index])) {
-        return signal;
+        return 0.5; // Neutral
     }
     
     // **FIXED**: Generate signals based on volatility and volume patterns instead of inventory
@@ -90,25 +89,23 @@ StrategySignal MarketMakingStrategy::calculate_signal(const std::vector<Bar>& ba
         if (current_index > 0) {
             double price_change = (bars[current_index].close - bars[current_index - 1].close) / bars[current_index - 1].close;
             if (price_change > 0.001) {
-                signal.type = StrategySignal::Type::BUY;
+                return 0.6; // Buy signal
             } else if (price_change < -0.001) {
-                signal.type = StrategySignal::Type::SELL;
+                return 0.4; // Sell signal
             } else {
                 diag_.drop(DropReason::THRESHOLD);
-                return signal;
+                return 0.5; // Neutral
             }
         } else {
             diag_.drop(DropReason::THRESHOLD);
-            return signal;
+            return 0.5; // Neutral
         }
     } else {
         diag_.drop(DropReason::THRESHOLD);
-        return signal;
+        return 0.5; // Neutral
     }
-
-    signal.confidence = 0.6; // Fixed confidence since we're not using inventory_skew
     diag_.emitted++;
-    return signal;
+    return 0.5; // Should not reach here
 }
 
 bool MarketMakingStrategy::should_participate(const Bar& bar) {
@@ -132,6 +129,64 @@ double MarketMakingStrategy::get_inventory_skew() const {
     if (max_inventory_ <= 0) return 0.0;
     double normalized_inventory = market_state_.inventory / max_inventory_;
     return -normalized_inventory * inventory_skew_mult_;
+}
+
+std::vector<BaseStrategy::AllocationDecision> MarketMakingStrategy::get_allocation_decisions(
+    const std::vector<Bar>& bars, 
+    int current_index,
+    const std::string& base_symbol,
+    const std::string& bull3x_symbol,
+    const std::string& bear3x_symbol,
+    const std::string& bear1x_symbol) {
+    
+    std::vector<AllocationDecision> decisions;
+    
+    // Get probability from strategy
+    double probability = calculate_probability(bars, current_index);
+    
+    // MarketMaking uses simple allocation based on signal strength
+    if (probability > 0.6) {
+        // Buy signal
+        double conviction = (probability - 0.6) / 0.4; // Scale 0.6-1.0 to 0-1
+        double base_weight = 0.2 + (conviction * 0.3); // 20-50% allocation
+        
+        decisions.push_back({base_symbol, base_weight, conviction, "MarketMaking buy: 100% QQQ"});
+    } else if (probability < 0.4) {
+        // Sell signal
+        double conviction = (0.4 - probability) / 0.4; // Scale 0.0-0.4 to 0-1
+        double base_weight = 0.2 + (conviction * 0.3); // 20-50% allocation
+        
+        decisions.push_back({bear1x_symbol, base_weight, conviction, "MarketMaking sell: 100% PSQ"});
+    }
+    
+    // Ensure all instruments are flattened if not in allocation
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    for (const auto& inst : all_instruments) {
+        bool found = false;
+        for (const auto& decision : decisions) {
+            if (decision.instrument == inst) { found = true; break; }
+        }
+        if (!found) {
+            decisions.push_back({inst, 0.0, 0.0, "MarketMaking: Flatten unused instrument"});
+        }
+    }
+    
+    return decisions;
+}
+
+RouterCfg MarketMakingStrategy::get_router_config() const {
+    RouterCfg cfg;
+    cfg.bull3x = "TQQQ";
+    cfg.bear3x = "SQQQ";
+    cfg.bear1x = "PSQ";
+    return cfg;
+}
+
+SizerCfg MarketMakingStrategy::get_sizer_config() const {
+    SizerCfg cfg;
+    cfg.max_position_pct = 0.5; // 50% max position for market making
+    cfg.volatility_target = 0.10; // 10% volatility target
+    return cfg;
 }
 
 REGISTER_STRATEGY(MarketMakingStrategy, "MarketMaking");

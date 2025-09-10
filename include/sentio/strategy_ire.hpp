@@ -2,6 +2,8 @@
 #include "sentio/base_strategy.hpp"
 #include "sentio/rules/integrated_rule_ensemble.hpp"
 #include "sentio/strategy/intraday_position_governor.hpp"
+#include "sentio/router.hpp"
+#include "sentio/sizer.hpp"
 #include <deque>
 
 namespace sentio {
@@ -16,8 +18,21 @@ public:
     // The main entry point for the runner is now this function
     double calculate_target_weight(const std::vector<Bar>& bars, int i);
     
-    // Kept for backward compatibility or diagnostics if needed
-    StrategySignal calculate_signal(const std::vector<Bar>& bars, int i) override;
+    // **NEW**: Implement probability-based signal interface
+    double calculate_probability(const std::vector<Bar>& bars, int i) override;
+    
+    // **NEW**: Strategy-agnostic allocation interface
+    std::vector<AllocationDecision> get_allocation_decisions(
+        const std::vector<Bar>& bars, 
+        int current_index,
+        const std::string& base_symbol,
+        const std::string& bull3x_symbol,
+        const std::string& bear3x_symbol,
+        const std::string& bear1x_symbol) override;
+    
+    RouterCfg get_router_config() const override;
+    SizerCfg get_sizer_config() const override;
+    bool requires_dynamic_allocation() const override { return true; }
 
     double get_latest_probability() const { return latest_probability_; }
 

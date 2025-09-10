@@ -40,12 +40,10 @@ void OpeningRangeBreakoutStrategy::reset_state() {
     day_start_index_ = -1;
 }
 
-StrategySignal OpeningRangeBreakoutStrategy::calculate_signal(const std::vector<Bar>& bars, int current_index) {
-    StrategySignal signal;
-
+double OpeningRangeBreakoutStrategy::calculate_probability(const std::vector<Bar>& bars, int current_index) {
     if (current_index < 1) {
         diag_.drop(DropReason::MIN_BARS);
-        return signal;
+        return 0.5; // Neutral
     }
 
     // **MODIFIED**: Robust and performant new-day detection
@@ -74,7 +72,7 @@ StrategySignal OpeningRangeBreakoutStrategy::calculate_signal(const std::vector<
             current_range_.low = std::min(current_range_.low, bars[current_index].low);
         }
         diag_.drop(DropReason::SESSION); // Use SESSION to mean "in range formation"
-        return signal;
+        return 0.5; // Neutral
     }
 
     // --- Finalize the range exactly once ---
@@ -86,7 +84,7 @@ StrategySignal OpeningRangeBreakoutStrategy::calculate_signal(const std::vector<
     // --- Phase 2: Look for Breakouts ---
     if (state_.in_position || is_cooldown_active(current_index, cool_down_period_)) {
         diag_.drop(DropReason::COOLDOWN);
-        return signal;
+        return 0.5; // Neutral
     }
 
     const auto& bar = bars[current_index];
@@ -95,7 +93,7 @@ StrategySignal OpeningRangeBreakoutStrategy::calculate_signal(const std::vector<
 
     if (!is_breakout_up && !is_breakout_down) {
         diag_.drop(DropReason::THRESHOLD);
-        return signal;
+        return 0.5; // Neutral
     }
     
     // Volume Confirmation
@@ -107,22 +105,80 @@ StrategySignal OpeningRangeBreakoutStrategy::calculate_signal(const std::vector<
 
     if (bar.volume < avg_volume * volume_multiplier_) {
         diag_.drop(DropReason::ZERO_VOL); // Re-using for low volume
-        return signal;
+        return 0.5; // Neutral
     }
 
     // Generate Signal
+    double probability;
     if (is_breakout_up) {
-        signal.type = StrategySignal::Type::BUY;
+        probability = 0.9; // Strong buy signal
     } else { // is_breakout_down
-        signal.type = StrategySignal::Type::SELL;
+        probability = 0.1; // Strong sell signal
     }
 
-    signal.confidence = 0.9;
     diag_.emitted++;
     state_.in_position = true; // Manually set state as this is an intraday strategy
     state_.last_trade_bar = current_index;
 
-    return signal;
+    return probability;
+}
+
+std::vector<BaseStrategy::AllocationDecision> OpeningRangeBreakoutStrategy::get_allocation_decisions(
+    const std::vector<Bar>& bars, 
+    int current_index,
+    const std::string& base_symbol,
+    const std::string& bull3x_symbol,
+    const std::string& bear3x_symbol,
+    const std::string& bear1x_symbol) {
+    
+    std::vector<AllocationDecision> decisions;
+    
+    // Get probability from strategy
+    double probability = calculate_probability(bars, current_index);
+    
+    // OpeningRangeBreakout uses simple allocation based on signal strength
+    if (probability > 0.8) {
+        // Strong buy signal
+        double conviction = (probability - 0.8) / 0.2; // Scale 0.8-1.0 to 0-1
+        double base_weight = 0.5 + (conviction * 0.5); // 50-100% allocation
+        
+        decisions.push_back({base_symbol, base_weight, conviction, "OpeningRangeBreakout strong buy: 100% QQQ"});
+    } else if (probability < 0.2) {
+        // Strong sell signal
+        double conviction = (0.2 - probability) / 0.2; // Scale 0.0-0.2 to 0-1
+        double base_weight = 0.5 + (conviction * 0.5); // 50-100% allocation
+        
+        decisions.push_back({bear1x_symbol, base_weight, conviction, "OpeningRangeBreakout strong sell: 100% PSQ"});
+    }
+    
+    // Ensure all instruments are flattened if not in allocation
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    for (const auto& inst : all_instruments) {
+        bool found = false;
+        for (const auto& decision : decisions) {
+            if (decision.instrument == inst) { found = true; break; }
+        }
+        if (!found) {
+            decisions.push_back({inst, 0.0, 0.0, "OpeningRangeBreakout: Flatten unused instrument"});
+        }
+    }
+    
+    return decisions;
+}
+
+RouterCfg OpeningRangeBreakoutStrategy::get_router_config() const {
+    RouterCfg cfg;
+    cfg.bull3x = "TQQQ";
+    cfg.bear3x = "SQQQ";
+    cfg.bear1x = "PSQ";
+    return cfg;
+}
+
+SizerCfg OpeningRangeBreakoutStrategy::get_sizer_config() const {
+    SizerCfg cfg;
+    cfg.max_position_pct = 1.0; // 100% max position
+    cfg.volatility_target = 0.15; // 15% volatility target
+    return cfg;
 }
 
 // Register the strategy

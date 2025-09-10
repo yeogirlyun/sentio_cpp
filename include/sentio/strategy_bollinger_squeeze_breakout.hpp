@@ -1,6 +1,8 @@
 #pragma once
 #include "base_strategy.hpp"
 #include "bollinger.hpp"
+#include "router.hpp"
+#include "sizer.hpp"
 #include <vector>
 #include <string>
 
@@ -37,8 +39,20 @@ public:
     ParameterSpace get_param_space() const override;
     void apply_params() override;
     
-    StrategySignal calculate_signal(const std::vector<Bar>& bars, int current_index) override;
+    double calculate_probability(const std::vector<Bar>& bars, int current_index) override;
     void reset_state() override;
+    
+    // **NEW**: Strategy-agnostic allocation interface
+    std::vector<AllocationDecision> get_allocation_decisions(
+        const std::vector<Bar>& bars, 
+        int current_index,
+        const std::string& base_symbol,
+        const std::string& bull3x_symbol,
+        const std::string& bear3x_symbol,
+        const std::string& bear1x_symbol) override;
+    
+    RouterCfg get_router_config() const override;
+    SizerCfg get_sizer_config() const override;
 };
 
 } // namespace sentio

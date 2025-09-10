@@ -9,7 +9,9 @@
 namespace sentio {
 
 struct TemporalAnalysisConfig {
-    int num_quarters = 12;           // Number of quarters to analyze
+    int num_quarters = 0;            // Number of quarters to analyze (0 = all data)
+    int num_weeks = 0;               // Number of weeks to analyze (0 = all data)
+    int num_days = 0;                // Number of days to analyze (0 = all data)
     int min_bars_per_quarter = 50;   // Minimum bars required per quarter
     bool print_detailed_report = true;
     
@@ -204,13 +206,16 @@ struct TemporalAnalysisSummary {
 };
 
 class TPATestProgressBar : public ProgressBar {
-public:
-    TPATestProgressBar(int total_quarters, const std::string& strategy_name) 
-        : ProgressBar(total_quarters, "TPA Test: " + strategy_name) {}
+private:
+    std::string period_name_;
     
-    void display_with_quarter_info([[maybe_unused]] int current_quarter, int year, int quarter, 
-                                   double monthly_return, double sharpe, 
-                                   double avg_daily_trades, const std::string& health_status) {
+public:
+    TPATestProgressBar(int total_periods, const std::string& strategy_name, const std::string& period_name = "quarter") 
+        : ProgressBar(total_periods, "TPA Test: " + strategy_name), period_name_(period_name) {}
+    
+    void display_with_period_info([[maybe_unused]] int current_period, int year, int period_num, 
+                                  double monthly_return, double sharpe, 
+                                  double avg_daily_trades, const std::string& health_status) {
         update(get_current() + 1);
         
         // Clear line and move cursor to beginning
@@ -227,9 +232,17 @@ public:
                   << std::string(bar_width - pos, '-') << "] " 
                   << std::fixed << std::setprecision(1) << percentage << "%";
         
-        // Show current quarter info
-        std::cout << " | Q" << year << "Q" << quarter 
-                  << " | Ret: " << std::fixed << std::setprecision(2) << monthly_return << "%"
+        // Show current period info
+        if (period_name_ == "quarter") {
+            std::cout << " | Q" << year << "Q" << period_num;
+        } else if (period_name_ == "week") {
+            std::cout << " | W" << year << "W" << period_num;
+        } else if (period_name_ == "day") {
+            std::cout << " | D" << year << "D" << period_num;
+        } else {
+            std::cout << " | " << period_name_ << " " << period_num;
+        }
+        std::cout << " | Ret: " << std::fixed << std::setprecision(2) << monthly_return << "%"
                   << " | Sharpe: " << std::fixed << std::setprecision(3) << sharpe
                   << " | Trades: " << std::fixed << std::setprecision(1) << avg_daily_trades
                   << " | " << health_status;
@@ -239,8 +252,15 @@ public:
 };
 
 class TemporalAnalyzer {
+private:
+    std::string period_name_ = "quarter";
+    
 public:
     TemporalAnalyzer() = default;
+    
+    void set_period_name(const std::string& period_name) {
+        period_name_ = period_name;
+    }
     
     void add_quarterly_result(const QuarterlyMetrics& metrics) {
         quarterly_results_.push_back(metrics);
@@ -260,25 +280,37 @@ public:
         std::cout << "TEMPORAL PERFORMANCE ANALYSIS REPORT" << std::endl;
         std::cout << std::string(80, '=') << std::endl;
         
-        // Quarterly breakdown
-        std::cout << "\nQUARTERLY PERFORMANCE BREAKDOWN:\n" << std::endl;
-        std::cout << std::left << std::setw(8) << "Quarter" 
-                  << std::setw(12) << "Monthly Ret%" 
-                  << std::setw(10) << "Sharpe" 
-                  << std::setw(8) << "Trades" 
-                  << std::setw(12) << "Daily Avg" 
-                  << std::setw(10) << "Health" 
-                  << std::setw(10) << "Drawdown%" << std::endl;
+        // Period breakdown
+        std::string period_label = period_name_;
+        period_label[0] = std::toupper(period_label[0]); // Capitalize first letter
+        std::cout << "\n" << period_label << "LY PERFORMANCE BREAKDOWN:\n" << std::endl;
+        std::cout << std::left << std::setw(8) << period_label 
+                  << " " << std::setw(11) << "MPR%" 
+                  << " " << std::setw(9) << "Sharpe" 
+                  << " " << std::setw(7) << "Trades" 
+                  << " " << std::setw(11) << "Daily Avg" 
+                  << " " << std::setw(9) << "Health" 
+                  << " " << std::setw(9) << "Drawdown%" << std::endl;
         std::cout << std::string(80, '-') << std::endl;
         
         for (const auto& q : summary.quarterly_results) {
-            std::cout << std::left << std::setw(8) << (std::to_string(q.year) + "Q" + std::to_string(q.quarter))
-                      << std::setw(12) << std::fixed << std::setprecision(2) << q.monthly_return_pct
-                      << std::setw(10) << std::fixed << std::setprecision(3) << q.sharpe_ratio
-                      << std::setw(8) << q.total_trades
-                      << std::setw(12) << std::fixed << std::setprecision(1) << q.avg_daily_trades
-                      << std::setw(10) << q.health_status()
-                      << std::setw(10) << std::fixed << std::setprecision(2) << q.max_drawdown << std::endl;
+            std::string period_id;
+            if (period_name_ == "quarter") {
+                period_id = std::to_string(q.year) + "Q" + std::to_string(q.quarter);
+            } else if (period_name_ == "week") {
+                period_id = std::to_string(q.year) + "W" + std::to_string(q.quarter);
+            } else if (period_name_ == "day") {
+                period_id = std::to_string(q.year) + "D" + std::to_string(q.quarter);
+            } else {
+                period_id = std::to_string(q.year) + period_name_[0] + std::to_string(q.quarter);
+            }
+            std::cout << std::left << std::setw(8) << period_id
+                      << " " << std::setw(11) << std::fixed << std::setprecision(2) << q.monthly_return_pct
+                      << " " << std::setw(9) << std::fixed << std::setprecision(3) << q.sharpe_ratio
+                      << " " << std::setw(7) << q.total_trades
+                      << " " << std::setw(11) << std::fixed << std::setprecision(1) << q.avg_daily_trades
+                      << " " << std::setw(9) << q.health_status()
+                      << " " << std::setw(9) << std::fixed << std::setprecision(2) << q.max_drawdown << std::endl;
         }
         
         // Summary statistics
@@ -299,11 +331,12 @@ public:
                   << summary.trade_freq_std_dev << " trades/day" << std::endl;
         
         std::cout << "\nTrade Frequency Health:" << std::endl;
-        std::cout << "  Healthy Quarters: " << summary.healthy_quarters << "/" << summary.total_quarters 
+        std::string period_label_lower = period_name_;
+        std::cout << "  Healthy " << period_label_lower << "s: " << summary.healthy_quarters << "/" << summary.total_quarters 
                   << " (" << std::fixed << std::setprecision(1) 
                   << (100.0 * summary.healthy_quarters / summary.total_quarters) << "%)" << std::endl;
-        std::cout << "  Low Frequency: " << summary.low_freq_quarters << " quarters" << std::endl;
-        std::cout << "  High Frequency: " << summary.high_freq_quarters << " quarters" << std::endl;
+        std::cout << "  Low Frequency: " << summary.low_freq_quarters << " " << period_label_lower << "s" << std::endl;
+        std::cout << "  High Frequency: " << summary.high_freq_quarters << " " << period_label_lower << "s" << std::endl;
         
         // Health assessment
         std::cout << "\nHEALTH ASSESSMENT:" << std::endl;

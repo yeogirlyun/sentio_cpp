@@ -17,7 +17,6 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
                                             const RunnerCfg& rcfg,
                                             const TemporalAnalysisConfig& cfg) {
     
-    TemporalAnalyzer analyzer;
     const auto& base_series = series[base_symbol_id];
     const int total_bars = (int)base_series.size();
     
@@ -27,17 +26,43 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
         return TemporalAnalysisSummary{};
     }
     
-    // Calculate quarters based on actual time periods (66 trading days per quarter)
+    // Calculate time periods based on actual trading periods
     // Assume ~390 bars per trading day (6.5 hours * 60 mins = 390 1-min bars)
-    int bars_per_quarter = 66 * 390; // 66 trading days * 390 bars/day = 25,740 bars per quarter
-    int current_year = 2021;
-    int current_quarter = 1;
+    int bars_per_day = 390;
+    int bars_per_week = 5 * bars_per_day;  // 5 trading days per week
+    int bars_per_quarter = 66 * bars_per_day; // 66 trading days per quarter
+    
+    // Determine which time period to use and calculate the number of periods
+    int num_periods = 0;
+    int bars_per_period = 0;
+    std::string period_name = "period";
+    
+    if (cfg.num_days > 0) {
+        num_periods = cfg.num_days;
+        bars_per_period = bars_per_day;
+        period_name = "day";
+    } else if (cfg.num_weeks > 0) {
+        num_periods = cfg.num_weeks;
+        bars_per_period = bars_per_week;
+        period_name = "week";
+    } else if (cfg.num_quarters > 0) {
+        num_periods = cfg.num_quarters;
+        bars_per_period = bars_per_quarter;
+        period_name = "quarter";
+    } else {
+        // Default: analyze all data as one period
+        num_periods = 1;
+        bars_per_period = total_bars;
+        period_name = "full period";
+    }
     
     std::cout << "Starting TPA (Temporal Performance Analysis) Test..." << std::endl;
-    std::cout << "Total bars: " << total_bars << ", Bars per quarter: " << bars_per_quarter << std::endl;
+    std::cout << "Total bars: " << total_bars << ", Bars per " << period_name << ": " << bars_per_period << std::endl;
     
-    // Initialize TPA progress bar
-    TPATestProgressBar progress_bar(cfg.num_quarters, rcfg.strategy_name);
+    // Initialize analyzer and progress bar
+    TemporalAnalyzer analyzer;
+    analyzer.set_period_name(period_name);
+    TPATestProgressBar progress_bar(num_periods, rcfg.strategy_name, period_name);
     progress_bar.display(); // Show initial progress bar
     
     std::cout << "\nInitializing data processing..." << std::endl;
@@ -46,20 +71,20 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
     const std::string test_name = "tpa_test";
     const auto ts_epoch = static_cast<long long>(std::time(nullptr));
 
-    // Determine the last cfg.num_quarters quarters from the end
-    int total_quarters_available = std::max(1, total_bars / std::max(1, bars_per_quarter));
-    int start_quarter = std::max(0, total_quarters_available - cfg.num_quarters);
-    for (int qi = 0; qi < cfg.num_quarters; ++qi) {
-        int q = start_quarter + qi;
-        int start_idx = q * bars_per_quarter;
-        int end_idx = std::min(start_idx + bars_per_quarter, total_bars);
+    // Determine the last num_periods periods from the end
+    int total_periods_available = std::max(1, total_bars / std::max(1, bars_per_period));
+    int start_period = std::max(0, total_periods_available - num_periods);
+    for (int pi = 0; pi < num_periods; ++pi) {
+        int p = start_period + pi;
+        int start_idx = p * bars_per_period;
+        int end_idx = std::min(start_idx + bars_per_period, total_bars);
         
         if (end_idx - start_idx < cfg.min_bars_per_quarter) {
-            std::cout << "Skipping quarter " << (q + 1) << " - insufficient data" << std::endl;
+            std::cout << "Skipping " << period_name << " " << (p + 1) << " - insufficient data" << std::endl;
             continue;
         }
         
-        std::cout << "\nProcessing Quarter " << current_year << "Q" << current_quarter 
+        std::cout << "\nProcessing " << period_name << " " << (p + 1) 
                   << " (bars " << start_idx << "-" << end_idx << ")..." << std::endl;
         
         // Create data slice for this quarter
@@ -75,19 +100,19 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
             }
         }
         
-        // Run backtest for this quarter
+        // Run backtest for this period
         AuditConfig audit_cfg;
-        audit_cfg.run_id = rcfg.strategy_name + "_" + test_name + "_q" + std::to_string(q + 1) + "_" + std::to_string(ts_epoch);
-        audit_cfg.file_path = "audit/" + rcfg.strategy_name + "_" + test_name + "_" + std::to_string(ts_epoch) + "_q" + std::to_string(q + 1) + ".jsonl";
+        audit_cfg.run_id = rcfg.strategy_name + "_" + test_name + "_" + period_name + std::to_string(p + 1) + "_" + std::to_string(ts_epoch);
+        audit_cfg.file_path = "audit/" + rcfg.strategy_name + "_" + test_name + "_" + std::to_string(ts_epoch) + "_" + period_name + std::to_string(p + 1) + ".jsonl";
         audit_cfg.flush_each = true;
         AuditRecorder audit(audit_cfg);
         
         auto result = run_backtest(audit, ST, quarter_series, base_symbol_id, rcfg);
         
-        // Calculate quarterly metrics
+        // Calculate period metrics
         QuarterlyMetrics metrics;
-        metrics.year = current_year;
-        metrics.quarter = current_quarter;
+        metrics.year = 2024; // Use current year for all periods
+        metrics.quarter = p + 1; // Use period number as quarter
         
         // Calculate actual trading days by extracting unique dates from base symbol bars
         // Use the first series (base symbol) to count trading days
@@ -122,12 +147,12 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
         
         analyzer.add_quarterly_result(metrics);
         
-        // Update progress bar with quarter results
-        progress_bar.display_with_quarter_info(q + 1, current_year, current_quarter,
+        // Update progress bar with period results
+        progress_bar.display_with_period_info(p + 1, 2024, p + 1,
                                              metrics.monthly_return_pct, metrics.sharpe_ratio,
                                              metrics.avg_daily_trades, metrics.health_status());
         
-        // Print quarter summary
+        // Print period summary
         std::cout << "\n  Monthly Return: " << std::fixed << std::setprecision(2) 
                   << metrics.monthly_return_pct << "%" << std::endl;
         std::cout << "  Sharpe Ratio: " << std::fixed << std::setprecision(3) 
@@ -135,10 +160,6 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
         std::cout << "  Daily Trades: " << std::fixed << std::setprecision(1) 
                   << metrics.avg_daily_trades << " (Health: " << metrics.health_status() << ")" << std::endl;
         std::cout << "  Total Trades: " << metrics.total_trades << std::endl;
-        
-        // Update year/quarter for next iteration
-        current_quarter++;
-        if (current_quarter > 4) { current_quarter = 1; current_year++; }
     }
     
     // Final progress bar update

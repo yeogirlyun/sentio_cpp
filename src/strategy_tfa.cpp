@@ -202,11 +202,10 @@ ParameterSpace TFAStrategy::get_param_space() const {
   };
 }
 
-StrategySignal TFAStrategy::calculate_signal(const std::vector<Bar>& bars, int current_index) {
+double TFAStrategy::calculate_probability(const std::vector<Bar>& bars, int current_index) {
   (void)current_index; // we will use bars.size() and a static cursor
   static int calls = 0;
   ++calls;
-  last_.reset();
 
   // One-time: precompute probabilities over the whole series using the sequence context
   static bool seq_inited = false;
@@ -224,7 +223,7 @@ StrategySignal TFAStrategy::calculate_signal(const std::vector<Bar>& bars, int c
       std::cout << "[TFA seq] precomputed probs: N=" << probs_all.size() << std::endl;
     } catch (const std::exception& e) {
       std::cout << "[TFA seq] init/forward failed: " << e.what() << std::endl;
-      return StrategySignal{};
+      return 0.5; // Neutral
     }
   }
 
@@ -240,8 +239,6 @@ StrategySignal TFAStrategy::calculate_signal(const std::vector<Bar>& bars, int c
   const int cooldown = 5;
 
   p_hist.push_back(prob);
-
-  StrategySignal sig{}; sig.type = StrategySignal::Type::HOLD; sig.confidence = 0.0;
 
   if ((int)p_hist.size() >= std::max(window, seq_ctx.T)) {
     int end = (int)p_hist.size() - 1;
@@ -260,25 +257,86 @@ StrategySignal TFAStrategy::calculate_signal(const std::vector<Bar>& bars, int c
     bool can_short = (calls >= cooldown_short_until);
 
     if (can_long && prob >= thrL) {
-      sig.type = StrategySignal::Type::BUY;
-      sig.confidence = prob;
       cooldown_long_until = calls + cooldown;
+      if (calls % 64 == 0) {
+        std::cout << "[TFA calc] prob=" << prob << " thrL=" << thrL << " thrS=" << thrS
+                  << " type=BUY" << std::endl;
+      }
+      return prob; // Return the probability directly
     } else if (can_short && prob <= thrS) {
-      sig.type = StrategySignal::Type::SELL;
-      sig.confidence = 1.0f - prob;
       cooldown_short_until = calls + cooldown;
+      if (calls % 64 == 0) {
+        std::cout << "[TFA calc] prob=" << prob << " thrL=" << thrL << " thrS=" << thrS
+                  << " type=SELL" << std::endl;
+      }
+      return prob; // Return the probability directly
     }
 
     if (calls % 64 == 0) {
       std::cout << "[TFA calc] prob=" << prob << " thrL=" << thrL << " thrS=" << thrS
-                << " type=" << (sig.type==StrategySignal::Type::BUY?"BUY":sig.type==StrategySignal::Type::SELL?"SELL":"HOLD")
-                << std::endl;
+                << " type=HOLD" << std::endl;
     }
   }
 
-  if (sig.type == StrategySignal::Type::HOLD) return StrategySignal{};
-  last_ = sig;
-  return sig;
+  return 0.5; // Neutral
+}
+
+std::vector<BaseStrategy::AllocationDecision> TFAStrategy::get_allocation_decisions(
+    const std::vector<Bar>& bars, 
+    int current_index,
+    const std::string& base_symbol,
+    const std::string& bull3x_symbol,
+    const std::string& bear3x_symbol,
+    const std::string& bear1x_symbol) {
+    
+    std::vector<AllocationDecision> decisions;
+    
+    // Get probability from strategy
+    double probability = calculate_probability(bars, current_index);
+    
+    // TFA is a long-only strategy - only allocates to bullish instruments
+    if (probability > 0.6) {
+        double conviction = (probability - 0.6) / 0.4; // Scale 0.6-1.0 to 0-1
+        double base_weight = 0.3 + (conviction * 0.7); // 30-100% allocation
+        
+        if (probability > 0.8) {
+            // Strong buy: use leveraged instruments
+            decisions.push_back({bull3x_symbol, base_weight * 0.6, conviction, "TFA strong buy: 60% TQQQ"});
+            decisions.push_back({base_symbol, base_weight * 0.4, conviction, "TFA strong buy: 40% QQQ"});
+        } else {
+            // Moderate buy: use unleveraged instruments
+            decisions.push_back({base_symbol, base_weight, conviction, "TFA moderate buy: 100% QQQ"});
+        }
+    }
+    
+    // Ensure all instruments are flattened if not in allocation
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    for (const auto& inst : all_instruments) {
+        bool found = false;
+        for (const auto& decision : decisions) {
+            if (decision.instrument == inst) { found = true; break; }
+        }
+        if (!found) {
+            decisions.push_back({inst, 0.0, 0.0, "TFA: Flatten unused instrument"});
+        }
+    }
+    
+    return decisions;
+}
+
+RouterCfg TFAStrategy::get_router_config() const {
+    RouterCfg cfg;
+    cfg.bull3x = "TQQQ";
+    cfg.bear3x = "SQQQ";
+    cfg.bear1x = "PSQ";
+    return cfg;
+}
+
+SizerCfg TFAStrategy::get_sizer_config() const {
+    SizerCfg cfg;
+    cfg.max_position_pct = 1.0; // 100% max position
+    cfg.volatility_target = 0.15; // 15% volatility target
+    return cfg;
 }
 
 REGISTER_STRATEGY(TFAStrategy, "TFA");

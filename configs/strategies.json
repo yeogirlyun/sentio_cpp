@@ -1,0 +1,48 @@
+{
+  "strategies": [
+    {
+      "name": "IRE",
+      "class": "sentio::StrategyIRE"
+    },
+    {
+      "name": "BollingerSqueezeBreakout",
+      "class": "sentio::StrategyBollingerSqueezeBreakout"
+    },
+    {
+      "name": "HybridPPO",
+      "class": "sentio::StrategyHybridPPO"
+    },
+    {
+      "name": "KochiPPO",
+      "class": "sentio::StrategyKochiPPO"
+    },
+    {
+      "name": "MarketMaking",
+      "class": "sentio::StrategyMarketMaking"
+    },
+    {
+      "name": "MomentumVolume",
+      "class": "sentio::StrategyMomentumVolume"
+    },
+    {
+      "name": "OpeningRangeBreakout",
+      "class": "sentio::StrategyOpeningRangeBreakout"
+    },
+    {
+      "name": "OrderFlowImbalance",
+      "class": "sentio::StrategyOrderFlowImbalance"
+    },
+    {
+      "name": "OrderFlowScalping",
+      "class": "sentio::StrategyOrderFlowScalping"
+    },
+    {
+      "name": "TFA",
+      "class": "sentio::StrategyTFA"
+    },
+    {
+      "name": "VWAPReversion",
+      "class": "sentio::StrategyVWAPReversion"
+    }
+  ]
+}

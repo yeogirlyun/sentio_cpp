@@ -10,6 +10,10 @@
 
 namespace sentio {
 
+// Forward declarations
+struct RouterCfg;
+struct SizerCfg;
+
 // Strategy context for bar processing
 struct StrategyCtx {
   std::string instrument;     // traded instrument for this stream
@@ -80,7 +84,49 @@ public:
     
     void set_params(const ParameterMap& params);
     
-    virtual StrategySignal calculate_signal(const std::vector<Bar>& bars, int current_index) = 0;
+    // **NEW**: Primary method - strategies should implement this to return probability (0-1)
+    virtual double calculate_probability(const std::vector<Bar>& bars, int current_index) = 0;
+    
+    // **NEW**: Wrapper method that converts probability to StrategySignal
+    StrategySignal calculate_signal(const std::vector<Bar>& bars, int current_index) {
+        double prob = calculate_probability(bars, current_index);
+        return StrategySignal::from_probability(prob);
+    }
+    
+    // **NEW**: Strategy-agnostic allocation interface
+    struct AllocationDecision {
+        std::string instrument;
+        double target_weight; // -1.0 to 1.0
+        double confidence;    // 0.0 to 1.0
+        std::string reason;   // Human-readable reason for allocation
+    };
+    
+    // **NEW**: Get allocation decisions for this strategy
+    virtual std::vector<AllocationDecision> get_allocation_decisions(
+        const std::vector<Bar>& bars, 
+        int current_index,
+        const std::string& base_symbol,
+        const std::string& bull3x_symbol,
+        const std::string& bear3x_symbol,
+        const std::string& bear1x_symbol) = 0;
+    
+    // **NEW**: Get strategy-specific router configuration
+    virtual RouterCfg get_router_config() const = 0;
+    
+    // **NEW**: Get strategy-specific sizer configuration  
+    virtual SizerCfg get_sizer_config() const = 0;
+    
+    // **NEW**: Check if strategy requires special handling (e.g., dynamic leverage)
+    virtual bool requires_dynamic_allocation() const { return false; }
+    
+    // **NEW**: Get strategy-specific signal processing (for audit/logging)
+    virtual std::string get_signal_description(double probability) const {
+        if (probability > 0.8) return "STRONG_BUY";
+        if (probability > 0.6) return "BUY";
+        if (probability < 0.2) return "STRONG_SELL";
+        if (probability < 0.4) return "SELL";
+        return "HOLD";
+    }
     virtual void reset_state();
     
     const SignalDiag& get_diag() const { return diag_; }

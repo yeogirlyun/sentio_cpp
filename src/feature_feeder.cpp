@@ -5,6 +5,7 @@
 #include "sentio/strategy_kochi_ppo.hpp"
 #include "sentio/feature_builder.hpp"
 #include "sentio/feature_engineering/kochi_features.hpp"
+#include "sentio/feature_utils.hpp"
 #include <cmath>
 #include <fstream>
 #include <sstream>
@@ -31,7 +32,7 @@ bool FeatureFeeder::is_ml_strategy(const std::string& strategy_name) {
 void FeatureFeeder::initialize_strategy(const std::string& strategy_name) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     
-    if (strategy_data_.find(strategy_name) != strategy_data_.end()) {
+    if (sentio::FeatureUtils::has_strategy_data(strategy_data_, strategy_name)) {
         return; // Already initialized
     }
     
@@ -72,7 +73,7 @@ std::vector<double> FeatureFeeder::extract_features_from_bar(const Bar& bar, con
     }
     
     // Initialize if not already done
-    if (strategy_data_.find(strategy_name) == strategy_data_.end()) {
+    if (!sentio::FeatureUtils::has_strategy_data(strategy_data_, strategy_name)) {
         initialize_strategy(strategy_name);
     }
     
@@ -136,7 +137,7 @@ std::vector<std::vector<double>> FeatureFeeder::extract_features_from_bars(const
     }
     
     // Initialize if not already done
-    if (strategy_data_.find(strategy_name) == strategy_data_.end()) {
+    if (!sentio::FeatureUtils::has_strategy_data(strategy_data_, strategy_name)) {
         initialize_strategy(strategy_name);
     }
     
@@ -177,7 +178,7 @@ std::vector<double> FeatureFeeder::extract_features_from_bars_with_index(const s
     }
     
     // Initialize if not already done
-    if (strategy_data_.find(strategy_name) == strategy_data_.end()) {
+    if (!sentio::FeatureUtils::has_strategy_data(strategy_data_, strategy_name)) {
         initialize_strategy(strategy_name);
     }
     
@@ -261,7 +262,7 @@ void FeatureFeeder::feed_features_to_strategy(BaseStrategy* strategy, const std:
     }
     
     // Initialize if not already done
-    if (strategy_data_.find(strategy_name) == strategy_data_.end()) {
+    if (!sentio::FeatureUtils::has_strategy_data(strategy_data_, strategy_name)) {
         initialize_strategy(strategy_name);
     }
     
@@ -339,7 +340,7 @@ void FeatureFeeder::feed_features_batch(BaseStrategy* strategy, const std::vecto
     }
     
     // Initialize if not already done
-    if (strategy_data_.find(strategy_name) == strategy_data_.end()) {
+    if (!sentio::FeatureUtils::has_strategy_data(strategy_data_, strategy_name)) {
         initialize_strategy(strategy_name);
     }
     

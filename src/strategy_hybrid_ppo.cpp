@@ -38,21 +38,31 @@ void HybridPPOStrategy::apply_params() {
   cfg_.conf_floor = params_["conf_floor"];
 }
 
-StrategySignal HybridPPOStrategy::calculate_signal(const std::vector<Bar>& bars, int current_index) {
+double HybridPPOStrategy::calculate_probability(const std::vector<Bar>& bars, int current_index) {
   (void)bars; (void)current_index; // Features come from set_raw_features
   last_.reset();
   auto z = fpipe_.transform(raw_);
-  if (!z) return StrategySignal{};
+  if (!z) return 0.5; // Neutral
 
   auto out = handle_.model->predict(*z, 1, (int)z->size(), "BF");
-  if (!out) return StrategySignal{};
+  if (!out) return 0.5; // Neutral
 
   StrategySignal sig = map_output(*out);
   // Safety: never emit if below floor
-  if (sig.confidence < cfg_.conf_floor) return StrategySignal{};
+  if (sig.confidence < cfg_.conf_floor) return 0.5; // Neutral
+
+  // Convert discrete signal to probability
+  double probability;
+  if (sig.type == StrategySignal::Type::BUY) {
+    probability = 0.5 + sig.confidence * 0.5; // 0.5 to 1.0
+  } else if (sig.type == StrategySignal::Type::SELL) {
+    probability = 0.5 - sig.confidence * 0.5; // 0.0 to 0.5
+  } else {
+    probability = 0.5; // HOLD
+  }
 
   last_ = sig;
-  return sig;
+  return probability;
 }
 
 StrategySignal HybridPPOStrategy::map_output(const ml::ModelOutput& mo) const {
@@ -74,6 +84,63 @@ StrategySignal HybridPPOStrategy::map_output(const ml::ModelOutput& mo) const {
   return s;
 }
 
+std::vector<BaseStrategy::AllocationDecision> HybridPPOStrategy::get_allocation_decisions(
+    const std::vector<Bar>& bars, 
+    int current_index,
+    const std::string& base_symbol,
+    const std::string& bull3x_symbol,
+    const std::string& bear3x_symbol,
+    const std::string& bear1x_symbol) {
+    
+    std::vector<AllocationDecision> decisions;
+    
+    // Get probability from strategy
+    double probability = calculate_probability(bars, current_index);
+    
+    // HybridPPO uses simple allocation based on signal strength
+    if (probability > 0.6) {
+        // Buy signal
+        double conviction = (probability - 0.6) / 0.4; // Scale 0.6-1.0 to 0-1
+        double base_weight = 0.3 + (conviction * 0.7); // 30-100% allocation
+        
+        decisions.push_back({base_symbol, base_weight, conviction, "HybridPPO buy: 100% QQQ"});
+    } else if (probability < 0.4) {
+        // Sell signal
+        double conviction = (0.4 - probability) / 0.4; // Scale 0.0-0.4 to 0-1
+        double base_weight = 0.3 + (conviction * 0.7); // 30-100% allocation
+        
+        decisions.push_back({bear1x_symbol, base_weight, conviction, "HybridPPO sell: 100% PSQ"});
+    }
+    
+    // Ensure all instruments are flattened if not in allocation
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    for (const auto& inst : all_instruments) {
+        bool found = false;
+        for (const auto& decision : decisions) {
+            if (decision.instrument == inst) { found = true; break; }
+        }
+        if (!found) {
+            decisions.push_back({inst, 0.0, 0.0, "HybridPPO: Flatten unused instrument"});
+        }
+    }
+    
+    return decisions;
+}
+
+RouterCfg HybridPPOStrategy::get_router_config() const {
+    RouterCfg cfg;
+    cfg.bull3x = "TQQQ";
+    cfg.bear3x = "SQQQ";
+    cfg.bear1x = "PSQ";
+    return cfg;
+}
+
+SizerCfg HybridPPOStrategy::get_sizer_config() const {
+    SizerCfg cfg;
+    cfg.max_position_pct = 1.0; // 100% max position
+    cfg.volatility_target = 0.15; // 15% volatility target
+    return cfg;
+}
 
 // Register the strategy with the factory
 // REGISTER_STRATEGY(HybridPPOStrategy, "hybrid_ppo")  // Disabled - not working

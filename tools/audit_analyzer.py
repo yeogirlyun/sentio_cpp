@@ -238,3 +238,17 @@ class AuditAnalyzer:
                        f'{data.get("equity", 0):.2f},{data.get("realized", 0):.2f}\n')
         
         print(f"📄 Daily summary exported to: {output_file}")
+    
+    def all_events(self) -> List[Dict[str, Any]]:
+        """Return all events in chronological order"""
+        all_events = []
+        all_events.extend(self.trades)
+        all_events.extend(self.snapshots)
+        all_events.extend(self.signals)
+        for bars in self.bars.values():
+            all_events.extend(bars)
+        all_events.extend(self.other)
+        
+        # Sort by timestamp
+        all_events.sort(key=lambda x: x.get('ts', 0))
+        return all_events

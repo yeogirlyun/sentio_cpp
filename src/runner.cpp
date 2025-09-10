@@ -127,16 +127,6 @@ RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::v
     }
     
     for (size_t i = warmup_bars; i < base_series.size(); ++i) {
-        // **DEBUG**: Check main loop entry
-        if (i < warmup_bars + 3) {
-            std::cout << "MAIN LOOP i=" << i << " warmup=" << warmup_bars << " strategy=" << cfg.strategy_name << std::endl;
-        }
-        
-        // Progress reporting at 5% intervals
-        if (i % progress_interval == 0) {
-            int progress_percent = (i * 100) / total_bars;
-            std::cout << "Progress: " << progress_percent << "% (" << i << "/" << total_bars << " bars)" << std::endl;
-        }
         
         const auto& bar = base_series[i];
         
@@ -214,138 +204,41 @@ RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::v
         // **RENOVATED ARCHITECTURE**: Governor-based target weight system
         [[maybe_unused]] auto start_signal = std::chrono::high_resolution_clock::now();
         
-        bool is_ire = (cfg.strategy_name == "IRE");
-        double target_weight = 0.0;
-        std::string target_instrument = ST.get_symbol(base_symbol_id);
+        // **STRATEGY-AGNOSTIC**: Get allocation decisions from strategy
         std::string chain_id = std::to_string(bar.ts_utc_epoch) + ":" + std::to_string((long long)i);
-        std::vector<std::pair<std::string, double>> allocations; // For dynamic leverage
         
-        // **DEBUG**: Check strategy name and path selection
-        if (i < 5) {
-            std::cout << "Strategy: " << cfg.strategy_name << " is_ire=" << is_ire << std::endl;
-        }
+        // Get strategy-specific router configuration
+        RouterCfg strategy_router = strategy->get_router_config();
         
-        if (is_ire) {
-            // **DYNAMIC LEVERAGE OPTIMIZATION**: Strategy provides probability, runner optimizes allocation
-            auto* ire_strategy = dynamic_cast<IREStrategy*>(strategy.get());
-            if (ire_strategy) {
-                // 1. GET PURE PROBABILITY SIGNAL FROM STRATEGY
-                ire_strategy->calculate_target_weight(base_series, i); // Updates internal probability
-                double probability = ire_strategy->get_latest_probability();
-                
-                // 2. DYNAMIC LEVERAGE ALLOCATION LOGIC BASED ON SIGNAL STRENGTH
-                // **FIXED**: Use outer scope allocations vector (don't create new one)
-                
-                if (probability > 0.80) {
-                    // **STRONG BUY**: High conviction - aggressive leverage
-                    double conviction = (probability - 0.80) / 0.20; // 0-1 scale within strong range
-                    double base_weight = 0.6 + (conviction * 0.4); // 60-100% allocation
-                    allocations.push_back({cfg.router.bull3x, base_weight * 0.7}); // 70% TQQQ (3x leverage)
-                    allocations.push_back({ST.get_symbol(base_symbol_id), base_weight * 0.3}); // 30% QQQ (1x)
-                } 
-                else if (probability > 0.55) {
-                    // **MODERATE BUY**: Good conviction - conservative allocation
-                    double conviction = (probability - 0.55) / 0.25; // 0-1 scale within moderate range
-                    double base_weight = 0.3 + (conviction * 0.3); // 30-60% allocation
-                    allocations.push_back({ST.get_symbol(base_symbol_id), base_weight}); // 100% QQQ (1x)
-                }
-                else if (probability < 0.20) {
-                    // **STRONG SELL**: High conviction - aggressive inverse leverage
-                    double conviction = (0.20 - probability) / 0.20; // 0-1 scale within strong range
-                    double base_weight = 0.6 + (conviction * 0.4); // 60-100% allocation
-                    allocations.push_back({cfg.router.bear3x, base_weight}); // 100% SQQQ (3x inverse)
-                }
-                else if (probability < 0.45) {
-                    // **MODERATE SELL**: Good conviction - conservative inverse
-                    double conviction = (0.45 - probability) / 0.25; // 0-1 scale within moderate range  
-                    double base_weight = 0.3 + (conviction * 0.3); // 30-60% allocation
-                    allocations.push_back({"PSQ", base_weight}); // 100% PSQ (1x inverse)
-                }
-                // **NEUTRAL ZONE** (0.45-0.55): No allocations = stay flat
-                
-                // 3. ENSURE ALL INSTRUMENTS ARE FLATTENED IF NOT IN ALLOCATION
-                std::vector<std::string> all_instruments = {ST.get_symbol(base_symbol_id), cfg.router.bull3x, cfg.router.bear3x, "PSQ"};
-                for (const auto& inst : all_instruments) {
-                    bool found = false;
-                    for (const auto& alloc : allocations) {
-                        if (alloc.first == inst) { found = true; break; }
-                    }
-                    if (!found) allocations.push_back({inst, 0.0}); // Flatten unused instruments
-                }
-                
-                // **DEBUG**: Log allocation decisions
-                if (i < 10 || i % 1000 == 0) {
-                    std::cout << "DYNAMIC LEVERAGE i=" << i << " prob=" << probability << " allocations_size=" << allocations.size();
-                    for (const auto& alloc : allocations) {
-                        std::cout << " " << alloc.first << ":" << alloc.second;
-                    }
-                    std::cout << std::endl;
-                }
-                
-                // Log probability for diagnostics
-                if (logging_enabled) {
-                    audit.event_signal_ex(bar.ts_utc_epoch, ST.get_symbol(base_symbol_id), 
-                                        SigType::HOLD, probability, chain_id);
-                }
-            }
-        } else {
-            // **LEGACY**: Old signal routing for non-IRE strategies
-            StrategySignal sig = strategy->calculate_signal(base_series, i);
-            if (sig.type != StrategySignal::Type::HOLD) {
-                SigType sig_type = static_cast<SigType>(static_cast<int>(sig.type));
-                if (logging_enabled) audit.event_signal_ex(bar.ts_utc_epoch, ST.get_symbol(base_symbol_id), sig_type, sig.confidence, chain_id);
-                
-                auto route_decision = route(sig, cfg.router, ST.get_symbol(base_symbol_id));
-                if (route_decision) {
-                    target_weight = route_decision->target_weight;
-                    target_instrument = route_decision->instrument;
-                }
-            }
+        // Get allocation decisions from strategy
+        auto allocation_decisions = strategy->get_allocation_decisions(
+            base_series, i, 
+            ST.get_symbol(base_symbol_id),  // base_symbol
+            strategy_router.bull3x,         // bull3x_symbol  
+            strategy_router.bear3x,         // bear3x_symbol
+            strategy_router.bear1x          // bear1x_symbol
+        );
+        
+        // Log signal for diagnostics
+        if (logging_enabled) {
+            double probability = strategy->calculate_probability(base_series, i);
+            std::string signal_desc = strategy->get_signal_description(probability);
+            SigType sig_type = SigType::HOLD;
+            if (signal_desc == "STRONG_BUY") sig_type = SigType::STRONG_BUY;
+            else if (signal_desc == "BUY") sig_type = SigType::BUY;
+            else if (signal_desc == "SELL") sig_type = SigType::SELL;
+            else if (signal_desc == "STRONG_SELL") sig_type = SigType::STRONG_SELL;
+            
+            audit.event_signal_ex(bar.ts_utc_epoch, ST.get_symbol(base_symbol_id), 
+                                sig_type, probability, chain_id);
         }
         
         [[maybe_unused]] auto end_signal = std::chrono::high_resolution_clock::now();
         
-        // **DYNAMIC EXECUTION**: Execute allocations (IRE) or legacy target weight
-        if (is_ire) {
-            // **DEBUG**: Confirm execution block is reached
-            if (i < 10 || i % 1000 == 0) {
-                std::cout << "EXECUTION BLOCK REACHED i=" << i << " allocations_size=" << allocations.size() << std::endl;
-            }
-            
-            // **DYNAMIC LEVERAGE**: Execute all allocation decisions from probability-based logic above
-            for (const auto& [instrument, weight] : allocations) {
-                // **DEBUG**: Check every weight
-                if (i < 10 || i % 1000 == 0) {
-                    std::cout << "CHECKING: " << instrument << " weight=" << weight << " abs=" << std::abs(weight) << " threshold=" << 1e-6;
-                }
-                
-                if (std::abs(weight) > 1e-6) { // Only execute non-zero weights
-                    // **DEBUG**: Log execution attempts BEFORE calling function
-                    if (i < 10 || i % 1000 == 0) {
-                        std::cout << " → EXECUTING fills_before=" << total_fills;
-                    }
-                    
-                    execute_target_position(instrument, weight, portfolio, ST, pricebook, sizer, 
-                                          cfg, series, bar, chain_id, audit, logging_enabled, total_fills);
-                    
-                    // **DEBUG**: Log execution results AFTER calling function
-                    if (i < 10 || i % 1000 == 0) {
-                        std::cout << " fills_after=" << total_fills;
-                    }
-                } else {
-                    if (i < 10 || i % 1000 == 0) {
-                        std::cout << " → SKIPPED";
-                    }
-                }
-                
-                if (i < 10 || i % 1000 == 0) {
-                    std::cout << std::endl;
-                }
-            }
-        } else {
-            // **LEGACY**: Single instrument execution for other strategies
-            if (std::abs(target_weight) > 1e-6) {
-                execute_target_position(target_instrument, target_weight, portfolio, ST, pricebook, sizer,
+        // **STRATEGY-AGNOSTIC EXECUTION**: Execute all allocation decisions from strategy
+        for (const auto& decision : allocation_decisions) {
+            if (std::abs(decision.target_weight) > 1e-6) { // Only execute non-zero weights
+                execute_target_position(decision.instrument, decision.target_weight, portfolio, ST, pricebook, sizer, 
                                       cfg, series, bar, chain_id, audit, logging_enabled, total_fills);
             }
         }

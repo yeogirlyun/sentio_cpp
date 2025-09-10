@@ -11,6 +11,34 @@ struct StrategySignal {
   enum class Type { BUY, STRONG_BUY, SELL, STRONG_SELL, HOLD };
   Type   type{Type::HOLD};
   double confidence{0.0}; // 0..1
+  
+  // **NEW**: Probability-based signal (0-1 where 1 = strong buy, 0 = strong sell)
+  double probability{0.5}; // 0.5 = neutral/no signal
+  
+  // **NEW**: Convert probability to discrete signal for backward compatibility
+  static StrategySignal from_probability(double prob) {
+    StrategySignal signal;
+    signal.probability = std::clamp(prob, 0.0, 1.0);
+    
+    if (prob > 0.8) {
+      signal.type = Type::STRONG_BUY;
+      signal.confidence = (prob - 0.8) / 0.2; // Scale 0.8-1.0 to 0-1
+    } else if (prob > 0.6) {
+      signal.type = Type::BUY;
+      signal.confidence = (prob - 0.6) / 0.2; // Scale 0.6-0.8 to 0-1
+    } else if (prob < 0.2) {
+      signal.type = Type::STRONG_SELL;
+      signal.confidence = (0.2 - prob) / 0.2; // Scale 0.0-0.2 to 0-1
+    } else if (prob < 0.4) {
+      signal.type = Type::SELL;
+      signal.confidence = (0.4 - prob) / 0.2; // Scale 0.2-0.4 to 0-1
+    } else {
+      signal.type = Type::HOLD;
+      signal.confidence = 0.0;
+    }
+    
+    return signal;
+  }
 };
 
 struct RouterCfg {
