@@ -339,6 +339,6 @@ SizerCfg TFAStrategy::get_sizer_config() const {
     return cfg;
 }
 
-REGISTER_STRATEGY(TFAStrategy, "TFA");
+REGISTER_STRATEGY(TFAStrategy, "tfa");
 
 } // namespace sentio

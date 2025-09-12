@@ -65,6 +65,13 @@ inline FeatureMatrix build_features_from_spec_json(
   M.cols = F; 
   M.data.resize(N * F);
 
+  // PERFORMANCE NOTE: Current implementation processes features column-by-column
+  // which causes cache misses due to row-major memory layout. For optimal performance,
+  // consider refactoring to process row-by-row: calculate all features for row r,
+  // then write them contiguously to M.data[r * F + c] before moving to next row.
+  // This would require stateful indicator objects (EMA_Calculator, RSI_Calculator, etc.)
+  // and significant refactoring of the op_* functions.
+  
   for (int c = 0; c < F; ++c) {
     const auto& f = spec["features"][c];
     const std::string op = f["op"];

@@ -6,7 +6,7 @@ namespace sentio {
 
 SignalHealth::SignalHealth() {
   for (auto r :
-       {DropReason::NONE, DropReason::NOT_RTH, DropReason::WARMUP,
+       {DropReason::NONE, DropReason::WARMUP,
         DropReason::NAN_INPUT, DropReason::THRESHOLD_TOO_TIGHT, DropReason::COOLDOWN_ACTIVE,
         DropReason::DUPLICATE_BAR_TS}) {
     by_reason.emplace(r, 0ULL);
@@ -23,12 +23,11 @@ SignalGate::SignalGate(const GateCfg& cfg, SignalHealth* health)
 : cfg_(cfg), health_(health) {}
 
 std::optional<double> SignalGate::accept(std::int64_t ts_utc_epoch,
-                                         bool is_rth,
                                          bool inputs_finite,
                                          bool warmed_up,
                                          double conf)
 {
-  if (cfg_.require_rth && !is_rth) { if (health_) health_->incr_drop(DropReason::NOT_RTH); return std::nullopt; }
+  // RTH filtering removed - accepting all trading hours data
   if (!inputs_finite)              { if (health_) health_->incr_drop(DropReason::NAN_INPUT); return std::nullopt; }
   if (!warmed_up)                  { if (health_) health_->incr_drop(DropReason::WARMUP);    return std::nullopt; }
   if (!(std::isfinite(conf)))      { if (health_) health_->incr_drop(DropReason::NAN_INPUT); return std::nullopt; }

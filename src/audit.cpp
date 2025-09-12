@@ -1,4 +1,5 @@
 #include "sentio/audit.hpp"
+#include "sentio/signal_diag.hpp"
 #include <cstring>
 #include <sstream>
 #include <iomanip>
@@ -95,11 +96,11 @@ void AuditRecorder::event_run_start(std::int64_t ts, const std::string& meta){
 void AuditRecorder::event_run_end(std::int64_t ts, const std::string& meta){
   write_line_("\"type\":\"run_end\",\"ts\":"+num_i(ts)+",\"meta\":"+meta+"}");
 }
-void AuditRecorder::event_bar(std::int64_t ts, const std::string& inst, const AuditBar& b){
-  write_line_("\"type\":\"bar\",\"ts\":"+num_i(ts)+",\"inst\":\""+json_escape_(inst)+"\",\"o\":"+num_s(b.open)+",\"h\":"+num_s(b.high)+",\"l\":"+num_s(b.low)+",\"c\":"+num_s(b.close)+",\"v\":"+num_s(b.volume)+"}");
+void AuditRecorder::event_bar(std::int64_t ts, const std::string& inst, double open, double high, double low, double close, double volume){
+  write_line_("\"type\":\"bar\",\"ts\":"+num_i(ts)+",\"inst\":\""+json_escape_(inst)+"\",\"o\":"+num_s(open)+",\"h\":"+num_s(high)+",\"l\":"+num_s(low)+",\"c\":"+num_s(close)+",\"v\":"+num_s(volume)+"}");
 }
 void AuditRecorder::event_signal(std::int64_t ts, const std::string& base, SigType t, double conf){
-  write_line_("\"type\":\"signal\",\"ts\":"+num_i(ts)+",\"base\":\""+json_escape_(base)+"\",\"sig\":" + num_i((int)t) + ",\"conf\":"+num_s(conf)+"}");
+  write_line_("\"type\":\"signal\",\"ts\":"+num_i(ts)+",\"base\":\""+json_escape_(base)+"\",\"sig\":" + num_i((int)t) + ",\"p\":"+num_s(conf)+"}");
 }
 void AuditRecorder::event_route (std::int64_t ts, const std::string& base, const std::string& inst, double tw){
   write_line_("\"type\":\"route\",\"ts\":"+num_i(ts)+",\"base\":\""+json_escape_(base)+"\",\"inst\":\""+json_escape_(inst)+"\",\"tw\":"+num_s(tw)+"}");
@@ -120,7 +121,7 @@ void AuditRecorder::event_metric(std::int64_t ts, const std::string& key, double
 // ----------------- Extended events --------------------
 void AuditRecorder::event_signal_ex(std::int64_t ts, const std::string& base, SigType t, double conf,
                                     const std::string& chain_id){
-  write_line_("\"type\":\"signal\",\"ts\":"+num_i(ts)+",\"base\":\""+json_escape_(base)+"\",\"sig\":" + num_i((int)t) + ",\"conf\":"+num_s(conf)+",\"chain\":\""+json_escape_(chain_id)+"\"}");
+  write_line_("\"type\":\"signal\",\"ts\":"+num_i(ts)+",\"base\":\""+json_escape_(base)+"\",\"sig\":" + num_i((int)t) + ",\"p\":"+num_s(conf)+",\"chain\":\""+json_escape_(chain_id)+"\"}");
 }
 void AuditRecorder::event_route_ex (std::int64_t ts, const std::string& base, const std::string& inst, double tw,
                                     const std::string& chain_id){
@@ -144,6 +145,35 @@ void AuditRecorder::event_fill_ex  (std::int64_t ts, const std::string& inst, do
     ",\"eq_after\":"+num_s(equity_after)+
     ",\"pos_after\":"+num_s(position_after)+
     ",\"chain\":\""+json_escape_(chain_id)+"\"}"
+  );
+}
+
+// ----------------- Signal Diagnostics Events --------------------
+void AuditRecorder::event_signal_diag(std::int64_t ts, const std::string& strategy_name, const SignalDiag& diag) {
+  write_line_(
+    "\"type\":\"signal_diag\",\"ts\":"+num_i(ts)+
+    ",\"strategy\":\""+json_escape_(strategy_name)+"\""
+    ",\"emitted\":"+num_i(diag.emitted)+
+    ",\"dropped\":"+num_i(diag.dropped)+
+    ",\"r_min_bars\":"+num_i(diag.r_min_bars)+
+    ",\"r_session\":"+num_i(diag.r_session)+
+    ",\"r_nan\":"+num_i(diag.r_nan)+
+    ",\"r_zero_vol\":"+num_i(diag.r_zero_vol)+
+    ",\"r_threshold\":"+num_i(diag.r_threshold)+
+    ",\"r_cooldown\":"+num_i(diag.r_cooldown)+
+    ",\"r_dup\":"+num_i(diag.r_dup)
+  );
+}
+
+void AuditRecorder::event_signal_drop(std::int64_t ts, const std::string& strategy_name, const std::string& symbol, 
+                                      DropReason reason, const std::string& chain_id, const std::string& note) {
+  write_line_(
+    "\"type\":\"signal_drop\",\"ts\":"+num_i(ts)+
+    ",\"strategy\":\""+json_escape_(strategy_name)+"\""
+    ",\"symbol\":\""+json_escape_(symbol)+"\""
+    ",\"reason\":"+num_i((int)reason)+
+    ",\"chain\":\""+json_escape_(chain_id)+"\""
+    ",\"note\":\""+json_escape_(note)+"\""
   );
 }
 

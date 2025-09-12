@@ -8,12 +8,19 @@ feature_spec: "configs/features/feature_spec_55_minimal.json"
 feature_cache: "data"
 
 out_dir: "artifacts/TFA/v1"
-batch_size: 256
-epochs: 20
-lr: 0.001
-num_workers: 6
-prefetch_factor: 4
-hidden: 128
+batch_size: 256   # Smaller device batch size (use with gradient accumulation)
+epochs: 50         # Full training for production model
+lr: 0.002         # Higher learning rate for faster learning
+num_workers: 6     # More workers for faster data loading
+# Transformer architecture parameters - optimized for performance
+T: 32             # Reduced sequence length (48^2=2304 -> 32^2=1024, >2x faster)
+d_model: 96       # Model dimension reduced
+nhead: 4           # Fewer attention heads, ensure d_model is divisible by nhead
+num_layers: 2      # Shallower network
+ffn_hidden: 192    # Smaller feed-forward network
 
-label_horizon: 1
+label_horizon: 3  # Look ahead 3 bars for better signals
 label_kind: "logret_fwd"
+# Data quality filters
+min_volume_threshold: 100000   # 10x lower to include more bars
+price_change_threshold: 0.0005 # 2x lower for more sensitivity

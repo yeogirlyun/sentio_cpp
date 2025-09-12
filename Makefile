@@ -5,9 +5,9 @@
 CXX = g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -O3 -march=native -DNDEBUG -ffast-math -fno-math-errno -fno-trapping-math -DSENTIO_WITH_LIBTORCH -flto
 CXXFLAGS_DEBUG = -std=c++20 -Wall -Wextra -O1 -g -DSENTIO_WITH_LIBTORCH -fsanitize=address,undefined -fno-omit-frame-pointer
-INCLUDES = -Iinclude -Ithird_party/nlohmann/include -I/opt/homebrew/include -I/opt/homebrew/lib/python3.12/site-packages/torch/include -I/opt/homebrew/lib/python3.12/site-packages/torch/include/torch/csrc/api/include
-LIBS = -lsqlite3 -lcurl -L/opt/homebrew/lib -lcctz -L/opt/homebrew/lib/python3.12/site-packages/torch/lib -ltorch -ltorch_cpu -lc10
-LIBS_DEBUG = -lsqlite3 -lcurl -L/opt/homebrew/lib -lcctz -L/opt/homebrew/lib/python3.12/site-packages/torch/lib -ltorch -ltorch_cpu -lc10 -fsanitize=address,undefined
+INCLUDES = -Iinclude -Iaudit/include -Ithird_party/nlohmann/include -I/opt/homebrew/include -I/opt/homebrew/lib/python3.12/site-packages/torch/include -I/opt/homebrew/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -I/opt/homebrew/include/gtest
+LIBS = -lsqlite3 -lcurl -L/opt/homebrew/lib -lcctz -L/opt/homebrew/lib/python3.12/site-packages/torch/lib -ltorch -ltorch_cpu -lc10 -L/opt/homebrew/lib -lgtest -lgtest_main
+LIBS_DEBUG = -lsqlite3 -lcurl -L/opt/homebrew/lib -lcctz -L/opt/homebrew/lib/python3.12/site-packages/torch/lib -ltorch -ltorch_cpu -lc10 -fsanitize=address,undefined -L/opt/homebrew/lib -lgtest -lgtest_main
 
 # Python module flags
 PYTHON_INCLUDES = -Iinclude -Ithird_party/nlohmann/include -I/opt/homebrew/include -I/opt/homebrew/lib/python3.13/site-packages/pybind11/include -I/opt/homebrew/lib/python3.13/site-packages/numpy/core/include -I/Library/Frameworks/Python.framework/Versions/3.13/include/python3.13
@@ -22,6 +22,9 @@ OBJ_DIR = $(BUILD_DIR)/obj
 # Source files (exclude poly_fetch_main.cpp and test_rth.cpp from main executable)
 SOURCES = $(filter-out $(SRC_DIR)/poly_fetch_main.cpp $(SRC_DIR)/test_rth.cpp, $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(SRC_DIR)/ml/*.cpp) $(wildcard $(SRC_DIR)/feature_engineering/*.cpp))
 OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
+AUDIT_OBJECTS = audit/src/audit_db.cpp audit/src/audit_db_recorder.cpp audit/src/hash.cpp audit/src/clock.cpp
+AUDIT_OBJECT_FILES = $(AUDIT_OBJECTS:audit/src/%.cpp=$(OBJ_DIR)/audit_%.o)
+ALL_OBJECTS = $(filter-out $(AUDIT_OBJECT_FILES), $(OBJECTS)) $(AUDIT_OBJECT_FILES)
 
 # Main targets
 MAIN_TARGET = $(BUILD_DIR)/sentio_cli
@@ -43,18 +46,22 @@ LEVERAGE_TEST_TARGET = $(BUILD_DIR)/test_leverage
 BUILDER_GUARD_TEST_TARGET = $(BUILD_DIR)/test_builder_guard
 LEVERAGE_EXAMPLE_TARGET = $(BUILD_DIR)/leverage_guarded_example
 TFA_CORRUPTION_TEST_TARGET = $(BUILD_DIR)/test_tfa_corruption
+POSITION_GUARDIAN_TEST_TARGET = $(BUILD_DIR)/test_position_guardian
 PYTHON_MODULE_TARGET = sentio_features.cpython-313-darwin.so
 REPLAY_AUDIT_TARGET = $(BUILD_DIR)/replay_audit
 PNL_TEST_TARGET = $(BUILD_DIR)/test_pnl_engine
 KOCHI_BIN_RUNNER = $(BUILD_DIR)/kochi_bin_runner
 RULE_ENSEMBLE_TARGET = $(BUILD_DIR)/run_rule_ensemble
 IRE_SWEEP_TARGET = $(BUILD_DIR)/ire_param_sweep
+CSV_RUNNER_TARGET = $(BUILD_DIR)/csv_runner
+RSI_TEST_TARGET = $(BUILD_DIR)/test_rsi_strategy
+AUDIT_CLI_TARGET = $(BUILD_DIR)/sentio_audit
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(HYBRID_PPO_TEST_TARGET) $(TS_TEST_TARGET) $(TS_PARITY_TEST_TARGET) $(FEATURE_BUILDER_TEST_TARGET) $(PERF_TEST_TARGET) $(PROD_PERF_TEST_TARGET) $(PROGRESS_BAR_TEST_TARGET) $(WF_PROGRESS_TEST_TARGET) $(LEVERAGE_TEST_TARGET) $(BUILDER_GUARD_TEST_TARGET) $(LEVERAGE_EXAMPLE_TARGET) $(PYTHON_MODULE_TARGET) $(REPLAY_AUDIT_TARGET) $(PNL_TEST_TARGET) $(KOCHI_BIN_RUNNER) $(RULE_ENSEMBLE_TARGET) $(IRE_SWEEP_TARGET)
+all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(HYBRID_PPO_TEST_TARGET) $(TS_TEST_TARGET) $(TS_PARITY_TEST_TARGET) $(FEATURE_BUILDER_TEST_TARGET) $(PERF_TEST_TARGET) $(PROD_PERF_TEST_TARGET) $(PROGRESS_BAR_TEST_TARGET) $(WF_PROGRESS_TEST_TARGET) $(LEVERAGE_TEST_TARGET) $(BUILDER_GUARD_TEST_TARGET) $(LEVERAGE_EXAMPLE_TARGET) $(PYTHON_MODULE_TARGET) $(REPLAY_AUDIT_TARGET) $(PNL_TEST_TARGET) $(KOCHI_BIN_RUNNER) $(RULE_ENSEMBLE_TARGET) $(IRE_SWEEP_TARGET) $(CSV_RUNNER_TARGET) $(RSI_TEST_TARGET) $(AUDIT_CLI_TARGET)
 
 # Main executable
-$(MAIN_TARGET): $(OBJECTS)
+$(MAIN_TARGET): $(ALL_OBJECTS)
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
@@ -186,6 +193,11 @@ $(TFA_CORRUPTION_TEST_TARGET): tests/test_tfa_corruption.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBS)
 
+$(POSITION_GUARDIAN_TEST_TARGET): tests/test_position_guardian.cpp $(OBJ_DIR)/position_guardian.o $(OBJ_DIR)/position_orchestrator.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(OBJ_DIR)/position_guardian.o $(OBJ_DIR)/position_orchestrator.o -lgtest -lgtest_main $(LIBS)
+
 # Python module
 $(PYTHON_MODULE_TARGET): bindings/featurebridge.cpp $(OBJ_DIR)/feature_builder.o $(OBJ_DIR)/feature_engineering/technical_indicators.o $(OBJ_DIR)/feature_engineering/kochi_features.o
 	@echo "Building Python module $@"
@@ -211,9 +223,34 @@ $(IRE_SWEEP_TARGET): tools/ire_param_sweep.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBS)
 
+# CSV runner for RSI strategy
+$(CSV_RUNNER_TARGET): tools/csv_runner.cpp $(OBJ_DIR)/rsi_strategy.o $(OBJ_DIR)/base_strategy.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# RSI strategy test
+$(RSI_TEST_TARGET): tests/test_rsi_strategy.cpp $(OBJ_DIR)/rsi_strategy.o $(OBJ_DIR)/base_strategy.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# Audit CLI
+$(AUDIT_CLI_TARGET): audit/src/audit_cli.cpp audit/src/audit_db.cpp audit/src/hash.cpp audit/src/clock.cpp
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -Iaudit/include -o $@ $^ $(LIBS)
+
+
 
 # Object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@echo "Compiling $<"
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+# Audit object files
+$(OBJ_DIR)/audit_%.o: audit/src/%.cpp
 	@echo "Compiling $<"
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
@@ -266,6 +303,11 @@ test: $(MAIN_TARGET) $(TEST_TARGET)
 pipeline-test: $(PIPELINE_TEST_TARGET)
 	@echo "Running pipeline test..."
 	@$(PIPELINE_TEST_TARGET)
+
+# Run position guardian test
+position-guardian-test: $(POSITION_GUARDIAN_TEST_TARGET)
+	@echo "Running position guardian test..."
+	@$(POSITION_GUARDIAN_TEST_TARGET)
 
 # Run audit test
 audit-test: $(AUDIT_TEST_TARGET)

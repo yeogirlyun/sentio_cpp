@@ -199,6 +199,6 @@ SizerCfg BollingerSqueezeBreakoutStrategy::get_sizer_config() const {
     return cfg;
 }
 
-REGISTER_STRATEGY(BollingerSqueezeBreakoutStrategy, "BollingerSqueezeBreakout");
+REGISTER_STRATEGY(BollingerSqueezeBreakoutStrategy, "bsb");
 
 } // namespace sentio

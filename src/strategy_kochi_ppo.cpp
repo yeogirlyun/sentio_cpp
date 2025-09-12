@@ -1,4 +1,5 @@
 #include "sentio/strategy_kochi_ppo.hpp"
+#include "sentio/signal_utils.hpp"
 #include <algorithm>
 #include <stdexcept>
 
@@ -82,17 +83,7 @@ double KochiPPOStrategy::calculate_probability(const std::vector<Bar>& bars, int
   if (!out) return 0.5; // Neutral
 
   auto sig = map_output(*out);
-  if (sig.confidence < cfg_.conf_floor) return 0.5; // Neutral
-  
-  // Convert discrete signal to probability
-  double probability;
-  if (sig.type == StrategySignal::Type::BUY) {
-    probability = 0.5 + sig.confidence * 0.5; // 0.5 to 1.0
-  } else if (sig.type == StrategySignal::Type::SELL) {
-    probability = 0.5 - sig.confidence * 0.5; // 0.0 to 0.5
-  } else {
-    probability = 0.5; // HOLD
-  }
+  double probability = sentio::signal_utils::signal_to_probability(sig, cfg_.conf_floor);
   
   last_ = sig;
   return probability;

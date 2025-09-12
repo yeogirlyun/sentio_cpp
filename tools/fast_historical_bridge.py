@@ -25,7 +25,7 @@ def load_historical_data(filepath: str, recent_days: int = 30) -> pd.DataFrame:
     # Use only recent data for faster processing
     if len(df) > recent_days * 390:  # ~390 bars per day
         df = df.tail(recent_days * 390)
-        print(f"📊 Using last {recent_days} days of data ({len(df)} bars)")
+        # Note: Debug print removed for quiet mode compatibility
     
     return df
 
@@ -85,7 +85,7 @@ def generate_realistic_bars(
     
     # Market open time (9:30 AM ET) - always use today's open
     current_time = today_et.replace(hour=9, minute=30, second=0, microsecond=0)
-    print(f"📅 Starting from today's market open: {current_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+    # Note: Debug print removed for quiet mode compatibility
     
     # Convert to UTC for consistent timestamp generation
     current_time = current_time.astimezone(pytz.UTC)
@@ -140,22 +140,27 @@ def main():
     parser.add_argument("--recent-days", type=int, default=30, help="Days of recent data to use")
     parser.add_argument("--output", default="fast_historical_data.json", help="Output filename")
     parser.add_argument("--format", default="json", choices=["json", "csv"], help="Output format")
+    parser.add_argument("--quiet", action="store_true", help="Suppress debug output")
     
     args = parser.parse_args()
     
-    print(f"🚀 Fast Historical Bridge - {args.symbol}")
-    print(f"📊 Historical data: {args.historical_data}")
-    print(f"⏱️  Duration: {args.continuation_minutes} minutes")
+    if not args.quiet:
+        print(f"🚀 Fast Historical Bridge - {args.symbol}")
+        print(f"📊 Historical data: {args.historical_data}")
+        print(f"⏱️  Duration: {args.continuation_minutes} minutes")
     
     # Load and analyze historical data
-    print("📈 Loading historical data...")
+    if not args.quiet:
+        print("📈 Loading historical data...")
     df = load_historical_data(args.historical_data, args.recent_days)
     
-    print("🔍 Analyzing historical patterns...")
+    if not args.quiet:
+        print("🔍 Analyzing historical patterns...")
     patterns = analyze_historical_patterns(df)
     
     # Generate realistic data
-    print("🎲 Generating realistic market data...")
+    if not args.quiet:
+        print("🎲 Generating realistic market data...")
     start_price = df['close'].iloc[-1]
     bars = generate_realistic_bars(
         patterns=patterns,
@@ -172,19 +177,20 @@ def main():
         with open(args.output, 'w') as f:
             json.dump(bars, f, indent=2)
     
-    print(f"✅ Generated {len(bars)} bars")
-    print(f"📈 Price range: ${min(bar['low'] for bar in bars):.2f} - ${max(bar['high'] for bar in bars):.2f}")
-    print(f"📊 Volume range: {min(bar['volume'] for bar in bars):,} - {max(bar['volume'] for bar in bars):,}")
-    
-    # Show time range in Eastern Time for clarity
-    if bars:
-        start_time = datetime.fromtimestamp(bars[0]['timestamp'], tz=pytz.UTC)
-        end_time = datetime.fromtimestamp(bars[-1]['timestamp'], tz=pytz.UTC)
-        start_time_et = start_time.astimezone(pytz.timezone('US/Eastern'))
-        end_time_et = end_time.astimezone(pytz.timezone('US/Eastern'))
-        print(f"⏰ Time range: {start_time_et.strftime('%Y-%m-%d %H:%M:%S %Z')} to {end_time_et.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-    
-    print(f"💾 Saved to: {args.output}")
+    if not args.quiet:
+        print(f"✅ Generated {len(bars)} bars")
+        print(f"📈 Price range: ${min(bar['low'] for bar in bars):.2f} - ${max(bar['high'] for bar in bars):.2f}")
+        print(f"📊 Volume range: {min(bar['volume'] for bar in bars):,} - {max(bar['volume'] for bar in bars):,}")
+        
+        # Show time range in Eastern Time for clarity
+        if bars:
+            start_time = datetime.fromtimestamp(bars[0]['timestamp'], tz=pytz.UTC)
+            end_time = datetime.fromtimestamp(bars[-1]['timestamp'], tz=pytz.UTC)
+            start_time_et = start_time.astimezone(pytz.timezone('US/Eastern'))
+            end_time_et = end_time.astimezone(pytz.timezone('US/Eastern'))
+            print(f"⏰ Time range: {start_time_et.strftime('%Y-%m-%d %H:%M:%S %Z')} to {end_time_et.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        
+        print(f"💾 Saved to: {args.output}")
 
 if __name__ == "__main__":
     main()

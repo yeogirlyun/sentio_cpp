@@ -5,6 +5,7 @@
 #include <optional>
 #include <unordered_map>
 #include <vector>
+#include "sentio/audit_interface.hpp"
 
 namespace sentio {
 
@@ -36,7 +37,7 @@ struct AuditConfig {
 };
 
 // --- Recorder: append events to JSONL ---
-class AuditRecorder {
+class AuditRecorder : public IAuditRecorder {
 public:
   explicit AuditRecorder(const AuditConfig& cfg);
   ~AuditRecorder();
@@ -46,7 +47,7 @@ public:
   void event_run_end(std::int64_t ts_utc, const std::string& meta_json="{}");
 
   // data plane
-  void event_bar   (std::int64_t ts_utc, const std::string& instrument, const AuditBar& b);
+  void event_bar   (std::int64_t ts_utc, const std::string& instrument, double open, double high, double low, double close, double volume);
   void event_signal(std::int64_t ts_utc, const std::string& base_symbol, SigType type, double confidence);
   void event_route (std::int64_t ts_utc, const std::string& base_symbol, const std::string& instrument, double target_weight);
   void event_order (std::int64_t ts_utc, const std::string& instrument, Side side, double qty, double limit_px);
@@ -64,6 +65,11 @@ public:
   void event_fill_ex  (std::int64_t ts_utc, const std::string& instrument, double price, double qty, double fees, Side side,
                        double realized_pnl_delta, double equity_after, double position_after,
                        const std::string& chain_id);
+
+  // Signal diagnostics events
+  void event_signal_diag(std::int64_t ts_utc, const std::string& strategy_name, const SignalDiag& diag);
+  void event_signal_drop(std::int64_t ts_utc, const std::string& strategy_name, const std::string& symbol, 
+                        DropReason reason, const std::string& chain_id, const std::string& note = "");
 
   // Get current config (for creating new instances)
   AuditConfig get_config() const { return {run_id_, file_path_, flush_each_}; }

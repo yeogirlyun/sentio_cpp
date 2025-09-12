@@ -20,7 +20,7 @@ public:
   explicit PolygonClient(std::string api_key);
   std::vector<AggBar> get_aggs_all(const AggsQuery& q, int max_pages=200);
   void write_csv(const std::string& out_path,const std::string& symbol,
-                 const std::vector<AggBar>& bars, bool rth_only=false, bool exclude_holidays=false);
+                 const std::vector<AggBar>& bars, bool exclude_holidays=false);
 
 private:
   std::string api_key_;

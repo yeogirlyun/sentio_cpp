@@ -189,7 +189,7 @@ SizerCfg MarketMakingStrategy::get_sizer_config() const {
     return cfg;
 }
 
-REGISTER_STRATEGY(MarketMakingStrategy, "MarketMaking");
+REGISTER_STRATEGY(MarketMakingStrategy, "mm");
 
 } // namespace sentio
 

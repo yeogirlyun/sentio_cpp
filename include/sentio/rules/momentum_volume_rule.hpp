@@ -1,5 +1,6 @@
 #pragma once
 #include "irule.hpp"
+#include "sentio/rules/utils/validation.hpp"
 #include <vector>
 #include <deque>
 #include <cmath>
@@ -27,13 +28,15 @@ struct MomentumVolumeRule : IRuleStrategy {
     std::vector<double> logc(N,0); logc[0]=std::log(std::max(1e-12,b.close[0]));
     for(int i=1;i<N;i++) logc[i]=std::log(std::max(1e-12,b.close[i]));
     for(int i=0;i<N;i++){ int j=std::max(0,i-mom_win); mom_[i]=logc[i]-logc[j]; }
-    std::deque<double> q; double s=0,s2=0;
+    
+    sentio::rules::utils::SlidingWindow<double> window(vol_win);
+    
     for(int i=0;i<N;i++){
-      q.push_back(b.volume[i]); s+=b.volume[i]; s2+=b.volume[i]*b.volume[i];
-      if((int)q.size()>vol_win){ double z=q.front(); q.pop_front(); s-=z; s2-=z*z; }
-      if (!q.empty()){
-        double m=s/q.size(); double v=std::max(0.0, s2/q.size() - m*m);
-        vol_ma_[i]=m; vol_sd_[i]=std::sqrt(v);
+      window.push(b.volume[i]);
+      
+      if (window.has_sufficient_data()) {
+        vol_ma_[i] = window.mean();
+        vol_sd_[i] = window.standard_deviation();
       }
     }
   }

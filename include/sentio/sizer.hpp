@@ -1,6 +1,7 @@
 #pragma once
 #include "core.hpp"
 #include "symbol_table.hpp"
+#include "position_validator.hpp"
 #include <vector>
 #include <numeric>
 #include <algorithm>
@@ -60,6 +61,9 @@ public:
     if (equity <= 0 || instrument_id == -1 || last_prices[instrument_id] <= 0) {
         return 0.0;
     }
+    
+    // **CONFLICT PREVENTION**: Strategy-level conflict prevention should prevent conflicts
+    // No need for smart conflict resolution since strategy checks existing positions
     double instrument_price = last_prices[instrument_id];
 
     // --- Calculate size based on multiple constraints ---

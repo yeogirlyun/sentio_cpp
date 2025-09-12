@@ -47,61 +47,12 @@ static std::string rfc3339_utc_from_epoch_ms(long long ms) {
   return oss.str();
 }
 
-// **NEW**: RTH check directly from UTC timestamp.
-// RTH in UTC: 13:30-20:00 UTC (EDT) or 14:30-21:00 UTC (EST)
-static bool is_rth_utc_from_utc_ms(long long utc_ms) {
-    cctz::time_point<cctz::seconds> tp{cctz::seconds{utc_ms / 1000}};
-    
-    // Get UTC timezone
-    cctz::time_zone utc_tz;
-    if (!cctz::load_time_zone("UTC", &utc_tz)) {
-        return false;
-    }
-    
-    // Convert to UTC civil time
-    auto lt = cctz::convert(tp, utc_tz);
-    auto ct = cctz::civil_second(lt);
-    
-    // Check if weekend (Saturday = 6, Sunday = 0)
-    auto wd = cctz::get_weekday(ct);
-    if (wd == cctz::weekday::saturday || wd == cctz::weekday::sunday) {
-        return false;
-    }
-    
-    // Check if RTH in UTC
-    // EST: 14:30-21:00 UTC (9:30 AM - 4:00 PM EST)
-    // EDT: 13:30-20:00 UTC (9:30 AM - 4:00 PM EDT)
-    int hour = ct.hour();
-    int minute = ct.minute();
-    
-    // Simple DST check: April-October is EDT, rest is EST
-    int month = ct.month();
-    bool is_edt = (month >= 4 && month <= 10);
-    
-    if (is_edt) {
-        // EDT: 13:30-20:00 UTC
-        if (hour < 13 || (hour == 13 && minute < 30)) {
-            return false;  // Before 13:30 UTC
-        }
-        if (hour >= 20) {
-            return false;  // After 20:00 UTC
-        }
-    } else {
-        // EST: 14:30-21:00 UTC
-        if (hour < 14 || (hour == 14 && minute < 30)) {
-            return false;  // Before 14:30 UTC
-        }
-        if (hour >= 21) {
-            return false;  // After 21:00 UTC
-        }
-    }
-    
-    return true;
-}
+// **REMOVED**: RTH filtering - now keeping all trading hours data
+// Only holiday filtering remains active
 
-// **NEW**: Holiday check in UTC
+// **NEW**: Holiday check
 static bool is_us_market_holiday_utc(int year, int month, int day) {
-  // Simple holiday check for common US market holidays in UTC
+  // Simple holiday check for common US market holidays
   // This is a simplified version - for production use, integrate with the full calendar system
   
   // New Year's Day (observed)
@@ -207,16 +158,14 @@ std::vector<AggBar> PolygonClient::get_aggs_all(const AggsQuery& q, int max_page
 }
 
 void PolygonClient::write_csv(const std::string& out_path,const std::string& symbol,
-                              const std::vector<AggBar>& bars, bool rth_only, bool exclude_holidays) {
+                              const std::vector<AggBar>& bars, bool exclude_holidays) {
   std::ofstream f(out_path);
   f << "timestamp,symbol,open,high,low,close,volume\n";
   for (auto& a: bars) {
     // **MODIFIED**: RTH and holiday filtering is now done directly on the UTC timestamp
     // before any string conversion, making it much more reliable.
 
-    if (rth_only && !is_rth_utc_from_utc_ms(a.ts_ms)) {
-        continue;
-    }
+    // RTH filtering removed - keeping all trading hours data
     
     if (exclude_holidays) {
         cctz::time_point<cctz::seconds> tp{cctz::seconds{a.ts_ms / 1000}};

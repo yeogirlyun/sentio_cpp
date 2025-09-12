@@ -8,7 +8,7 @@
 namespace sentio {
 
 enum class DropReason : uint16_t {
-  NONE=0, NOT_RTH, WARMUP, NAN_INPUT, THRESHOLD_TOO_TIGHT,
+  NONE=0, WARMUP, NAN_INPUT, THRESHOLD_TOO_TIGHT,
   COOLDOWN_ACTIVE, DUPLICATE_BAR_TS
 };
 
@@ -22,7 +22,6 @@ struct SignalHealth {
 };
 
 struct GateCfg { 
-  bool require_rth=true; 
   int cooldown_bars=0; 
   double min_conf=0.05; 
 };
@@ -32,7 +31,6 @@ public:
   explicit SignalGate(const GateCfg& cfg, SignalHealth* health);
   // Returns nullopt if dropped; otherwise passes through with possibly clamped confidence.
   std::optional<double> accept(std::int64_t ts_utc_epoch,
-                               bool is_rth,
                                bool inputs_finite,
                                bool warmed_up,
                                double confidence);

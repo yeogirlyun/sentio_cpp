@@ -1,12 +1,7 @@
 # Lazy import functions to avoid optional module deps at import time
 
-def train_tfa_fast(*args, **kwargs):
-    from .tfa_fast import train_tfa_fast as _impl
-    return _impl(*args, **kwargs)
-
-
-def train_tfa_seq(*args, **kwargs):
-    from .tfa_seq import train_tfa_transformer as _impl
+def train_tfa(*args, **kwargs):
+    from .tfa import train_tfa_fast as _impl
     return _impl(*args, **kwargs)
 
 
@@ -15,7 +10,6 @@ def train_kochi_ppo(*args, **kwargs):
     return _impl(*args, **kwargs)
 
 __all__ = [
-    "train_tfa_fast",
-    "train_tfa_seq",
+    "train_tfa",
     "train_kochi_ppo",
 ]

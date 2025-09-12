@@ -46,3 +46,13 @@ Unless explicitly instructed otherwise:
 - Let utility-maximizing frameworks determine optimal allocation
 - Bias towards aggressive profit-seeking parameters
 - Only constrain when mathematically/theoretically justified
+
+## 8. Code Development Standards
+- **NO CODE DUPLICATION**: Never allow code duplication in any form, within modules or across modules
+- **DIRECT MODIFICATION**: When improving a source module, directly work on the original source module
+- **NO VERSION SUFFIXES**: Do not create v2, enhanced, better, faster, etc. versions
+- **GIT VERSION CONTROL**: Use git system for version control, not file names
+- **SINGLE SOURCE OF TRUTH**: Each module must have one authoritative implementation
+- **BEFORE CREATING ANYTHING NEW**: Search & reuse existing symbols; propose merge/refactor if overlap exists
+- **CHOOSE NARROWEST INTERFACE**: Select the narrowest interface that satisfies the use-case
+- **PREFER EXTENSIBLE PATTERNS**: Use strategy/state/command patterns over conditionals

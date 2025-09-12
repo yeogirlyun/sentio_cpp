@@ -1,4 +1,5 @@
 #include "sentio/strategy_ire.hpp"
+#include "sentio/position_validator.hpp"
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -66,7 +67,7 @@ std::vector<BaseStrategy::AllocationDecision> IREStrategy::get_allocation_decisi
     // Get probability from strategy
     double probability = calculate_probability(bars, current_index);
     
-    // **DYNAMIC LEVERAGE ALLOCATION LOGIC BASED ON SIGNAL STRENGTH**
+    // **SIMPLIFIED ALLOCATION LOGIC**: Direct probability-based allocation
     if (probability > 0.80) {
         // **STRONG BUY**: High conviction - aggressive leverage
         double conviction = (probability - 0.80) / 0.20; // 0-1 scale within strong range
@@ -218,6 +219,9 @@ double IREStrategy::calculate_target_weight(const std::vector<Bar>& bars, int i)
     }
     
     latest_probability_ = momentum_signal;
+    
+    // **FIXED**: Increment signal diagnostics counter
+    diag_.emitted++;
     
     // **SIMPLIFIED**: Strategy only provides probability - runner handles allocation
     static int debug_count = 0;
@@ -384,6 +388,6 @@ double IREStrategy::calculate_single_alpha_probability(const std::deque<double>&
     return 0.5 + std::clamp(forecast * timeframe_scale, -0.48, 0.48);
 }
 
-REGISTER_STRATEGY(IREStrategy, "IRE");
+REGISTER_STRATEGY(IREStrategy, "ire");
 
 } // namespace sentio

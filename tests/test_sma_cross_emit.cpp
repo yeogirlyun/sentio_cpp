@@ -13,7 +13,7 @@ int main() {
   SMACrossCfg cfg{5, 10, 0.8};
   SMACrossStrategy strat(cfg);
   SignalHealth health;
-  GateCfg gate{.require_rth=true, .cooldown_bars=0, .min_conf=0.01};
+  GateCfg gate{.cooldown_bars=0, .min_conf=0.01};
   SignalEngine engine(&strat, gate, &health);
 
   std::vector<double> closes;

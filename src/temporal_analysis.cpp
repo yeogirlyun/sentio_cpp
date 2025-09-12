@@ -4,6 +4,7 @@
 #include "sentio/metrics.hpp"
 #include "sentio/progress_bar.hpp"
 #include "sentio/day_index.hpp"
+#include "audit/audit_db_recorder.hpp"
 #include <iostream>
 #include <algorithm>
 #include <vector>
@@ -100,12 +101,10 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
             }
         }
         
-        // Run backtest for this period
-        AuditConfig audit_cfg;
-        audit_cfg.run_id = rcfg.strategy_name + "_" + test_name + "_" + period_name + std::to_string(p + 1) + "_" + std::to_string(ts_epoch);
-        audit_cfg.file_path = "audit/" + rcfg.strategy_name + "_" + test_name + "_" + std::to_string(ts_epoch) + "_" + period_name + std::to_string(p + 1) + ".jsonl";
-        audit_cfg.flush_each = true;
-        AuditRecorder audit(audit_cfg);
+        // Run backtest for this period using SQLite audit system
+        std::string run_id = rcfg.strategy_name + "_" + test_name + "_" + period_name + std::to_string(p + 1) + "_" + std::to_string(ts_epoch);
+        std::string db_path = "audit/sentio_audit.sqlite3";
+        audit::AuditDBRecorder audit(db_path, run_id);
         
         auto result = run_backtest(audit, ST, quarter_series, base_symbol_id, rcfg);
         

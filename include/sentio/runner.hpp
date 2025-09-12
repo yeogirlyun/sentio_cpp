@@ -36,7 +36,7 @@ struct RunResult {
     int no_qty;
 };
 
-RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
+RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
                       int base_symbol_id, const RunnerCfg& cfg);
 
 } // namespace sentio

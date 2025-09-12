@@ -171,7 +171,7 @@ SizerCfg OrderFlowScalpingStrategy::get_sizer_config() const {
     return cfg;
 }
 
-REGISTER_STRATEGY(OrderFlowScalpingStrategy, "OrderFlowScalping");
+REGISTER_STRATEGY(OrderFlowScalpingStrategy, "ofs");
 
 } // namespace sentio
 

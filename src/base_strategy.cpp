@@ -43,4 +43,12 @@ std::unique_ptr<BaseStrategy> StrategyFactory::create_strategy(const std::string
     return nullptr;
 }
 
+std::vector<std::string> StrategyFactory::get_available_strategies() const {
+    std::vector<std::string> names;
+    for (const auto& pair : strategies_) {
+        names.push_back(pair.first);
+    }
+    return names;
+}
+
 } // namespace sentio

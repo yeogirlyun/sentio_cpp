@@ -10,9 +10,9 @@
 #include "strategy_order_flow_imbalance.hpp"
 #include "strategy_order_flow_scalping.hpp"
 #include "strategy_vwap_reversion.hpp"
-#include "strategy_hybrid_ppo.hpp"
-#include "strategy_transformer_ts.hpp"
+// Removed unused strategies: hybrid_ppo, transformer_ts
 // TFB strategy removed - focusing on TFA only
 #include "strategy_tfa.hpp"
 #include "strategy_kochi_ppo.hpp"
 #include "strategy_ire.hpp"
+#include "strategy_signal_or.hpp"

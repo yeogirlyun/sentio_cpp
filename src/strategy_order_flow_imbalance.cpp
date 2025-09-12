@@ -155,7 +155,7 @@ SizerCfg OrderFlowImbalanceStrategy::get_sizer_config() const {
     return cfg;
 }
 
-REGISTER_STRATEGY(OrderFlowImbalanceStrategy, "OrderFlowImbalance");
+REGISTER_STRATEGY(OrderFlowImbalanceStrategy, "ofi");
 
 } // namespace sentio
 

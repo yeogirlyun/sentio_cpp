@@ -20,7 +20,23 @@ Sentio is a high-performance quantitative trading system built in C++ that imple
 
 ## System Components
 
-### 1. Strategy Layer
+### 1. Data Filtering Architecture
+
+#### Market Data Processing
+- **Raw Data Preservation**: All raw market data from Polygon.io is preserved intact in UTC
+- **Pure UTC Processing**: All timestamps are treated as UTC without timezone conversions
+- **Holiday Filtering Only**: Data processing excludes US market holidays but keeps all trading hours
+- **Extended Hours Support**: Pre-market, regular trading hours, and after-hours data are all utilized
+- **Rationale**: More comprehensive data provides better signal generation and market insight
+
+#### Data Pipeline
+1. **Raw Download**: Polygon.io data downloaded without time restrictions (UTC timestamps)
+2. **Holiday Filtering**: US market holidays removed using pandas_market_calendars
+3. **Alignment**: Multiple symbols synchronized to common timestamps
+4. **Binary Caching**: Processed data cached as `.bin` files for performance
+5. **UTC-Only Processing**: No timezone conversions - all data remains in UTC
+
+### 2. Strategy Layer
 
 #### Base Strategy Interface
 ```cpp
@@ -99,7 +115,7 @@ Bar Data → Feature Extraction → Strategy Signal → Signal Gate → Signal T
 ```
 
 #### Diagnostic Components
-1. **SignalGate**: Filters and validates signals before execution
+1. **SignalGate**: Filters and validates signals before execution (RTH filtering removed)
 2. **SignalTrace**: Records signal history for analysis
 3. **SignalDiag**: Provides real-time signal diagnostics
 
@@ -120,7 +136,7 @@ Signal Diagnostics for [Strategy]:
 - **Performance Degradation**: Suboptimal signal quality
 
 #### Troubleshooting Guide
-- **No Signals Generated**: Check warmup period, RTH configuration, data quality
+- **No Signals Generated**: Check warmup period, data quality, strategy configuration
 - **Low Signal Rate**: Analyze drop reasons, adjust gate parameters
 - **Signals But No Trades**: Verify router/sizer configuration
 - **High Drop Rate**: Review gate configuration and strategy logic
@@ -129,28 +145,74 @@ Signal Diagnostics for [Strategy]:
 
 #### Audit Architecture
 ```
-Execution Events → AuditRecorder → JSONL Files → AuditReplayer → Analysis Tools
+Execution Events → AuditRecorder → SQLite Database → Audit CLI → Analysis Tools
 ```
 
 #### Event Types
 1. **Signal Events**: Strategy signal generation and validation
-2. **Order Events**: Order creation, modification, and cancellation
-3. **Fill Events**: Trade execution with P&L calculation
-4. **Position Events**: Position changes and portfolio updates
+2. **Signal Diagnostics**: Signal generation statistics and drop reasons
+3. **Order Events**: Order creation, modification, and cancellation
+4. **Fill Events**: Trade execution with P&L calculation
+5. **Position Events**: Position changes and portfolio updates
+6. **Portfolio Snapshots**: Account state and equity tracking
 
-#### Audit File Format (JSONL)
-```json
-{"ts": 1640995200, "type": "signal", "strategy": "IRE", "symbol": "QQQ", "signal": "BUY", "probability": 0.85, "chain_id": "1640995200:123"}
-{"ts": 1640995200, "type": "order", "symbol": "QQQ", "side": "BUY", "quantity": 100, "price": 450.25}
-{"ts": 1640995200, "type": "fill", "symbol": "QQQ", "quantity": 100, "price": 450.25, "pnl_d": 1250.50}
+#### Audit Database Schema (SQLite)
+```sql
+-- Signal diagnostics events
+{"ts": 1640995200, "type": "signal_diag", "strategy": "IRE", 
+ "emitted": 150, "dropped": 25, "r_min_bars": 5, "r_session": 10, 
+ "r_nan": 2, "r_zero_vol": 3, "r_threshold": 3, "r_cooldown": 2, "r_dup": 0}
+
+-- Signal events with chain tracking
+{"ts": 1640995200, "type": "signal", "strategy": "IRE", "symbol": "QQQ", 
+ "signal": "BUY", "probability": 0.85, "chain_id": "1640995200:123"}
+
+-- Trading events
+{"ts": 1640995200, "type": "order", "symbol": "QQQ", "side": "BUY", 
+ "quantity": 100, "price": 450.25, "chain_id": "1640995200:123"}
+{"ts": 1640995200, "type": "fill", "symbol": "QQQ", "quantity": 100, 
+ "price": 450.25, "pnl_d": 1250.50, "chain_id": "1640995200:123"}
 ```
 
 #### Audit Analysis Tools
-- **`audit_cli.py`**: Unified Python interface for audit analysis
-- **`cmd_replay`**: Replay audit events with performance metrics
-- **`cmd_latest`**: Analyze most recent audit file
-- **`cmd_trades`**: Export trades to CSV format
-- **`cmd_analyze`**: Comprehensive performance analysis
+- **`sentio_audit`**: Unified C++ CLI for audit analysis
+  - **`signal-stats`**: Signal diagnostics and drop analysis
+  - **`trade-flow`**: Complete trade sequence visualization
+  - **`info`**: Run information and summary statistics
+  - **`list`**: List all audit runs with filtering
+  - **`export`**: Export data to JSONL/CSV formats
+  - **`verify`**: Data integrity validation
+
+#### Signal Diagnostics Integration
+The audit system now captures comprehensive signal diagnostics for every run:
+
+**Signal Statistics Tracking**:
+- **Emitted Signals**: Total signals generated by strategy
+- **Dropped Signals**: Signals filtered out by validation
+- **Drop Reasons**: Detailed breakdown of why signals were dropped
+  - `WARMUP`: Insufficient warmup period
+  - `NAN_INPUT`: Invalid input data
+  - `THRESHOLD_TOO_TIGHT`: Below confidence threshold
+  - `COOLDOWN_ACTIVE`: Cooldown period active
+  - `DUPLICATE_BAR_TS`: Duplicate bar timestamp
+
+**Usage Examples**:
+```bash
+# View signal diagnostics for latest run
+./build/sentio_audit signal-stats
+
+# View signal diagnostics for specific strategy
+./build/sentio_audit signal-stats --strategy IRE
+
+# View signal diagnostics for specific run
+./build/sentio_audit signal-stats --run IRE_tpa_test_day725_1757576670
+```
+
+**Benefits**:
+- **Complete Traceability**: Track every signal from generation to execution
+- **Performance Analysis**: Understand signal quality and drop patterns
+- **Debugging Support**: Identify why signals were filtered out
+- **Strategy Optimization**: Analyze signal generation efficiency
 
 #### Instrument Distribution Analysis
 ```python

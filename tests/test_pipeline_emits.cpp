@@ -25,7 +25,7 @@ int main() {
 
   SignalTrace trace;
   PipelineCfg pcfg;
-  pcfg.gate = GateCfg{true, 0, 0.01};
+  pcfg.gate = GateCfg{0, 0.01};
   pcfg.min_order_shares = 1.0;
 
   SignalPipeline pipe(&strat, pcfg, &book, &trace);

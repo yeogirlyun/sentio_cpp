@@ -8,13 +8,13 @@
 #include "sentio/base_strategy.hpp"
 #include "sentio/all_strategies.hpp"
 #include "sentio/feature_feeder.hpp"
-#include "sentio/rth_calendar.hpp" // **NEW**: Include for RTH check
-#include "sentio/calendar_seed.hpp" // **NEW**: Include for calendar creation
+// RTH calendar removed - no longer filtering by trading hours
+// Calendar seed removed - no longer needed
 // #include "sentio/feature/feature_from_spec.hpp" // For C++ feature building - causes Bar redefinition
 #include "sentio/feature/feature_matrix.hpp" // For FeatureMatrix
 // TFB strategy removed - focusing on TFA only
 #include "sentio/strategy_tfa.hpp" // For TFA strategy
-#include "sentio/strategy_registry.hpp" // For configuration-based strategy registration
+// Strategy registry removed - using factory pattern instead
 #include "sentio/virtual_market.hpp" // For native VM testing
 
 #include <iostream>
@@ -140,9 +140,9 @@ int main(int argc, char* argv[]) {
     // at::set_num_threads(1);         // intra-op
     // at::set_num_interop_threads(1); // inter-op
     
-    // Initialize strategy registry from configuration
-    if (!sentio::StrategyRegistry::load_from_config()) {
-        std::cerr << "Warning: Failed to load strategy configuration, using default registrations" << std::endl;
+    // Initialize strategies using factory pattern
+    if (!sentio::initialize_strategies()) {
+        std::cerr << "Warning: Failed to initialize strategies" << std::endl;
     }
     
     if (argc < 2) {

@@ -1,12 +1,16 @@
 #pragma once
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <iostream>
 #include <cstdint>
 #include <cmath> // For std::sqrt
 
 namespace sentio {
+
+// Forward declarations
+struct SymbolTable;
 
 struct Bar {
     std::string ts_utc;
@@ -63,6 +67,7 @@ inline double equity_mark_to_market(const Portfolio& pf, const std::vector<doubl
     }
     return eq;
 }
+
 
 // **REMOVED**: Old, simplistic Direction and StratSignal types are now deprecated.
 

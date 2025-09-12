@@ -1,5 +1,5 @@
 #include "sentio/virtual_market.hpp"
-#include "sentio/strategy_registry.hpp"
+// Strategy registry removed - using factory pattern instead
 #include "sentio/runner.hpp"
 #include "sentio/temporal_analysis.hpp"
 #include "sentio/symbol_table.hpp"

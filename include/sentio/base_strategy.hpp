@@ -127,6 +127,12 @@ public:
         if (probability < 0.4) return "SELL";
         return "HOLD";
     }
+    
+    // **NEW**: Strategy evaluation interface
+    virtual std::vector<double> get_probability_history() const { return {}; }
+    virtual std::vector<double> get_signal_history() const { return {}; }
+    virtual void reset_evaluation_data() {}
+    virtual bool supports_evaluation() const { return false; }
     virtual void reset_state();
     
     const SignalDiag& get_diag() const { return diag_; }
@@ -144,6 +150,9 @@ public:
 private:
     std::unordered_map<std::string, CreateFunction> strategies_;
 };
+
+// Strategy initialization function
+bool initialize_strategies();
 
 // **NEW**: The final, more robust registration macro.
 // It takes the C++ ClassName and the "Name" to be used by the CLI.

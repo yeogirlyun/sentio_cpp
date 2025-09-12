@@ -11,7 +11,7 @@ PipelineOut SignalPipeline::on_bar(const StrategyCtx& ctx, const Bar& b, const v
   tr.ts_utc = ctx.ts_utc_epoch;
   tr.instrument = ctx.instrument;
   tr.close = b.close;
-  tr.is_rth = ctx.is_rth;
+  // RTH field removed - no longer filtering by trading hours
   tr.inputs_finite = std::isfinite(b.close);
 
   auto sig = strat_->latest();
@@ -23,7 +23,7 @@ PipelineOut SignalPipeline::on_bar(const StrategyCtx& ctx, const Bar& b, const v
   tr.confidence = sig->confidence;
 
   // Use the existing signal_gate API
-  auto conf2 = gate_.accept(ctx.ts_utc_epoch, ctx.is_rth, tr.inputs_finite, true, sig->confidence);
+  auto conf2 = gate_.accept(ctx.ts_utc_epoch, tr.inputs_finite, true, sig->confidence);
   if (!conf2) {
     tr.reason = TraceReason::THRESHOLD_TOO_TIGHT; // Default to threshold for now
     if (trace_) trace_->push(tr);

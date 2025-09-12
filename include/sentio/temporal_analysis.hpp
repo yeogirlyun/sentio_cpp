@@ -110,9 +110,9 @@ struct TemporalAnalysisSummary {
         
         // For single quarter, standard deviation is 0 (no variance)
         if (total_quarters == 1) {
-            sharpe_std_dev = 0.0;
-            return_std_dev = 0.0;
-            trade_freq_std_dev = 0.0;
+            sharpe_std_dev = -1.0;  // Use -1.0 to indicate "N/A" for single period
+            return_std_dev = -1.0;  // Use -1.0 to indicate "N/A" for single period
+            trade_freq_std_dev = -1.0;  // Use -1.0 to indicate "N/A" for single period
         } else {
             sharpe_std_dev = std::sqrt(std::max(0.0, (sharpe_sq_sum / total_quarters) - (sharpe_mean * sharpe_mean)));
             return_std_dev = std::sqrt(std::max(0.0, (return_sq_sum / total_quarters) - (return_mean * return_mean)));
@@ -323,12 +323,30 @@ public:
                   << summary.overall_sharpe << std::endl;
         
         std::cout << "\nConsistency Metrics:" << std::endl;
-        std::cout << "  Return Volatility (std): " << std::fixed << std::setprecision(2) 
-                  << summary.return_std_dev << "%" << std::endl;
-        std::cout << "  Sharpe Volatility (std): " << std::fixed << std::setprecision(3) 
-                  << summary.sharpe_std_dev << std::endl;
-        std::cout << "  Trade Frequency Volatility (std): " << std::fixed << std::setprecision(1) 
-                  << summary.trade_freq_std_dev << " trades/day" << std::endl;
+        
+        // Return volatility
+        if (summary.return_std_dev < 0) {
+            std::cout << "  Return Volatility (std): N/A (single period)" << std::endl;
+        } else {
+            std::cout << "  Return Volatility (std): " << std::fixed << std::setprecision(2) 
+                      << summary.return_std_dev << "%" << std::endl;
+        }
+        
+        // Sharpe volatility
+        if (summary.sharpe_std_dev < 0) {
+            std::cout << "  Sharpe Volatility (std): N/A (single period)" << std::endl;
+        } else {
+            std::cout << "  Sharpe Volatility (std): " << std::fixed << std::setprecision(3) 
+                      << summary.sharpe_std_dev << std::endl;
+        }
+        
+        // Trade frequency volatility
+        if (summary.trade_freq_std_dev < 0) {
+            std::cout << "  Trade Frequency Volatility (std): N/A (single period)" << std::endl;
+        } else {
+            std::cout << "  Trade Frequency Volatility (std): " << std::fixed << std::setprecision(1) 
+                      << summary.trade_freq_std_dev << " trades/day" << std::endl;
+        }
         
         std::cout << "\nTrade Frequency Health:" << std::endl;
         std::string period_label_lower = period_name_;

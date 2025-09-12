@@ -14,7 +14,7 @@ EngineOut SignalEngine::on_bar(const StrategyCtx& ctx, const Bar& b, bool inputs
   }
 
   double conf = raw->confidence;
-  auto conf2 = gate_.accept(ctx.ts_utc_epoch, ctx.is_rth, inputs_finite,
+  auto conf2 = gate_.accept(ctx.ts_utc_epoch, inputs_finite,
                             /*warmed_up=*/true, conf);
   if (!conf2) {
     // SignalGate already tallied reason; we return NONE to avoid double counting specific reason here.

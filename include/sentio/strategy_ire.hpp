@@ -66,6 +66,10 @@ private:
     // **NEW**: State for Kelly Criterion
     std::deque<double> pnl_history_;
     
+    // **NEW**: State machine for preventing rapid direction flips
+    int last_direction_{-999}; // -999 = uninitialized, 0=neutral, 1=long, -1=inverse
+    int bars_since_flip_{0};
+    
     // **NEW**: Kelly Criterion methods
     double calculate_kelly_fraction(double edge_probability, double confidence) const;
     void update_trade_performance(double realized_pnl);

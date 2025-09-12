@@ -6,6 +6,7 @@
 #include "sentio/sizer.hpp"
 #include "sentio/cost_model.hpp"
 #include "sentio/feature_feeder.hpp"
+#include "sentio/position_validator.hpp"
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -14,11 +15,11 @@
 namespace sentio {
 
 // **RENOVATED HELPER**: Execute target position for any instrument
-static void execute_target_position(const std::string& instrument, double target_weight, 
-                                   Portfolio& portfolio, const SymbolTable& ST, const Pricebook& pricebook,
-                                   const AdvancedSizer& sizer, const RunnerCfg& cfg,
-                                   const std::vector<std::vector<Bar>>& series, const Bar& bar,
-                                   const std::string& chain_id, AuditRecorder& audit, bool logging_enabled, int& total_fills) {
+static void execute_target_position(const std::string& instrument, double target_weight,            
+                                   Portfolio& portfolio, const SymbolTable& ST, const Pricebook& pricebook,                    
+                                   const AdvancedSizer& sizer, const RunnerCfg& cfg,                
+                                   const std::vector<std::vector<Bar>>& series, const Bar& bar,     
+                                   const std::string& chain_id, IAuditRecorder& audit, bool logging_enabled, int& total_fills) {
     
     int instrument_id = ST.get_id(instrument);
     if (instrument_id == -1) return;
@@ -30,6 +31,9 @@ static void execute_target_position(const std::string& instrument, double target
     double target_qty = sizer.calculate_target_quantity(portfolio, ST, pricebook.last_px, 
                                                        instrument, target_weight, 
                                                        series[instrument_id], cfg.sizer);
+    
+    // **CONFLICT PREVENTION**: Strategy-level conflict prevention should prevent conflicts
+    // No need for smart conflict resolution since strategy checks existing positions
     
     double current_qty = portfolio.positions[instrument_id].qty;
     double trade_qty = target_qty - current_qty;
@@ -72,7 +76,7 @@ static void execute_target_position(const std::string& instrument, double target
     }
 }
 
-RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
+RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
                       int base_symbol_id, const RunnerCfg& cfg) {
     
     // 1. ============== INITIALIZATION ==============
@@ -194,7 +198,7 @@ RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::v
         
         // Log bar data
         AuditBar audit_bar{bar.open, bar.high, bar.low, bar.close, static_cast<double>(bar.volume)};
-        if (logging_enabled) audit.event_bar(bar.ts_utc_epoch, ST.get_symbol(base_symbol_id), audit_bar);
+        if (logging_enabled) audit.event_bar(bar.ts_utc_epoch, ST.get_symbol(base_symbol_id), audit_bar.open, audit_bar.high, audit_bar.low, audit_bar.close, audit_bar.volume);
         
         // Feed features to ML strategies
         [[maybe_unused]] auto start_feed = std::chrono::high_resolution_clock::now();
@@ -235,12 +239,73 @@ RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::v
         
         [[maybe_unused]] auto end_signal = std::chrono::high_resolution_clock::now();
         
+        // **CONFLICT RESOLUTION**: Close existing conflicting positions first
+        int conflicts_detected = 0;
+        int conflicts_resolved = 0;
+        
+        if (has_conflicting_positions(portfolio, ST)) {
+            conflicts_detected++;
+            
+            // Close all conflicting positions
+            for (size_t sid = 0; sid < portfolio.positions.size(); ++sid) {
+                if (std::abs(portfolio.positions[sid].qty) > 1e-6) {
+                    const std::string& symbol = ST.get_symbol(sid);
+                    if (LONG_ETFS.count(symbol) || INVERSE_ETFS.count(symbol)) {
+                        double close_qty = -portfolio.positions[sid].qty;
+                        double close_price = pricebook.last_px[sid];
+                        
+                        if (close_price > 0 && std::abs(close_qty * close_price) > 10.0) {
+                            Side close_side = (close_qty > 0) ? Side::Buy : Side::Sell;
+                            
+                            if (logging_enabled) {
+                                audit.event_order_ex(bar.ts_utc_epoch, symbol, close_side, std::abs(close_qty), 0.0, "CONFLICT_RESOLUTION");
+                            }
+                            
+                            // Perfect execution for conflict resolution
+                            double fees = 0.0;
+                            double exec_px = close_price;
+                            
+                            double realized_pnl = (portfolio.positions[sid].qty > 0) 
+                                ? (exec_px - portfolio.positions[sid].avg_price) * std::abs(close_qty)
+                                : (portfolio.positions[sid].avg_price - exec_px) * std::abs(close_qty);
+                            
+                            apply_fill(portfolio, sid, close_qty, exec_px);
+                            
+                            if (logging_enabled) {
+                                double equity_after = equity_mark_to_market(portfolio, pricebook.last_px);
+                                double position_after = portfolio.positions[sid].qty;
+                                audit.event_fill_ex(bar.ts_utc_epoch, symbol, exec_px, std::abs(close_qty), fees, close_side, 
+                                                  realized_pnl, equity_after, position_after, "CONFLICT_RESOLUTION");
+                            }
+                            total_fills++;
+                            conflicts_resolved++;
+                        }
+                    }
+                }
+            }
+        }
+        
         // **STRATEGY-AGNOSTIC EXECUTION**: Execute all allocation decisions from strategy
         for (const auto& decision : allocation_decisions) {
             if (std::abs(decision.target_weight) > 1e-6) { // Only execute non-zero weights
                 execute_target_position(decision.instrument, decision.target_weight, portfolio, ST, pricebook, sizer, 
                                       cfg, series, bar, chain_id, audit, logging_enabled, total_fills);
             }
+        }
+        
+        // **CRITICAL SANITY CHECK**: Validate no conflicting positions exist after execution
+        int post_execution_conflicts = 0;
+        if (has_conflicting_positions(portfolio, ST)) {
+            post_execution_conflicts++;
+        }
+        
+        // **AUDIT CONFLICT STATISTICS**: Log conflict resolution metrics
+        if (logging_enabled && (conflicts_detected > 0 || conflicts_resolved > 0 || post_execution_conflicts > 0)) {
+            std::string conflict_stats = "CONFLICTS_DETECTED:" + std::to_string(conflicts_detected) + 
+                                       ",CONFLICTS_RESOLVED:" + std::to_string(conflicts_resolved) + 
+                                       ",POST_EXECUTION_CONFLICTS:" + std::to_string(post_execution_conflicts);
+            audit.event_signal_drop(bar.ts_utc_epoch, cfg.strategy_name, "CONFLICT_STATS", 
+                                  DropReason::NONE, chain_id, conflict_stats);
         }
         
         // 3. ============== SNAPSHOT ==============
@@ -262,6 +327,12 @@ RunResult run_backtest(AuditRecorder& audit, const SymbolTable& ST, const std::v
     
     // 4. ============== METRICS & DIAGNOSTICS ==============
     strategy->get_diag().print(strategy->get_name().c_str());
+    
+    // Log signal diagnostics to audit trail
+    if (logging_enabled) {
+        audit.event_signal_diag(series[base_symbol_id].back().ts_utc_epoch, 
+                               cfg.strategy_name, strategy->get_diag());
+    }
 
     if (equity_curve.empty()) {
         return result;

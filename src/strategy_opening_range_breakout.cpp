@@ -182,6 +182,6 @@ SizerCfg OpeningRangeBreakoutStrategy::get_sizer_config() const {
 }
 
 // Register the strategy
-REGISTER_STRATEGY(OpeningRangeBreakoutStrategy, "OpeningRangeBreakout");
+REGISTER_STRATEGY(OpeningRangeBreakoutStrategy, "orb");
 
 } // namespace sentio

@@ -1,0 +1,339 @@
+{
+  "schema_version": "1.0",
+  "features": [
+    {
+      "name": "close",
+      "op": "IDENT",
+      "source": "close"
+    },
+    {
+      "name": "logret",
+      "op": "LOGRET",
+      "source": "close"
+    },
+    {
+      "name": "ema_2",
+      "op": "EMA",
+      "source": "close",
+      "window": 2
+    },
+    {
+      "name": "ema_3",
+      "op": "EMA",
+      "source": "close",
+      "window": 3
+    },
+    {
+      "name": "ema_5",
+      "op": "EMA",
+      "source": "close",
+      "window": 5
+    },
+    {
+      "name": "ema_8",
+      "op": "EMA",
+      "source": "close",
+      "window": 8
+    },
+    {
+      "name": "ema_10",
+      "op": "EMA",
+      "source": "close",
+      "window": 10
+    },
+    {
+      "name": "ema_12",
+      "op": "EMA",
+      "source": "close",
+      "window": 12
+    },
+    {
+      "name": "ema_15",
+      "op": "EMA",
+      "source": "close",
+      "window": 15
+    },
+    {
+      "name": "ema_20",
+      "op": "EMA",
+      "source": "close",
+      "window": 20
+    },
+    {
+      "name": "ema_25",
+      "op": "EMA",
+      "source": "close",
+      "window": 25
+    },
+    {
+      "name": "ema_26",
+      "op": "EMA",
+      "source": "close",
+      "window": 26
+    },
+    {
+      "name": "ema_30",
+      "op": "EMA",
+      "source": "close",
+      "window": 30
+    },
+    {
+      "name": "ema_35",
+      "op": "EMA",
+      "source": "close",
+      "window": 35
+    },
+    {
+      "name": "ema_40",
+      "op": "EMA",
+      "source": "close",
+      "window": 40
+    },
+    {
+      "name": "ema_45",
+      "op": "EMA",
+      "source": "close",
+      "window": 45
+    },
+    {
+      "name": "ema_50",
+      "op": "EMA",
+      "source": "close",
+      "window": 50
+    },
+    {
+      "name": "ema_55",
+      "op": "EMA",
+      "source": "close",
+      "window": 55
+    },
+    {
+      "name": "ema_60",
+      "op": "EMA",
+      "source": "close",
+      "window": 60
+    },
+    {
+      "name": "ema_70",
+      "op": "EMA",
+      "source": "close",
+      "window": 70
+    },
+    {
+      "name": "ema_80",
+      "op": "EMA",
+      "source": "close",
+      "window": 80
+    },
+    {
+      "name": "ema_90",
+      "op": "EMA",
+      "source": "close",
+      "window": 90
+    },
+    {
+      "name": "ema_100",
+      "op": "EMA",
+      "source": "close",
+      "window": 100
+    },
+    {
+      "name": "ema_120",
+      "op": "EMA",
+      "source": "close",
+      "window": 120
+    },
+    {
+      "name": "ema_150",
+      "op": "EMA",
+      "source": "close",
+      "window": 150
+    },
+    {
+      "name": "ema_200",
+      "op": "EMA",
+      "source": "close",
+      "window": 200
+    },
+    {
+      "name": "rsi_2",
+      "op": "RSI",
+      "source": "close",
+      "window": 2
+    },
+    {
+      "name": "rsi_3",
+      "op": "RSI",
+      "source": "close",
+      "window": 3
+    },
+    {
+      "name": "rsi_5",
+      "op": "RSI",
+      "source": "close",
+      "window": 5
+    },
+    {
+      "name": "rsi_7",
+      "op": "RSI",
+      "source": "close",
+      "window": 7
+    },
+    {
+      "name": "rsi_9",
+      "op": "RSI",
+      "source": "close",
+      "window": 9
+    },
+    {
+      "name": "rsi_14",
+      "op": "RSI",
+      "source": "close",
+      "window": 14
+    },
+    {
+      "name": "rsi_21",
+      "op": "RSI",
+      "source": "close",
+      "window": 21
+    },
+    {
+      "name": "rsi_25",
+      "op": "RSI",
+      "source": "close",
+      "window": 25
+    },
+    {
+      "name": "rsi_30",
+      "op": "RSI",
+      "source": "close",
+      "window": 30
+    },
+    {
+      "name": "zlog_5",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 5
+    },
+    {
+      "name": "zlog_10",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 10
+    },
+    {
+      "name": "zlog_15",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 15
+    },
+    {
+      "name": "zlog_20",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 20
+    },
+    {
+      "name": "zlog_25",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 25
+    },
+    {
+      "name": "zlog_30",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 30
+    },
+    {
+      "name": "zlog_40",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 40
+    },
+    {
+      "name": "zlog_50",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 50
+    },
+    {
+      "name": "zlog_60",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 60
+    },
+    {
+      "name": "zlog_80",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 80
+    },
+    {
+      "name": "zlog_100",
+      "op": "ZWIN",
+      "source": "logret",
+      "window": 100
+    },
+    {
+      "name": "ema_short_1",
+      "op": "EMA",
+      "source": "close",
+      "window": 4
+    },
+    {
+      "name": "ema_short_2",
+      "op": "EMA",
+      "source": "close",
+      "window": 6
+    },
+    {
+      "name": "ema_short_3",
+      "op": "EMA",
+      "source": "close",
+      "window": 7
+    },
+    {
+      "name": "ema_short_4",
+      "op": "EMA",
+      "source": "close",
+      "window": 9
+    },
+    {
+      "name": "ema_short_5",
+      "op": "EMA",
+      "source": "close",
+      "window": 11
+    },
+    {
+      "name": "ema_short_6",
+      "op": "EMA",
+      "source": "close",
+      "window": 13
+    },
+    {
+      "name": "ema_short_7",
+      "op": "EMA",
+      "source": "close",
+      "window": 14
+    },
+    {
+      "name": "ema_short_8",
+      "op": "EMA",
+      "source": "close",
+      "window": 16
+    },
+    {
+      "name": "rsi_short_1",
+      "op": "RSI",
+      "source": "close",
+      "window": 4
+    }
+  ],
+  "alignment_policy": {
+    "emit_from_index": 64,
+    "pad_value": 0.0
+  },
+  "dtype": "float32",
+  "content_hash": "sha256:fce56b41c8186fa8d811b3540defa42d004f58f9b22dedc6a9b75eb99b61b2c7"
+}

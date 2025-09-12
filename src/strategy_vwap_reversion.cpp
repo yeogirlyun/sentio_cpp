@@ -208,6 +208,6 @@ SizerCfg VWAPReversionStrategy::get_sizer_config() const {
     return cfg;
 }
 
-REGISTER_STRATEGY(VWAPReversionStrategy, "VWAPReversion");
+REGISTER_STRATEGY(VWAPReversionStrategy, "vwap");
 
 } // namespace sentio

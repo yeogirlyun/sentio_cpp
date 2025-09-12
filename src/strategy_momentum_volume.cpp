@@ -197,6 +197,6 @@ SizerCfg MomentumVolumeProfileStrategy::get_sizer_config() const {
     return cfg;
 }
 
-REGISTER_STRATEGY(MomentumVolumeProfileStrategy, "MomentumVolumeProfile");
+REGISTER_STRATEGY(MomentumVolumeProfileStrategy, "mvp");
 
 } // namespace sentio
