@@ -133,6 +133,12 @@ std::string PolygonClient::get_(const std::string& url) {
 
 std::vector<AggBar> PolygonClient::get_aggs_all(const AggsQuery& q, int max_pages) {
     std::vector<AggBar> out;
+    
+    // For minute data with large date ranges, chunk into smaller periods
+    if (q.timespan == "minute") {
+        return get_aggs_chunked(q, max_pages);
+    }
+    
     std::string base = "https://api.polygon.io/v2/aggs/ticker/" + q.symbol + "/range/" + std::to_string(q.multiplier) + "/" + q.timespan + "/" + q.from + "/" + q.to + "?adjusted=" + (q.adjusted?"true":"false") + "&sort=" + q.sort + "&limit=" + std::to_string(q.limit);
     std::string url = base;
     
@@ -154,6 +160,79 @@ std::vector<AggBar> PolygonClient::get_aggs_all(const AggsQuery& q, int max_page
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
     
+    return out;
+}
+
+std::vector<AggBar> PolygonClient::get_aggs_chunked(const AggsQuery& q, int max_pages) {
+    std::vector<AggBar> out;
+    
+    // Parse start and end dates
+    std::tm start_tm = {}, end_tm = {};
+    std::istringstream start_ss(q.from), end_ss(q.to);
+    start_ss >> std::get_time(&start_tm, "%Y-%m-%d");
+    end_ss >> std::get_time(&end_tm, "%Y-%m-%d");
+    
+    if (start_ss.fail() || end_ss.fail()) {
+        std::cerr << "Error: Invalid date format. Use YYYY-MM-DD" << std::endl;
+        return out;
+    }
+    
+    std::time_t start_time = std::mktime(&start_tm);
+    std::time_t end_time = std::mktime(&end_tm);
+    
+    // Chunk by 30 days to avoid large responses
+    const int chunk_days = 30;
+    std::time_t current_time = start_time;
+    
+    while (current_time < end_time) {
+        std::time_t chunk_end = current_time + (chunk_days * 24 * 60 * 60);
+        if (chunk_end > end_time) chunk_end = end_time;
+        
+        // Convert back to date strings
+        std::tm* current_tm = std::gmtime(&current_time);
+        std::tm* chunk_end_tm = std::gmtime(&chunk_end);
+        
+        char start_str[32], end_str[32];
+        std::strftime(start_str, sizeof(start_str), "%Y-%m-%d", current_tm);
+        std::strftime(end_str, sizeof(end_str), "%Y-%m-%d", chunk_end_tm);
+        
+        std::cerr << "Downloading chunk: " << start_str << " to " << end_str << std::endl;
+        
+        // Create chunk query
+        AggsQuery chunk_q = q;
+        chunk_q.from = start_str;
+        chunk_q.to = end_str;
+        
+        // Get data for this chunk
+        std::string base = "https://api.polygon.io/v2/aggs/ticker/" + chunk_q.symbol + "/range/" + std::to_string(chunk_q.multiplier) + "/" + chunk_q.timespan + "/" + chunk_q.from + "/" + chunk_q.to + "?adjusted=" + (chunk_q.adjusted?"true":"false") + "&sort=" + chunk_q.sort + "&limit=" + std::to_string(chunk_q.limit);
+        std::string url = base;
+        
+        for (int page=0; page<max_pages; ++page) {
+            std::string body = get_(url);
+            if (body.empty()) break;
+            
+            auto j = json::parse(body, nullptr, false);
+            if (j.is_discarded()) {
+                std::cerr << "JSON parsing failed for chunk " << start_str << " to " << end_str << std::endl;
+                break;
+            }
+            
+            if (j.contains("results")) {
+                for (auto& r : j["results"]) {
+                    out.push_back({r.value("t", 0LL), r.value("o", 0.0), r.value("h", 0.0), r.value("l", 0.0), r.value("c", 0.0), r.value("v", 0.0)});
+                }
+            }
+            
+            if (!j.contains("next_url")) break;
+            url = j["next_url"].get<std::string>();
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
+        
+        current_time = chunk_end + 1; // Move to next day
+        std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Rate limiting between chunks
+    }
+    
+    std::cerr << "Total bars collected: " << out.size() << std::endl;
     return out;
 }
 

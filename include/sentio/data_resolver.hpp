@@ -7,11 +7,11 @@ namespace sentio {
 enum class TickerFamily { Qqq, Bitcoin, Tesla };
 
 inline const char** family_symbols(TickerFamily f, int& n) {
-  static const char* QQQ[] = {"QQQ","TQQQ","SQQQ","PSQ"};
+  static const char* QQQ[] = {"QQQ","TQQQ","SQQQ"}; // PSQ removed
   static const char* BTC[] = {"BTCUSD","ETHUSD"};
   static const char* TSLA[]= {"TSLA","TSLQ"};
   switch (f) {
-    case TickerFamily::Qqq: n=4; return QQQ;
+    case TickerFamily::Qqq: n=3; return QQQ; // Updated count
     case TickerFamily::Bitcoin: n=2; return BTC;
     case TickerFamily::Tesla: n=2; return TSLA;
   }

@@ -155,8 +155,7 @@ std::vector<BaseStrategy::AllocationDecision> VWAPReversionStrategy::get_allocat
     int current_index,
     const std::string& base_symbol,
     const std::string& bull3x_symbol,
-    const std::string& bear3x_symbol,
-    const std::string& bear1x_symbol) {
+    const std::string& bear3x_symbol) {
     
     std::vector<AllocationDecision> decisions;
     
@@ -175,11 +174,12 @@ std::vector<BaseStrategy::AllocationDecision> VWAPReversionStrategy::get_allocat
         double conviction = (0.3 - probability) / 0.3; // Scale 0.0-0.3 to 0-1
         double base_weight = 0.4 + (conviction * 0.6); // 40-100% allocation
         
-        decisions.push_back({bear1x_symbol, base_weight, conviction, "VWAPReversion strong sell: 100% PSQ"});
+        // Use SHORT QQQ for moderate sell signals instead of PSQ
+        decisions.push_back({base_symbol, -base_weight, conviction, "VWAPReversion strong sell: SHORT QQQ"});
     }
     
     // Ensure all instruments are flattened if not in allocation
-    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol};
     for (const auto& inst : all_instruments) {
         bool found = false;
         for (const auto& decision : decisions) {
@@ -197,7 +197,7 @@ RouterCfg VWAPReversionStrategy::get_router_config() const {
     RouterCfg cfg;
     cfg.bull3x = "TQQQ";
     cfg.bear3x = "SQQQ";
-    cfg.bear1x = "PSQ";
+    // Note: moderate sell signals now use SHORT QQQ instead of PSQ
     return cfg;
 }
 

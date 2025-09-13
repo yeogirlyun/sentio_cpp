@@ -3,18 +3,53 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <filesystem>
 #include <cctz/time_zone.h>
 #include <cctz/civil_time.h>
 
 namespace sentio {
 
 bool load_csv(const std::string& filename, std::vector<Bar>& out) {
-    // Try binary cache first for performance
+    namespace fs = std::filesystem;
+    
+    // **SMART FRESHNESS-BASED LOADING**: Choose between CSV and binary based on file timestamps
     std::string bin_filename = filename.substr(0, filename.find_last_of('.')) + ".bin";
-    auto cached = load_bin(bin_filename);
-    if (!cached.empty()) {
-        out = std::move(cached);
-        return true;
+    
+    bool csv_exists = fs::exists(filename);
+    bool bin_exists = fs::exists(bin_filename);
+    
+    // **FRESHNESS COMPARISON**: Use binary only if it's newer than CSV
+    bool use_binary = false;
+    if (bin_exists && csv_exists) {
+        auto csv_time = fs::last_write_time(filename);
+        auto bin_time = fs::last_write_time(bin_filename);
+        use_binary = (bin_time >= csv_time);
+        
+        if (use_binary) {
+            std::cout << "📦 Using cached binary data (fresher than CSV): " << bin_filename << std::endl;
+        } else {
+            std::cout << "🔄 CSV file is newer than binary cache, reloading: " << filename << std::endl;
+        }
+    } else if (bin_exists && !csv_exists) {
+        use_binary = true;
+        std::cout << "📦 Using binary data (CSV not found): " << bin_filename << std::endl;
+    } else if (!bin_exists && csv_exists) {
+        use_binary = false;
+        std::cout << "📄 Loading CSV data (no binary cache): " << filename << std::endl;
+    } else {
+        std::cerr << "❌ Neither CSV nor binary file exists: " << filename << std::endl;
+        return false;
+    }
+    
+    // **LOAD FROM BINARY**: Use cached binary if it's fresher
+    if (use_binary) {
+        auto cached = load_bin(bin_filename);
+        if (!cached.empty()) {
+            out = std::move(cached);
+            return true;
+        } else {
+            std::cerr << "⚠️  Binary cache corrupted, falling back to CSV: " << bin_filename << std::endl;
+        }
     }
     
     std::ifstream file(filename);
@@ -82,9 +117,10 @@ bool load_csv(const std::string& filename, std::vector<Bar>& out) {
         }
     }
     
-    // Save to binary cache for next time
+    // **REGENERATE BINARY CACHE**: Save to binary cache for next time
     if (!out.empty()) {
         save_bin(bin_filename, out);
+        std::cout << "💾 Regenerated binary cache: " << bin_filename << " (" << out.size() << " bars)" << std::endl;
     }
     
     return true;

@@ -8,7 +8,7 @@ namespace sentio {
 PositionOrchestrator::PositionOrchestrator(const std::string& account) 
     : account_(account)
     , mapper_(FamilyMapper::Map{
-        {"QQQ*", {"QQQ", "TQQQ", "SQQQ"}},
+        {"QQQ*", {"QQQ", "TQQQ", "SQQQ"}}, // PSQ removed
         {"SPY*", {"SPY", "UPRO", "SPXU"}},
         {"BTC*", {"BTC", "BITO", "BITX", "BITI"}},
         {"TSLA*", {"TSLA", "TSLL", "TSLS"}}
@@ -98,8 +98,8 @@ std::string PositionOrchestrator::choose_preferred_symbol(const std::string& sym
             // For long positions, choose TQQQ for strong signals, QQQ for moderate
             return (strength > 0.7) ? "TQQQ" : "QQQ";
         } else {
-            // For short positions, choose SQQQ for strong signals, PSQ for moderate  
-            return (strength > 0.7) ? "SQQQ" : "PSQ";
+            // For short positions, choose SQQQ for strong signals, SHORT QQQ for moderate  
+            return (strength > 0.7) ? "SQQQ" : "QQQ"; // QQQ will be shorted for moderate sells
         }
     }
     

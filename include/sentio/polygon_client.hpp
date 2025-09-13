@@ -25,6 +25,7 @@ public:
 private:
   std::string api_key_;
   std::string get_(const std::string& url);
+  std::vector<AggBar> get_aggs_chunked(const AggsQuery& q, int max_pages=200);
 };
 } // namespace sentio
 

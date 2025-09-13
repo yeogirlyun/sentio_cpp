@@ -1,5 +1,5 @@
 #include "sentio/router.hpp"
-#include "sentio/polygon_ingest.hpp" // for PriceBook forward impl
+#include "sentio/audit.hpp" // for PriceBook definition
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -24,7 +24,7 @@ static inline std::string map_instrument_qqq_family(bool go_long, bool strong,
 {
   if (base_symbol == cfg.base_symbol) {
     if (go_long)   return strong ? cfg.bull3x : cfg.base_symbol;
-    else           return strong ? cfg.bear3x : cfg.bear1x;
+    else           return strong ? cfg.bear3x : cfg.base_symbol; // SHORT base for moderate sell
   }
   // Unknown family: fall back to base
   return base_symbol;

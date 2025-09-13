@@ -156,7 +156,7 @@ Enable verbose logging in training:
 ```python
 train_tfa_fast(
     symbol="QQQ",
-    bars_csv="data/equities/QQQ_RTH_NH.csv",
+    bars_csv="data/equities/QQQ_NH.csv",
     feature_spec="python/feature_spec.json",
     # ... other params
     epochs=1,  # Quick test run

@@ -6,6 +6,7 @@
 #include "sentio/audit.hpp"
 #include "sentio/base_strategy.hpp"
 #include "sentio/mars_data_loader.hpp"
+#include "sentio/run_id_generator.hpp"
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
@@ -26,7 +27,7 @@ VirtualMarketEngine::VirtualMarketEngine()
     base_prices_["AAPL"] = 175.0;
     base_prices_["MSFT"] = 350.0;
     base_prices_["TSLA"] = 250.0;
-    base_prices_["PSQ"] = 380.0;  // Inverse QQQ
+    // PSQ removed - moderate sell signals now use SHORT QQQ
     base_prices_["TQQQ"] = 120.0; // 3x QQQ
     base_prices_["SQQQ"] = 120.0; // 3x inverse QQQ
 }
@@ -56,9 +57,10 @@ void VirtualMarketEngine::select_new_regime() {
     current_regime_ = market_regimes_[regime_index];
     regime_start_time_ = std::chrono::system_clock::now();
     
-    std::cout << "🔄 Switched to market regime: " << current_regime_.name 
-              << " (vol=" << std::fixed << std::setprecision(3) << current_regime_.volatility
-              << ", trend=" << current_regime_.trend << ")" << std::endl;
+    // Debug: Regime switching (commented out to reduce console noise)
+    // std::cout << "🔄 Switched to market regime: " << current_regime_.name 
+    //           << " (vol=" << std::fixed << std::setprecision(3) << current_regime_.volatility
+    //           << ", trend=" << current_regime_.trend << ")" << std::endl;
 }
 
 bool VirtualMarketEngine::should_change_regime() {
@@ -446,7 +448,7 @@ VirtualMarketEngine::VMSimulationResult VirtualMarketEngine::run_single_simulati
         
         // 3. Create audit recorder with minimal config for VM test
         AuditConfig audit_cfg;
-        audit_cfg.run_id = "vmtest_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+        audit_cfg.run_id = generate_run_id();
         audit_cfg.file_path = "/dev/null"; // Don't write audit files for VM test
         audit_cfg.flush_each = false;
         

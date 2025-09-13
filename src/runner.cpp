@@ -3,10 +3,12 @@
 #include "sentio/strategy_ire.hpp"
 #include "sentio/pricebook.hpp"
 #include "sentio/metrics.hpp"
+#include "sentio/unified_metrics.hpp"
 #include "sentio/sizer.hpp"
 #include "sentio/cost_model.hpp"
 #include "sentio/feature_feeder.hpp"
 #include "sentio/position_validator.hpp"
+#include "sentio/position_coordinator.hpp"
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -57,13 +59,13 @@ static void execute_target_position(const std::string& instrument, double target
             else                    realized_delta = (pos_before.avg_price - instrument_price) * closing;
         }
 
-        // **ZERO COSTS FOR TESTING**: Remove transaction costs and slippage
-        double fees = 0.0;
-        double slippage_cost = 0.0;
-        double exec_px = instrument_price; // Perfect execution at market price
+        // **ALPACA COSTS**: Use realistic Alpaca fee model for accurate backtesting
+        bool is_sell = (side == Side::Sell);
+        double fees = AlpacaCostModel::calculate_fees(instrument, std::abs(trade_qty), instrument_price, is_sell);
+        double exec_px = instrument_price; // Perfect execution at market price (no slippage)
         
         apply_fill(portfolio, instrument_id, trade_qty, exec_px);
-        // portfolio.cash -= fees; // No fees charged
+        portfolio.cash -= fees; // Apply transaction fees
         
         double equity_after = equity_mark_to_market(portfolio, pricebook.last_px);
         double pos_after = portfolio.positions[instrument_id].qty;
@@ -90,7 +92,10 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
     meta += "\"total_series\":" + std::to_string(series.size()) + ",";
     meta += "\"base_series_size\":" + std::to_string(series[base_symbol_id].size());
     meta += "}";
-    if (logging_enabled) audit.event_run_start(series[base_symbol_id][0].ts_utc_epoch, meta);
+    // Use current time for run start, not first data bar timestamp
+    auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    if (logging_enabled) audit.event_run_start(now, meta);
     
     auto strategy = StrategyFactory::instance().create_strategy(cfg.strategy_name);
     if (!strategy) {
@@ -200,9 +205,9 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
         AuditBar audit_bar{bar.open, bar.high, bar.low, bar.close, static_cast<double>(bar.volume)};
         if (logging_enabled) audit.event_bar(bar.ts_utc_epoch, ST.get_symbol(base_symbol_id), audit_bar.open, audit_bar.high, audit_bar.low, audit_bar.close, audit_bar.volume);
         
-        // Feed features to ML strategies
+        // **STRATEGY-AGNOSTIC**: Feed features to any strategy that needs them
         [[maybe_unused]] auto start_feed = std::chrono::high_resolution_clock::now();
-        FeatureFeeder::feed_features_to_strategy(strategy.get(), base_series, i, cfg.strategy_name);
+        FeatureFeeder::feed_features_to_strategy(strategy.get(), base_series, i, strategy->get_name());
         [[maybe_unused]] auto end_feed = std::chrono::high_resolution_clock::now();
         
         // **RENOVATED ARCHITECTURE**: Governor-based target weight system
@@ -219,19 +224,29 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
             base_series, i, 
             ST.get_symbol(base_symbol_id),  // base_symbol
             strategy_router.bull3x,         // bull3x_symbol  
-            strategy_router.bear3x,         // bear3x_symbol
-            strategy_router.bear1x          // bear1x_symbol
+            strategy_router.bear3x          // bear3x_symbol
         );
         
-        // Log signal for diagnostics
+        // **STRATEGY-AGNOSTIC**: Log signal for diagnostics
         if (logging_enabled) {
             double probability = strategy->calculate_probability(base_series, i);
             std::string signal_desc = strategy->get_signal_description(probability);
+            
+            // **STRATEGY-AGNOSTIC**: Convert signal description to SigType enum
             SigType sig_type = SigType::HOLD;
-            if (signal_desc == "STRONG_BUY") sig_type = SigType::STRONG_BUY;
-            else if (signal_desc == "BUY") sig_type = SigType::BUY;
-            else if (signal_desc == "SELL") sig_type = SigType::SELL;
-            else if (signal_desc == "STRONG_SELL") sig_type = SigType::STRONG_SELL;
+            std::string upper_desc = signal_desc;
+            std::transform(upper_desc.begin(), upper_desc.end(), upper_desc.begin(), ::toupper);
+            
+            if (upper_desc.find("STRONG") != std::string::npos && upper_desc.find("BUY") != std::string::npos) {
+                sig_type = SigType::STRONG_BUY;
+            } else if (upper_desc.find("STRONG") != std::string::npos && upper_desc.find("SELL") != std::string::npos) {
+                sig_type = SigType::STRONG_SELL;
+            } else if (upper_desc.find("BUY") != std::string::npos) {
+                sig_type = SigType::BUY;
+            } else if (upper_desc.find("SELL") != std::string::npos) {
+                sig_type = SigType::SELL;
+            }
+            // Default remains SigType::HOLD for any other signal descriptions
             
             audit.event_signal_ex(bar.ts_utc_epoch, ST.get_symbol(base_symbol_id), 
                                 sig_type, probability, chain_id);
@@ -239,73 +254,94 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
         
         [[maybe_unused]] auto end_signal = std::chrono::high_resolution_clock::now();
         
-        // **CONFLICT RESOLUTION**: Close existing conflicting positions first
-        int conflicts_detected = 0;
-        int conflicts_resolved = 0;
+        // **STRATEGY-ISOLATED COORDINATION**: Create fresh coordinator for each run
+        PositionCoordinator coordinator(1); // Max 1 order per bar
         
-        if (has_conflicting_positions(portfolio, ST)) {
-            conflicts_detected++;
-            
-            // Close all conflicting positions
-            for (size_t sid = 0; sid < portfolio.positions.size(); ++sid) {
-                if (std::abs(portfolio.positions[sid].qty) > 1e-6) {
-                    const std::string& symbol = ST.get_symbol(sid);
-                    if (LONG_ETFS.count(symbol) || INVERSE_ETFS.count(symbol)) {
-                        double close_qty = -portfolio.positions[sid].qty;
-                        double close_price = pricebook.last_px[sid];
-                        
-                        if (close_price > 0 && std::abs(close_qty * close_price) > 10.0) {
-                            Side close_side = (close_qty > 0) ? Side::Buy : Side::Sell;
-                            
-                            if (logging_enabled) {
-                                audit.event_order_ex(bar.ts_utc_epoch, symbol, close_side, std::abs(close_qty), 0.0, "CONFLICT_RESOLUTION");
-                            }
-                            
-                            // Perfect execution for conflict resolution
-                            double fees = 0.0;
-                            double exec_px = close_price;
-                            
-                            double realized_pnl = (portfolio.positions[sid].qty > 0) 
-                                ? (exec_px - portfolio.positions[sid].avg_price) * std::abs(close_qty)
-                                : (portfolio.positions[sid].avg_price - exec_px) * std::abs(close_qty);
-                            
-                            apply_fill(portfolio, sid, close_qty, exec_px);
-                            
-                            if (logging_enabled) {
-                                double equity_after = equity_mark_to_market(portfolio, pricebook.last_px);
-                                double position_after = portfolio.positions[sid].qty;
-                                audit.event_fill_ex(bar.ts_utc_epoch, symbol, exec_px, std::abs(close_qty), fees, close_side, 
-                                                  realized_pnl, equity_after, position_after, "CONFLICT_RESOLUTION");
-                            }
-                            total_fills++;
-                            conflicts_resolved++;
-                        }
-                    }
+        // Convert strategy allocation decisions to coordination format
+        std::vector<AllocationDecision> coord_allocation_decisions;
+        for (const auto& decision : allocation_decisions) {
+            AllocationDecision coord_decision;
+            coord_decision.instrument = decision.instrument;
+            coord_decision.target_weight = decision.target_weight;
+            coord_decision.confidence = decision.confidence;
+            coord_decision.reason = decision.reason;
+            coord_allocation_decisions.push_back(coord_decision);
+        }
+        
+        // Convert to coordination requests
+        auto allocation_requests = convert_allocation_decisions(coord_allocation_decisions, cfg.strategy_name, chain_id);
+        
+        // Coordinate all allocations to prevent conflicts
+        auto coordination_decisions = coordinator.coordinate_allocations(allocation_requests, portfolio, ST);
+        
+        // Log coordination statistics
+        auto coord_stats = coordinator.get_stats();
+        int approved_orders = 0;
+        int rejected_conflicts = 0;
+        int rejected_frequency = 0;
+        
+        // **COORDINATED EXECUTION**: Execute only approved allocation decisions
+        for (const auto& coord_decision : coordination_decisions) {
+            if (coord_decision.result == CoordinationResult::APPROVED) {
+                // Execute approved decision
+                execute_target_position(coord_decision.instrument, coord_decision.approved_weight, 
+                                      portfolio, ST, pricebook, sizer, cfg, series, bar, 
+                                      chain_id, audit, logging_enabled, total_fills);
+                approved_orders++;
+                
+            } else if (coord_decision.result == CoordinationResult::REJECTED_CONFLICT) {
+                // Log conflict prevention
+                if (logging_enabled) {
+                    audit.event_signal_drop(bar.ts_utc_epoch, cfg.strategy_name, coord_decision.instrument, 
+                                          DropReason::THRESHOLD, chain_id, 
+                                          "CONFLICT_PREVENTED: " + coord_decision.conflict_details);
+                }
+                rejected_conflicts++;
+                
+            } else if (coord_decision.result == CoordinationResult::REJECTED_FREQUENCY) {
+                // Log frequency limit
+                if (logging_enabled) {
+                    audit.event_signal_drop(bar.ts_utc_epoch, cfg.strategy_name, coord_decision.instrument, 
+                                          DropReason::THRESHOLD, chain_id, 
+                                          "FREQUENCY_LIMITED: " + coord_decision.reason);
+                }
+                rejected_frequency++;
+                
+            } else if (coord_decision.result == CoordinationResult::MODIFIED) {
+                // Execute modified decision (usually zero weight to prevent conflict)
+                if (std::abs(coord_decision.approved_weight) > 1e-6) {
+                    execute_target_position(coord_decision.instrument, coord_decision.approved_weight, 
+                                          portfolio, ST, pricebook, sizer, cfg, series, bar, 
+                                          chain_id, audit, logging_enabled, total_fills);
+                }
+                if (logging_enabled) {
+                    audit.event_signal_drop(bar.ts_utc_epoch, cfg.strategy_name, coord_decision.instrument, 
+                                          DropReason::THRESHOLD, chain_id, 
+                                          "MODIFIED_FOR_CONFLICT: " + coord_decision.conflict_details);
                 }
             }
         }
         
-        // **STRATEGY-AGNOSTIC EXECUTION**: Execute all allocation decisions from strategy
-        for (const auto& decision : allocation_decisions) {
-            if (std::abs(decision.target_weight) > 1e-6) { // Only execute non-zero weights
-                execute_target_position(decision.instrument, decision.target_weight, portfolio, ST, pricebook, sizer, 
-                                      cfg, series, bar, chain_id, audit, logging_enabled, total_fills);
-            }
-        }
-        
-        // **CRITICAL SANITY CHECK**: Validate no conflicting positions exist after execution
-        int post_execution_conflicts = 0;
+        // **COORDINATION VALIDATION**: Validate no conflicting positions exist after coordination
+        int post_coordination_conflicts = 0;
         if (has_conflicting_positions(portfolio, ST)) {
-            post_execution_conflicts++;
+            post_coordination_conflicts++;
         }
         
-        // **AUDIT CONFLICT STATISTICS**: Log conflict resolution metrics
-        if (logging_enabled && (conflicts_detected > 0 || conflicts_resolved > 0 || post_execution_conflicts > 0)) {
-            std::string conflict_stats = "CONFLICTS_DETECTED:" + std::to_string(conflicts_detected) + 
-                                       ",CONFLICTS_RESOLVED:" + std::to_string(conflicts_resolved) + 
-                                       ",POST_EXECUTION_CONFLICTS:" + std::to_string(post_execution_conflicts);
-            audit.event_signal_drop(bar.ts_utc_epoch, cfg.strategy_name, "CONFLICT_STATS", 
-                                  DropReason::NONE, chain_id, conflict_stats);
+        // **AUDIT COORDINATION STATISTICS**: Log coordination metrics
+        if (logging_enabled && (approved_orders > 0 || rejected_conflicts > 0 || rejected_frequency > 0 || post_coordination_conflicts > 0)) {
+            std::string coord_stats = "COORDINATION_APPROVED:" + std::to_string(approved_orders) + 
+                                    ",CONFLICTS_PREVENTED:" + std::to_string(rejected_conflicts) + 
+                                    ",FREQUENCY_LIMITED:" + std::to_string(rejected_frequency) + 
+                                    ",POST_COORD_CONFLICTS:" + std::to_string(post_coordination_conflicts);
+            audit.event_signal_drop(bar.ts_utc_epoch, cfg.strategy_name, "COORDINATION_STATS", 
+                                  DropReason::NONE, chain_id, coord_stats);
+        }
+        
+        // **CRITICAL ASSERTION**: With proper coordination, there should NEVER be post-execution conflicts
+        if (post_coordination_conflicts > 0) {
+            std::cerr << "CRITICAL ERROR: Position Coordinator failed to prevent conflicts!" << std::endl;
+            std::cerr << "This indicates a bug in the coordination logic." << std::endl;
         }
         
         // 3. ============== SNAPSHOT ==============
@@ -338,13 +374,15 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
         return result;
     }
     
-    // **CRITICAL FIX**: Pass the correct `total_fills` to the metrics calculator.
-    auto summary = compute_metrics_day_aware(equity_curve, total_fills);
+    // **UNIFIED METRICS**: Use the unified metrics calculator for consistent results
+    auto summary = UnifiedMetricsCalculator::calculate_from_equity_curve(equity_curve, total_fills, true);
 
     result.final_equity = equity_curve.empty() ? 100000.0 : equity_curve.back().second;
     result.total_return = summary.ret_total * 100.0;
     result.sharpe_ratio = summary.sharpe;
     result.max_drawdown = summary.mdd * 100.0;
+    result.monthly_projected_return = summary.monthly_proj; // **FIX**: Add monthly projection
+    result.daily_trades = static_cast<int>(summary.daily_trades);
     result.total_fills = summary.trades;
     result.no_route = no_route_count;
     result.no_qty = no_qty_count;

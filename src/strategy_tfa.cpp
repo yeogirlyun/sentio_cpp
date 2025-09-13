@@ -286,8 +286,7 @@ std::vector<BaseStrategy::AllocationDecision> TFAStrategy::get_allocation_decisi
     int current_index,
     const std::string& base_symbol,
     const std::string& bull3x_symbol,
-    const std::string& bear3x_symbol,
-    const std::string& bear1x_symbol) {
+    const std::string& bear3x_symbol) {
     
     std::vector<AllocationDecision> decisions;
     
@@ -310,7 +309,7 @@ std::vector<BaseStrategy::AllocationDecision> TFAStrategy::get_allocation_decisi
     }
     
     // Ensure all instruments are flattened if not in allocation
-    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, bear1x_symbol};
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol};
     for (const auto& inst : all_instruments) {
         bool found = false;
         for (const auto& decision : decisions) {
@@ -328,7 +327,7 @@ RouterCfg TFAStrategy::get_router_config() const {
     RouterCfg cfg;
     cfg.bull3x = "TQQQ";
     cfg.bear3x = "SQQQ";
-    cfg.bear1x = "PSQ";
+    // Note: moderate sell signals now use SHORT QQQ instead of PSQ
     return cfg;
 }
 

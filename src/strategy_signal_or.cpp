@@ -42,8 +42,7 @@ std::vector<SignalOrStrategy::AllocationDecision> SignalOrStrategy::get_allocati
     int current_index,
     const std::string& base_symbol,
     const std::string& bull3x_symbol,
-    const std::string& bear3x_symbol,
-    const std::string& inverse_symbol) {
+    const std::string& bear3x_symbol) {
     
     std::vector<AllocationDecision> decisions;
     
@@ -82,9 +81,10 @@ std::vector<SignalOrStrategy::AllocationDecision> SignalOrStrategy::get_allocati
             target_weight = -cfg_.max_position_weight; // Negative for short
             reason = "Strong short signal - 3x leveraged short";
         } else {
-            target_symbol = inverse_symbol;
-            target_weight = -cfg_.max_position_weight * 0.6; // Conservative sizing
-            reason = "Moderate short signal - inverse position";
+            // Use SHORT QQQ for moderate sell signals instead of inverse ETF
+            target_symbol = base_symbol;
+            target_weight = -cfg_.max_position_weight * 0.6; // Conservative sizing (negative for short)
+            reason = "Moderate short signal - SHORT QQQ";
         }
     }
     

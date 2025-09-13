@@ -2,8 +2,11 @@
 #include "sentio/runner.hpp"
 #include "sentio/audit.hpp"
 #include "sentio/metrics.hpp"
+#include "sentio/unified_metrics.hpp"
 #include "sentio/progress_bar.hpp"
 #include "sentio/day_index.hpp"
+#include "sentio/feature_feeder.hpp"
+#include "sentio/run_id_generator.hpp"
 #include "audit/audit_db_recorder.hpp"
 #include <iostream>
 #include <algorithm>
@@ -101,12 +104,21 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
             }
         }
         
-        // Run backtest for this period using SQLite audit system
-        std::string run_id = rcfg.strategy_name + "_" + test_name + "_" + period_name + std::to_string(p + 1) + "_" + std::to_string(ts_epoch);
-        std::string db_path = "audit/sentio_audit.sqlite3";
-        audit::AuditDBRecorder audit(db_path, run_id);
+        // **STRATEGY ISOLATION**: Reset all shared state before each run
+        FeatureFeeder::reset_all_state();
         
-        auto result = run_backtest(audit, ST, quarter_series, base_symbol_id, rcfg);
+        // **STRATEGY-AGNOSTIC**: Run backtest for this period using SQLite audit system
+        std::string run_id = generate_run_id();
+        std::string period_info = period_name + std::to_string(p + 1);
+        std::string audit_note = create_audit_note(rcfg.strategy_name, test_name, period_info);
+        std::string db_path = "audit/sentio_audit.sqlite3";
+        audit::AuditDBRecorder audit(db_path, run_id, audit_note);
+        
+        // **AUDIT FIX**: Ensure audit level is set to Full for proper logging
+        RunnerCfg audit_cfg = rcfg;
+        audit_cfg.audit_level = AuditLevel::Full;
+        
+        auto result = run_backtest(audit, ST, quarter_series, base_symbol_id, audit_cfg);
         
         // Calculate period metrics
         QuarterlyMetrics metrics;
@@ -126,15 +138,10 @@ TemporalAnalysisSummary run_temporal_analysis(const SymbolTable& ST,
             actual_trading_days = std::max(1, (end_idx - start_idx) / 390); // ~390 bars per day
         }
         
-        // Convert total return percent for the slice into a day-compounded monthly return
-        // result.total_return is percent for the tested slice; convert to decimal for compounding
-        double ret_dec = result.total_return / 100.0;
-        double monthly_compounded = 0.0;
-        if (actual_trading_days > 0) {
-            // Compound to a 21-trading-day month
-            monthly_compounded = (std::pow(1.0 + ret_dec, 21.0 / static_cast<double>(actual_trading_days)) - 1.0) * 100.0;
-        }
-        metrics.monthly_return_pct = monthly_compounded;
+        // **FIX**: Use the correct monthly projection from compute_metrics_day_aware
+        // The metrics calculator already properly computes monthly projected returns
+        // No need for additional compounding which was causing 24x inflation
+        metrics.monthly_return_pct = result.monthly_projected_return * 100.0;
         
         metrics.sharpe_ratio = result.sharpe_ratio;
         metrics.total_trades = result.total_fills;  // Use total_fills as proxy for trades

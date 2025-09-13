@@ -376,7 +376,7 @@ if __name__ == "__main__":
     try:
         agent = create_historical_context_agent(
             symbol="QQQ",
-            historical_data_file="data/equities/QQQ_RTH_NH.csv",
+            historical_data_file="data/equities/QQQ_NH.csv",
             continuation_minutes=120,  # Continue for 2 hours
             seed=42
         )

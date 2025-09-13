@@ -42,6 +42,9 @@ public:
     static void initialize_strategy(const std::string& strategy_name);
     static void cleanup_strategy(const std::string& strategy_name);
     
+    // **STRATEGY ISOLATION**: Clear all state to prevent cross-strategy contamination
+    static void reset_all_state();
+    
     // Feature management
     static std::vector<double> get_cached_features(const std::string& strategy_name);
     static void cache_features(const std::string& strategy_name, const std::vector<double>& features);

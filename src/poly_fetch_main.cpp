@@ -124,7 +124,7 @@ int main(int argc,char**argv){
   PolygonClient cli(api_key);
 
   std::vector<std::string> syms;
-  if(fam=="qqq") syms={"QQQ","TQQQ","SQQQ","PSQ"};
+  if(fam=="qqq") syms={"QQQ","TQQQ","SQQQ"};
   else if(fam=="bitcoin") syms={"X:BTCUSD","X:ETHUSD"};
   else if(fam=="tesla") syms={"TSLA","TSLQ"};
   else if(fam=="custom") {

@@ -107,8 +107,7 @@ public:
         int current_index,
         const std::string& base_symbol,
         const std::string& bull3x_symbol,
-        const std::string& bear3x_symbol,
-        const std::string& bear1x_symbol) = 0;
+        const std::string& bear3x_symbol) = 0;
     
     // **NEW**: Get strategy-specific router configuration
     virtual RouterCfg get_router_config() const = 0;

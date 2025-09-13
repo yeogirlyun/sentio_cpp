@@ -20,10 +20,9 @@ class LeverageRegistry {
   LeverageRegistry() { seed_defaults_(); }
 
   void seed_defaults_() {
-    // QQQ family
+    // QQQ family (PSQ removed - moderate sell signals now use SHORT QQQ)
     map_.emplace("TQQQ", LeverageSpec{"QQQ", 3.f, false});
     map_.emplace("SQQQ", LeverageSpec{"QQQ", 3.f, true});
-    map_.emplace("PSQ",  LeverageSpec{"QQQ", 1.f, true});
     // You can extend similarly for SPY, TSLA, BTC ETFs, etc.
     // Examples:
     // map_.emplace("UPRO", LeverageSpec{"SPY", 3.f, false});

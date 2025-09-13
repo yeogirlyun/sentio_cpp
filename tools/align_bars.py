@@ -58,18 +58,17 @@ def derive_out(path: pathlib.Path, suffix: str) -> pathlib.Path:
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Align QQQ/TQQQ/SQQQ/PSQ minute bars by timestamp intersection.")
+    ap = argparse.ArgumentParser(description="Align QQQ/TQQQ/SQQQ minute bars by timestamp intersection.")
     ap.add_argument("--qqq", required=True)
     ap.add_argument("--tqqq", required=True)
     ap.add_argument("--sqqq", required=True)
-    ap.add_argument("--psq", required=False, help="Optional PSQ data file")
+    # PSQ removed from family - moderate sell signals now use SHORT QQQ
     ap.add_argument("--suffix", default="ALIGNED")
     args = ap.parse_args()
 
     qqq_p = pathlib.Path(args.qqq)
     tqqq_p = pathlib.Path(args.tqqq)
     sqqq_p = pathlib.Path(args.sqqq)
-    psq_p = pathlib.Path(args.psq) if args.psq else None
 
     import pandas as pd
     pd.options.mode.chained_assignment = None
@@ -77,14 +76,9 @@ def main():
     df_q = read_bars(qqq_p)
     df_t = read_bars(tqqq_p)
     df_s = read_bars(sqqq_p)
-    df_p = read_bars(psq_p) if psq_p else None
 
-    if df_p is not None:
-        a_q, a_t, a_s, a_p = align_intersection(df_q, df_t, df_s, df_p)
-        assert list(a_q.index) == list(a_t.index) == list(a_s.index) == list(a_p.index)
-    else:
-        a_q, a_t, a_s = align_intersection(df_q, df_t, df_s)
-        assert list(a_q.index) == list(a_t.index) == list(a_s.index)
+    a_q, a_t, a_s = align_intersection(df_q, df_t, df_s)
+    assert list(a_q.index) == list(a_t.index) == list(a_s.index)
 
     out_q = derive_out(qqq_p, args.suffix)
     out_t = derive_out(tqqq_p, args.suffix)
@@ -95,11 +89,6 @@ def main():
     write_bars(out_s, a_s)
 
     print_files = [f"→ {out_q}", f"→ {out_t}", f"→ {out_s}"]
-
-    if df_p is not None:
-        out_p = derive_out(psq_p, args.suffix)
-        write_bars(out_p, a_p)
-        print_files.append(f"→ {out_p}")
 
     n = len(a_q)
     print(f"Aligned bars: {n}")

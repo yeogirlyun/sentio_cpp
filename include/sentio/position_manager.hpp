@@ -12,7 +12,7 @@ enum class RequiredAction { None, CloseLong, CloseShort };
 enum class Direction { Long, Short }; // Keep for simple directional logic
 
 const std::unordered_set<std::string> LONG_INSTRUMENTS = {"QQQ", "TQQQ", "TSLA"};
-const std::unordered_set<std::string> SHORT_INSTRUMENTS = {"SQQQ", "PSQ", "TSLQ"};
+const std::unordered_set<std::string> SHORT_INSTRUMENTS = {"SQQQ", "TSLQ"};
 
 class PositionManager {
 private:

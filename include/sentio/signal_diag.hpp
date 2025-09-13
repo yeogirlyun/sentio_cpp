@@ -26,10 +26,11 @@ struct SignalDiag {
   }
 
   inline void print(const char* tag) const {
-    std::fprintf(stderr, "[SIG %s] emitted=%llu dropped=%llu  min_bars=%llu session=%llu nan=%llu zerovol=%llu thr=%llu cooldown=%llu dup=%llu\n",
-      tag,(unsigned long long)emitted,(unsigned long long)dropped,
-      (unsigned long long)r_min_bars,(unsigned long long)r_session,(unsigned long long)r_nan,
-      (unsigned long long)r_zero_vol,(unsigned long long)r_threshold,(unsigned long long)r_cooldown,
-      (unsigned long long)r_dup);
+    // Debug: Signal diagnostics (commented out to reduce console noise)
+    // std::fprintf(stderr, "[SIG %s] emitted=%llu dropped=%llu  min_bars=%llu session=%llu nan=%llu zerovol=%llu thr=%llu cooldown=%llu dup=%llu\n",
+    //   tag,(unsigned long long)emitted,(unsigned long long)dropped,
+    //   (unsigned long long)r_min_bars,(unsigned long long)r_session,(unsigned long long)r_nan,
+    //   (unsigned long long)r_zero_vol,(unsigned long long)r_threshold,(unsigned long long)r_cooldown,
+    //   (unsigned long long)r_dup);
   }
 };

@@ -79,8 +79,7 @@ public:
         int current_index,
         const std::string& /* base_symbol */,
         const std::string& /* bull3x_symbol */,
-        const std::string& /* bear3x_symbol */,
-        const std::string& /* bear1x_symbol */) override {
+        const std::string& /* bear3x_symbol */) override {
         
         std::vector<AllocationDecision> decisions;
         
@@ -127,7 +126,7 @@ public:
         cfg.base_symbol = long_symbol_;
         cfg.bull3x = "TQQQ";
         cfg.bear3x = short_symbol_;
-        cfg.bear1x = "PSQ";
+        cfg.bear3x = "SQQQ";
         cfg.max_position_pct = 1.0;
         cfg.min_signal_strength = epsilon_;
         cfg.signal_multiplier = 1.0;

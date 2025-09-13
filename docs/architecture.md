@@ -4,6 +4,8 @@
 
 Sentio is a high-performance quantitative trading system built in C++ that implements a strategy-agnostic architecture for systematic trading. The system is designed to maximize profit through sophisticated signal generation, dynamic allocation, and comprehensive audit capabilities.
 
+> **📖 For complete usage instructions, see the [Sentio User Guide](sentio_user_guide.md) which covers both CLI and audit systems.**
+
 ## Core Architecture Principles
 
 ### 1. Strategy Agnostic Design
@@ -291,8 +293,8 @@ def download_symbol_data(symbol, years=3, api_key=None):
     # Filter for Regular Trading Hours
     rth_bars = filter_rth_bars(bars)
     
-    # Save to CSV format
-    save_bars_to_csv(rth_bars, f"{symbol}_RTH_NH.csv")
+    # Save to CSV format (all trading hours, no holidays)
+    save_bars_to_csv(all_hours_bars, f"{symbol}_NH.csv")
 ```
 
 #### Data Alignment (`tools/align_bars.py`)
@@ -301,7 +303,7 @@ def align_bars(symbols, output_dir="data"):
     """Align timestamps across multiple symbols"""
     all_bars = {}
     for symbol in symbols:
-        bars = load_bars_from_csv(f"{symbol}_RTH_NH.csv")
+        bars = load_bars_from_csv(f"{symbol}_NH.csv")
         all_bars[symbol] = bars
     
     # Find common timestamps
@@ -702,7 +704,7 @@ Data Generation Layer → Strategy Execution → Monte Carlo Testing → Results
 ./build/sentio_cli vmtest IRE QQQ --days 70 --simulations 100 --params '{"buy_hi": 0.6, "sell_lo": 0.4}'
 
 # Custom historical data source
-./build/sentio_cli vmtest IRE QQQ --days 14 --simulations 50 --historical-data data/equities/QQQ_RTH_NH.csv
+./build/sentio_cli strattest ire QQQ --mode historical --duration 14d --simulations 50 --historical-data data/equities/QQQ_NH.csv
 ```
 
 ##### MarS-Powered VM Test
@@ -711,13 +713,13 @@ Data Generation Layer → Strategy Execution → Monte Carlo Testing → Results
 ./build/sentio_cli marstest IRE QQQ --days 7 --simulations 20 --regime normal --use-mars-ai
 
 # MarS with historical context
-./build/sentio_cli marstest TFA QQQ --days 14 --simulations 10 --regime volatile --historical-data data/equities/QQQ_RTH_NH.csv
+./build/sentio_cli strattest tfa QQQ --mode ai-regime --duration 14d --simulations 10 --regime volatile --historical-data data/equities/QQQ_NH.csv
 ```
 
 ##### Fast Historical Test
 ```bash
 # Direct fast historical test
-./build/sentio_cli fasttest IRE QQQ --historical-data data/equities/QQQ_RTH_NH.csv --continuation-minutes 1440 --simulations 50
+./build/sentio_cli strattest ire QQQ --mode historical --historical-data data/equities/QQQ_NH.csv --duration 1d --simulations 50
 ```
 
 #### VMTest Parameters

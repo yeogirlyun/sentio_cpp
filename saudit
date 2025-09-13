@@ -1,0 +1,9 @@
+#!/bin/bash
+# Sentio Audit CLI shortcut script
+# Usage: ./saudit [arguments...]
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Execute sentio_audit with all passed arguments
+exec "${SCRIPT_DIR}/build/sentio_audit" "$@"

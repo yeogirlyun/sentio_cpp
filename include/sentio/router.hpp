@@ -50,7 +50,7 @@ struct RouterCfg {
   std::string base_symbol{"QQQ"};
   std::string bull3x{"TQQQ"};
   std::string bear3x{"SQQQ"};
-  std::string bear1x{"PSQ"};
+  // Note: moderate sell signals now use SHORT base_symbol instead of bear1x ETF
   // sizing
   double min_shares = 1.0;
   double lot_size   = 1.0; // for ETFs typically 1

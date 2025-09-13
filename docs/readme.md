@@ -2,6 +2,8 @@
 
 A high-performance quantitative trading system built in C++ with strategy-agnostic architecture, comprehensive audit capabilities, and ML integration for systematic trading.
 
+> **📖 For complete usage instructions, see the [Sentio User Guide](sentio_user_guide.md) which provides comprehensive documentation for both CLI and audit systems.**
+
 ## Quick Start
 
 ### Prerequisites
@@ -30,13 +32,12 @@ make
 
 4. **Download market data**
 ```bash
-python tools/data_downloader.py QQQ PSQ TQQQ SQQQ --years 3
-python tools/align_bars.py QQQ PSQ TQQQ SQQQ
+./build/sentio_cli download QQQ --family --period 3y
 ```
 
-5. **Run your first backtest**
+5. **Run your first strategy test**
 ```bash
-./build/sentio_cli tpatest QQQ --strategy IRE --quarters 1
+./build/sentio_cli strattest ire QQQ --comprehensive
 ```
 
 ## Core Features
@@ -89,28 +90,34 @@ python tools/align_bars.py QQQ PSQ TQQQ SQQQ
 
 ## Usage Examples
 
-### Basic Backtesting
+### Strategy Testing
 ```bash
-# Test IRE strategy for 1 quarter
-./build/sentio_cli tpatest QQQ --strategy IRE --quarters 1
+# Basic strategy test
+./build/sentio_cli strattest ire QQQ
 
-# Test TFA strategy for 2 weeks
-./build/sentio_cli tpatest QQQ --strategy TFA --weeks 2
+# Comprehensive robustness test
+./build/sentio_cli strattest ire QQQ --comprehensive --stress-test
 
-# Test BollingerSqueezeBreakout for 5 days
-./build/sentio_cli tpatest QQQ --strategy BollingerSqueezeBreakout --days 5
+# Quick development test
+./build/sentio_cli strattest tfa QQQ --quick --duration 1d
+
+# Monte Carlo simulation
+./build/sentio_cli strattest momentum QQQ --mode monte-carlo --simulations 100
 ```
 
 ### Audit Analysis
 ```bash
-# Analyze latest audit file
-python tools/audit_cli.py latest --max-trades 20
+# Show performance summary
+./build/sentio_audit summarize
 
-# Replay audit events with metrics
-python tools/audit_cli.py replay audit/IRE_tpa_test_*.jsonl
+# Analyze trade execution
+./build/sentio_audit trade-flow --buy --sell
 
-# Export trades to CSV
-python tools/audit_cli.py trades audit/IRE_tpa_test_*.jsonl --output trades.csv
+# Review signal quality
+./build/sentio_audit signal-flow --max 100
+
+# Check position history
+./build/sentio_audit position-history --max 50
 ```
 
 ### ML Model Training
@@ -125,13 +132,13 @@ python sentio_trainer/trainers/tfa_fast.py --symbol QQQ --epochs 50
 ### Data Management
 ```bash
 # Download latest data
-python tools/data_downloader.py QQQ PSQ TQQQ SQQQ --years 1
+./build/sentio_cli download QQQ --family --period 1y
 
-# Align timestamps across symbols
-python tools/align_bars.py QQQ PSQ TQQQ SQQQ
+# Download specific timespan
+./build/sentio_cli download SPY --period 6m --timespan day
 
-# Check data quality
-python tools/data_quality_check.py data/equities/
+# Check system status
+./build/sentio_cli probe
 ```
 
 ## Configuration
@@ -260,17 +267,17 @@ make sanity-test
 
 ### Diagnostic Tools
 ```bash
-# Signal diagnostics
-./build/sentio_cli tpatest QQQ --strategy IRE --quarters 1
+# Strategy validation
+./build/sentio_cli audit-validate
+
+# System health check
+./build/sentio_cli probe
+
+# Comprehensive strategy test
+./build/sentio_cli strattest ire QQQ --comprehensive
 
 # Audit analysis
-python tools/audit_cli.py latest --max-trades 20
-
-# Data quality check
-python tools/data_quality_check.py data/equities/
-
-# Sanity system validation
-make sanity-test
+./build/sentio_audit summarize --detailed
 ```
 
 ## Contributing

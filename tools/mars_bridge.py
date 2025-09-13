@@ -38,6 +38,10 @@ try:
 except ImportError as e:
     print(f"Warning: MarS not available: {e}")
     MARS_AVAILABLE = False
+    # Define dummy classes for type hints when MarS is not available
+    class Exchange: pass
+    class TradeInfo: pass
+    class Timestamp: pass
 
 # Import our custom agent
 try:

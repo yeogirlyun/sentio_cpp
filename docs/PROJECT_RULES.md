@@ -863,6 +863,108 @@ python3 tools/create_mega_document.py \
 - **Architecture Analysis**: System design reviews, component integration studies
 - **Code Reviews**: Comprehensive code analysis with multiple file context
 
+### **Mega Document Size Management (CRITICAL)**
+
+**MANDATORY**: When creating mega documents, include **ONLY relevant source modules** to maintain manageable document sizes.
+
+#### **Size Guidelines**
+- **Target Size**: 200-500 KB maximum for focused analysis
+- **File Count**: 10-30 relevant files maximum
+- **Content Focus**: Only include files directly related to the analysis topic
+
+#### **File Selection Rules**
+
+##### ✅ **INCLUDE Files When Relevant**
+- **Core Implementation**: Files directly implementing the analyzed functionality
+- **Interface Definitions**: Headers defining the analyzed components
+- **Supporting Infrastructure**: Files that directly support the core functionality
+- **Configuration**: Files that configure the analyzed behavior
+- **Test Files**: Files that test the analyzed functionality
+
+##### ❌ **EXCLUDE Files When Unrelated**
+- **Strategy Implementations**: Unless analyzing strategy-specific issues
+- **Feature Engineering**: Unless analyzing feature-specific problems
+- **ML Models**: Unless analyzing model-specific issues
+- **Portfolio Management**: Unless analyzing portfolio-specific problems
+- **Signal Processing**: Unless analyzing signal-specific issues
+- **UI Components**: Unless analyzing UI-specific problems
+- **Utility Functions**: Unless directly related to the analysis
+
+#### **Relevance Assessment Criteria**
+
+**A file is RELEVANT if:**
+1. **Direct Implementation**: Contains code that directly implements the analyzed functionality
+2. **Core Interface**: Defines interfaces used by the analyzed functionality
+3. **Configuration**: Contains settings that affect the analyzed behavior
+4. **Supporting Logic**: Contains logic that directly supports the analyzed functionality
+5. **Testing**: Contains tests that validate the analyzed functionality
+
+**A file is UNRELATED if:**
+1. **Different Domain**: Implements functionality in a different domain (e.g., UI when analyzing backend)
+2. **Indirect Support**: Only indirectly supports the analyzed functionality
+3. **Generic Utility**: Provides generic functionality not specific to the analysis
+4. **Strategy-Specific**: Implements specific strategies when analyzing general framework issues
+5. **Feature-Specific**: Implements specific features when analyzing core system issues
+
+#### **Size Management Examples**
+
+##### **Example 1: TPA Metrics Analysis**
+**RELEVANT (15-20 files):**
+- `include/sentio/metrics.hpp` - Core metrics calculation
+- `src/temporal_analysis.cpp` - TPA implementation
+- `src/runner.cpp` - Backtest execution
+- `audit/src/audit_db.cpp` - Audit metrics calculation
+- `audit/src/audit_cli.cpp` - Audit reporting
+- `include/sentio/runner.hpp` - Runner interface
+- `include/sentio/temporal_analysis.hpp` - TPA interface
+- `include/sentio/base_strategy.hpp` - Strategy base class
+- `src/audit.cpp` - Audit recorder
+- `src/audit_validator.cpp` - Audit validation
+
+**UNRELATED (100+ files):**
+- All strategy implementations (`strategy_*.cpp`)
+- Feature engineering modules (`feature_engineering/`)
+- ML model implementations (`ml/`)
+- Portfolio management (`portfolio/`)
+- Signal processing (`signal_*.cpp`)
+
+##### **Example 2: Strategy-Specific Bug**
+**RELEVANT (5-10 files):**
+- `src/strategy_ire.cpp` - Specific strategy implementation
+- `include/sentio/strategy_ire.hpp` - Strategy interface
+- `include/sentio/base_strategy.hpp` - Base strategy class
+- `src/runner.cpp` - Strategy execution
+- `include/sentio/runner.hpp` - Runner interface
+
+**UNRELATED (150+ files):**
+- All other strategy implementations
+- Audit system files
+- Feature engineering modules
+- ML model implementations
+- Portfolio management files
+
+#### **Pre-Creation Checklist**
+
+Before creating a mega document, verify:
+- [ ] **File Relevance**: Each included file directly relates to the analysis topic
+- [ ] **Size Estimate**: Document will be <500 KB
+- [ ] **File Count**: <30 files included
+- [ ] **Domain Focus**: Files are from the same functional domain
+- [ ] **Analysis Scope**: Files match the analysis scope and depth
+
+#### **Size Monitoring Commands**
+
+```bash
+# Check mega document size before creation
+ls -lh megadocs/*.md | awk '{print $5, $9}' | sort -hr
+
+# Count files in mega document
+grep "^## 📄 \*\*FILE.*\*\*:" megadocs/DOCUMENT_NAME.md | wc -l
+
+# List files included in mega document
+grep "^## 📄 \*\*FILE.*\*\*:" megadocs/DOCUMENT_NAME.md | sed 's/## 📄 \*\*FILE [0-9]* of [0-9]*\*\*: //'
+```
+
 ### **Tool Command Reference**
 
 ```bash

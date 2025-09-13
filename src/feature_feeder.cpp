@@ -1,7 +1,6 @@
 #include "sentio/feature_feeder.hpp"
 // TFB strategy removed - focusing on TFA only
 #include "sentio/strategy_tfa.hpp"
-#include "sentio/strategy_transformer_ts.hpp"
 #include "sentio/strategy_kochi_ppo.hpp"
 #include "sentio/feature_builder.hpp"
 #include "sentio/feature_engineering/kochi_features.hpp"
@@ -24,7 +23,6 @@ bool FeatureFeeder::use_cached_features_ = false;
 
 bool FeatureFeeder::is_ml_strategy(const std::string& strategy_name) {
     return strategy_name == "TFA" || strategy_name == "tfa" ||
-           strategy_name == "transformer" ||
            strategy_name == "hybrid_ppo" ||
            strategy_name == "kochi_ppo";
 }
@@ -65,6 +63,14 @@ void FeatureFeeder::initialize_strategy_data(const std::string& strategy_name) {
 void FeatureFeeder::cleanup_strategy(const std::string& strategy_name) {
     std::lock_guard<std::mutex> lock(data_mutex_);
     strategy_data_.erase(strategy_name);
+}
+
+void FeatureFeeder::reset_all_state() {
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    strategy_data_.clear();
+    feature_cache_.reset();
+    use_cached_features_ = false;
+    std::cout << "[ISOLATION] FeatureFeeder state reset for strategy isolation" << std::endl;
 }
 
 std::vector<double> FeatureFeeder::extract_features_from_bar(const Bar& bar, const std::string& strategy_name) {
@@ -313,11 +319,6 @@ void FeatureFeeder::feed_features_to_strategy(BaseStrategy* strategy, const std:
                 if (cast_fail <= 10) {
                     std::cout << "[DIAG] FeatureFeeder: TFA cast failed! call=" << cast_fail << std::endl;
                 }
-            }
-        } else if (strategy_name == "transformer") {
-            auto* tf = dynamic_cast<TransformerSignalStrategyTS*>(strategy);
-            if (tf) {
-                tf->set_raw_features(features);
             }
         } else if (strategy_name == "kochi_ppo") {
             auto* kp = dynamic_cast<KochiPPOStrategy*>(strategy);

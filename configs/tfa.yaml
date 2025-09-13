@@ -1,5 +1,5 @@
 symbol: "QQQ"
-bars_csv: "data/equities/QQQ_RTH_NH.csv"
+bars_csv: "data/equities/QQQ_NH.csv"
 
 # Point to the 55-feature spec (minimal: close source only)
 feature_spec: "configs/features/feature_spec_55_minimal.json"
