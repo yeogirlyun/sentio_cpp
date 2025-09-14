@@ -79,9 +79,10 @@ bool MarsDataLoader::generate_mars_data(const std::string& symbol,
         << " --interval " << bar_interval_seconds
         << " --simulations " << num_simulations
         << " --regime " << market_regime
-        << " --output " << output_file;
+        << " --output " << output_file
+        << " --quiet";
     
-    std::cout << "🚀 Generating MarS data: " << cmd.str() << std::endl;
+    // Suppress verbose command output
     
     return execute_python_command(cmd.str());
 }
@@ -97,9 +98,10 @@ bool MarsDataLoader::generate_fast_historical_data(const std::string& symbol,
         << " --symbol " << symbol
         << " --historical-data " << historical_data_file
         << " --continuation-minutes " << continuation_minutes
-        << " --output " << output_file;
+        << " --output " << output_file
+        << " --quiet";
     
-    std::cout << "⚡ Generating fast historical data: " << cmd.str() << std::endl;
+    // Suppress verbose command output
     
     return execute_python_command(cmd.str());
 }

@@ -46,7 +46,7 @@ CLIHelpers::ParsedArgs CLIHelpers::parse_arguments(int argc, char* argv[]) {
             } else {
                 // --key value format
                 key = arg.substr(2);
-                if (i + 1 < argc && !argv[i + 1][0] == '-') {
+                if (i + 1 < argc && !(argv[i + 1][0] == '-')) {
                     value = argv[++i];
                 } else {
                     // Flag without value
@@ -62,7 +62,7 @@ CLIHelpers::ParsedArgs CLIHelpers::parse_arguments(int argc, char* argv[]) {
             std::string key = arg.substr(1);
             std::string value;
             
-            if (i + 1 < argc && !argv[i + 1][0] == '-') {
+            if (i + 1 < argc && !(argv[i + 1][0] == '-')) {
                 value = argv[++i];
                 args.options[normalize_option_key(key)] = value;
             } else {
@@ -178,6 +178,7 @@ bool CLIHelpers::validate_required_args(const ParsedArgs& args, int min_required
 void CLIHelpers::print_help(const std::string& command, const std::string& usage,
                            const std::vector<std::string>& options,
                            const std::vector<std::string>& examples) {
+    (void)command; // Suppress unused parameter warning
     std::cout << "Usage: " << usage << std::endl << std::endl;
     
     if (!options.empty()) {

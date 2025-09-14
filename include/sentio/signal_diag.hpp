@@ -27,6 +27,7 @@ struct SignalDiag {
 
   inline void print(const char* tag) const {
     // Debug: Signal diagnostics (commented out to reduce console noise)
+    (void)tag; // Suppress unused parameter warning
     // std::fprintf(stderr, "[SIG %s] emitted=%llu dropped=%llu  min_bars=%llu session=%llu nan=%llu zerovol=%llu thr=%llu cooldown=%llu dup=%llu\n",
     //   tag,(unsigned long long)emitted,(unsigned long long)dropped,
     //   (unsigned long long)r_min_bars,(unsigned long long)r_session,(unsigned long long)r_nan,

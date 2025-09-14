@@ -4,8 +4,10 @@
 #include "sentio/temporal_analysis.hpp"
 #include "sentio/symbol_table.hpp"
 #include "sentio/audit.hpp"
+#include "audit/audit_db_recorder.hpp"
 #include "sentio/base_strategy.hpp"
 #include "sentio/mars_data_loader.hpp"
+#include "sentio/future_qqq_loader.hpp"
 #include "sentio/run_id_generator.hpp"
 #include <iostream>
 #include <iomanip>
@@ -188,17 +190,14 @@ std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_mo
     auto start_time = std::chrono::high_resolution_clock::now();
     
     for (int i = 0; i < config.simulations; ++i) {
-        // Progress reporting
-        if ((i + 1) % 25 == 0 || i == 0) {
+        // Reduced progress reporting - only show every 50% or at key milestones
+        if (config.simulations >= 10 && ((i + 1) % (config.simulations / 2) == 0 || i == 0 || i == config.simulations - 1)) {
             auto elapsed = std::chrono::high_resolution_clock::now() - start_time;
             auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
             double progress_pct = ((i + 1) / static_cast<double>(config.simulations)) * 100;
-            double eta = elapsed_sec / ((i + 1) / static_cast<double>(config.simulations)) - elapsed_sec;
             
-            std::cout << "📊 Progress: " << std::fixed << std::setprecision(1) << progress_pct 
-                      << "% | Sim " << std::setw(4) << (i + 1) << "/" << std::setw(4) << config.simulations
-                      << " | Elapsed: " << std::setw(5) << elapsed_sec << "s"
-                      << " | ETA: " << std::setw(5) << static_cast<int>(eta) << "s" << std::endl;
+            std::cout << "📊 Progress: " << std::fixed << std::setprecision(0) << progress_pct 
+                      << "% (" << (i + 1) << "/" << config.simulations << ")" << std::endl;
         }
         
         // Generate synthetic market data
@@ -233,26 +232,16 @@ std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_ma
     std::vector<VMSimulationResult> results;
     results.reserve(config.simulations);
     
-    std::cout << "🚀 Starting MarS Monte Carlo simulation..." << std::endl;
-    std::cout << "📊 Strategy: " << config.strategy_name << std::endl;
-    std::cout << "📈 Symbol: " << config.symbol << std::endl;
-    std::cout << "⏱️  Duration: " << config.days << " days" << std::endl;
-    std::cout << "🎲 Simulations: " << config.simulations << std::endl;
-    std::cout << "🌊 Market Regime: " << market_regime << std::endl;
+    std::cout << "🤖 Running " << config.simulations << " AI regime tests..." << std::endl;
     
     auto start_time = std::chrono::high_resolution_clock::now();
     
     for (int i = 0; i < config.simulations; ++i) {
-        if (i % std::max(1, config.simulations / 10) == 0) {
-            auto elapsed = std::chrono::high_resolution_clock::now() - start_time;
-            auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
-            auto eta = (elapsed_sec * config.simulations) / (i + 1) - elapsed_sec;
-            
-            std::cout << "📊 Progress: " << std::fixed << std::setprecision(1) 
-                      << (100.0 * i / config.simulations) << "% | Sim " 
-                      << std::setw(4) << (i + 1) << "/" << std::setw(4) << config.simulations
-                      << " | Elapsed: " << std::setw(6) << elapsed_sec << "s | ETA: " 
-                      << std::setw(6) << eta << "s" << std::endl;
+        // Minimal progress reporting
+        if (config.simulations >= 5 && ((i + 1) % std::max(1, config.simulations / 2) == 0 || i == config.simulations - 1)) {
+            double progress_pct = (100.0 * (i + 1)) / config.simulations;
+            std::cout << "📊 Progress: " << std::fixed << std::setprecision(0) << progress_pct 
+                      << "% (" << (i + 1) << "/" << config.simulations << ")" << std::endl;
         }
         
         try {
@@ -335,6 +324,95 @@ std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_ma
     return run_mars_monte_carlo_simulation(config, std::move(strategy), runner_cfg, market_regime);
 }
 
+std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_future_qqq_regime_test(
+    const std::string& strategy_name,
+    const std::string& symbol,
+    int simulations,
+    const std::string& market_regime,
+    const std::string& params_json) {
+    
+    std::vector<VMSimulationResult> results;
+    results.reserve(simulations);
+    
+    std::cout << "🚀 Starting Future QQQ Regime Test..." << std::endl;
+    std::cout << "📊 Strategy: " << strategy_name << std::endl;
+    std::cout << "📈 Symbol: " << symbol << std::endl;
+    std::cout << "🎯 Market Regime: " << market_regime << std::endl;
+    std::cout << "🎲 Simulations: " << simulations << std::endl;
+    
+    // Validate future QQQ tracks are available
+    if (!FutureQQQLoader::validate_tracks()) {
+        std::cerr << "❌ Future QQQ tracks validation failed" << std::endl;
+        return results;
+    }
+    
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
+    for (int i = 0; i < simulations; ++i) {
+        // Progress reporting
+        if (simulations >= 5 && ((i + 1) % std::max(1, simulations / 2) == 0 || i == simulations - 1)) {
+            double progress_pct = (100.0 * (i + 1)) / simulations;
+            std::cout << "📊 Progress: " << std::fixed << std::setprecision(0) << progress_pct 
+                      << "% (" << (i + 1) << "/" << simulations << ")" << std::endl;
+        }
+        
+        try {
+            // Load a random track for the specified regime
+            // Use simulation index as seed for reproducible results
+            auto future_data = FutureQQQLoader::load_regime_track(market_regime, i);
+            
+            if (future_data.empty()) {
+                std::cerr << "Warning: No future QQQ data loaded for simulation " << (i + 1) << std::endl;
+                results.push_back(VMSimulationResult{}); // Add empty result
+                continue;
+            }
+            
+            // Create new strategy instance for this simulation
+            auto strategy_instance = StrategyFactory::instance().create_strategy(strategy_name);
+            
+            if (!strategy_instance) {
+                std::cerr << "Error: Could not create strategy instance for simulation " << (i + 1) << std::endl;
+                results.push_back(VMSimulationResult{}); // Add empty result
+                continue;
+            }
+            
+            // Create runner configuration
+            RunnerCfg runner_cfg;
+            runner_cfg.strategy_name = strategy_name;
+            runner_cfg.strategy_params["buy_hi"] = "0.6";
+            runner_cfg.strategy_params["sell_lo"] = "0.4";
+            
+            // Run simulation with future QQQ data
+            auto result = run_single_simulation(
+                future_data, std::move(strategy_instance), runner_cfg, 100000.0
+            );
+            
+            results.push_back(result);
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Error in future QQQ simulation " << (i + 1) << ": " << e.what() << std::endl;
+            results.push_back(VMSimulationResult{}); // Add empty result
+        }
+    }
+    
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto total_time = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count();
+    
+    std::cout << "⏱️  Completed " << simulations << " future QQQ simulations in " 
+              << total_time << " seconds" << std::endl;
+    
+    // Print comprehensive report
+    VMTestConfig config;
+    config.strategy_name = strategy_name;
+    config.symbol = symbol;
+    config.simulations = simulations;
+    config.params_json = params_json;
+    config.initial_capital = 100000.0;
+    print_simulation_report(results, config);
+    
+    return results;
+}
+
 std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_fast_historical_test(
     const std::string& strategy_name,
     const std::string& symbol,
@@ -356,16 +434,11 @@ std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_fa
     auto start_time = std::chrono::high_resolution_clock::now();
     
     for (int i = 0; i < simulations; ++i) {
-        if (i % std::max(1, simulations / 10) == 0) {
-            auto elapsed = std::chrono::high_resolution_clock::now() - start_time;
-            auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
-            auto eta = (elapsed_sec * simulations) / (i + 1) - elapsed_sec;
-            
-            std::cout << "📊 Progress: " << std::fixed << std::setprecision(1) 
-                      << (100.0 * i / simulations) << "% | Sim " 
-                      << std::setw(4) << (i + 1) << "/" << std::setw(4) << simulations
-                      << " | Elapsed: " << std::setw(6) << elapsed_sec << "s | ETA: " 
-                      << std::setw(6) << eta << "s" << std::endl;
+        // Minimal progress reporting
+        if (simulations >= 5 && ((i + 1) % std::max(1, simulations / 2) == 0 || i == simulations - 1)) {
+            double progress_pct = (100.0 * (i + 1)) / simulations;
+            std::cout << "📊 Progress: " << std::fixed << std::setprecision(0) << progress_pct 
+                      << "% (" << (i + 1) << "/" << simulations << ")" << std::endl;
         }
         
         try {
@@ -446,16 +519,18 @@ VirtualMarketEngine::VMSimulationResult VirtualMarketEngine::run_single_simulati
         std::vector<std::vector<Bar>> series(1);
         series[0] = market_data;
         
-        // 3. Create audit recorder with minimal config for VM test
-        AuditConfig audit_cfg;
-        audit_cfg.run_id = generate_run_id();
-        audit_cfg.file_path = "/dev/null"; // Don't write audit files for VM test
-        audit_cfg.flush_each = false;
+        // 3. Create audit recorder - use in-memory database if audit logging is disabled
+        std::string run_id = generate_run_id();
+        std::string note = "Strategy: " + runner_cfg.strategy_name + ", Test: vm_test, Generated by strattest";
         
-        AuditRecorder audit(audit_cfg);
+        // Use in-memory database if audit logging is disabled to prevent conflicts
+        std::string db_path = (runner_cfg.audit_level == AuditLevel::MetricsOnly) ? ":memory:" : "audit/sentio_audit.sqlite3";
+        audit::AuditDBRecorder audit(db_path, run_id, note);
         
         // 4. Run REAL backtest using actual Runner
         RunResult run_result = run_backtest(audit, ST, series, symbol_id, runner_cfg);
+        
+        // Suppress debug output for cleaner console
         
         // 5. Extract performance metrics from real results
         result.total_return = run_result.total_return;
@@ -466,6 +541,8 @@ VirtualMarketEngine::VMSimulationResult VirtualMarketEngine::run_single_simulati
         result.total_trades = run_result.total_fills;
         result.monthly_projected_return = run_result.monthly_projected_return;
         result.daily_trades = static_cast<double>(run_result.daily_trades);
+        
+        // Suppress individual simulation output for cleaner console
         
     } catch (const std::exception& e) {
         std::cerr << "❌ VM simulation failed: " << e.what() << std::endl;
@@ -542,9 +619,8 @@ VirtualMarketEngine::VMSimulationResult VirtualMarketEngine::calculate_performan
     int winning_trades = std::count_if(trades.begin(), trades.end(), [](int trade) { return trade > 0; });
     result.win_rate = (trades.empty()) ? 0.0 : static_cast<double>(winning_trades) / trades.size();
     
-    // Calculate monthly projected return
-    double annual_return = result.total_return * (252.0 / returns.size());
-    result.monthly_projected_return = annual_return / 12.0;
+    // Monthly projected return is already correctly calculated by run_backtest
+    // using UnifiedMetricsCalculator - no need to recalculate here
     
     // Calculate daily trades
     result.daily_trades = static_cast<double>(result.total_trades) / returns.size();

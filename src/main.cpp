@@ -66,7 +66,7 @@ static bool verify_series_alignment(const sentio::SymbolTable& ST,
 void usage() {
     std::cout << "Usage: sentio_cli <command> [options]\n\n"
               << "STRATEGY TESTING:\n"
-              << "  strattest <strategy> <symbol> [options]    Unified strategy robustness testing\n"
+              << "  strattest <strategy> [symbol] [options]    Unified strategy robustness testing (symbol defaults to QQQ)\n"
               << "\n"
               << "DATA MANAGEMENT:\n"
               << "  download <symbol> [options]               Download historical data from Polygon.io\n"
@@ -81,8 +81,8 @@ void usage() {
               << "  --output <format>                         Output format: console|json|csv\n"
               << "\n"
               << "Examples:\n"
-              << "  sentio_cli strattest momentum QQQ --mode hybrid --duration 1w\n"
-              << "  sentio_cli strattest ire QQQ --comprehensive --stress-test\n"
+              << "  sentio_cli strattest momentum --mode hybrid --duration 1w\n"
+              << "  sentio_cli strattest ire --comprehensive --stress-test\n"
               << "  sentio_cli download QQQ --period 3y\n"
               << "  sentio_cli probe\n"
               << "\n"
@@ -114,7 +114,7 @@ int main(int argc, char* argv[]) {
     if (command == "strattest") {
         if (args.help_requested) {
             sentio::CLIHelpers::print_help("strattest", 
-                "sentio_cli strattest <strategy> <symbol> [options]",
+                "sentio_cli strattest <strategy> [symbol] [options]",
                 {
                     "--mode <mode>              Simulation mode: monte-carlo|historical|ai-regime|hybrid (default: hybrid)",
                     "--simulations <n>          Number of simulations (default: 50)",
@@ -132,24 +132,26 @@ int main(int argc, char* argv[]) {
                     "--benchmark <symbol>       Benchmark symbol (default: SPY)",
                     "--quick                    Quick mode: fewer simulations, faster execution",
                     "--comprehensive            Comprehensive mode: extensive testing scenarios",
-                    "--params <json>            Strategy parameters as JSON string (default: '{}')"
+                    "--params <json>            Strategy parameters as JSON string (default: '{}')",
+                    "",
+                    "Note: Symbol defaults to QQQ if not specified"
                 },
                 {
-                    "sentio_cli strattest momentum QQQ --mode hybrid --duration 1w",
-                    "sentio_cli strattest ire QQQ --comprehensive --stress-test",
+                    "sentio_cli strattest momentum --mode hybrid --duration 1w",
+                    "sentio_cli strattest ire --comprehensive --stress-test",
                     "sentio_cli strattest momentum QQQ --mode monte-carlo --simulations 100",
                     "sentio_cli strattest ire SPY --mode ai-regime --regime volatile"
                 });
             return 0;
         }
         
-        if (!sentio::CLIHelpers::validate_required_args(args, 2, 
-            "sentio_cli strattest <strategy> <symbol> [options]")) {
+        if (!sentio::CLIHelpers::validate_required_args(args, 1, 
+            "sentio_cli strattest <strategy> [symbol] [options]")) {
             return 1;
         }
         
         std::string strategy_name = args.positional_args[0];
-        std::string symbol = args.positional_args[1];
+        std::string symbol = (args.positional_args.size() > 1) ? args.positional_args[1] : "QQQ";
         
         // Validate inputs
         if (!sentio::CLIHelpers::is_valid_strategy_name(strategy_name)) {

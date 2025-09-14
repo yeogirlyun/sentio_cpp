@@ -7,12 +7,13 @@
 #include <vector>
 #include <optional>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 
 namespace sentio {
 
 // Optional microstructure snapshot (pass when you have it; else omit)
-struct MicroTick { double bid{NAN}, ask{NAN}; };
+struct MicroTick { double bid{std::numeric_limits<double>::quiet_NaN()}, ask{std::numeric_limits<double>::quiet_NaN()}; };
 
 // A compiled plan for the features (from metadata)
 struct FeaturePlan {
@@ -40,7 +41,7 @@ public:
   explicit RollingMean(size_t W): W_(W) {}
   void push(double x){ sum_ += x; q_.push_back(x); if(q_.size()>W_){ sum_-=q_.front(); q_.pop_front(); } }
   bool full() const { return q_.size()==W_; }
-  double mean() const { return q_.empty()? NAN : (sum_/double(q_.size())); }
+  double mean() const { return q_.empty()? std::numeric_limits<double>::quiet_NaN() : (sum_/double(q_.size())); }
   size_t size() const { return q_.size(); }
 };
 
@@ -66,7 +67,7 @@ public:
   }
   inline bool full() const { return n_ == W_; }
   inline double stdev() const { 
-    if (n_ < 2) return NAN; 
+    if (n_ < 2) return std::numeric_limits<double>::quiet_NaN(); 
     double m = sum_ / n_; 
     return std::sqrt(std::max(0.0, sumsq_ / n_ - m * m)); 
   }
@@ -95,7 +96,7 @@ public:
   }
   bool ready() const { return !boot_; }
   double value() const {
-    if (boot_) return NAN;
+    if (boot_) return std::numeric_limits<double>::quiet_NaN();
     if (dn_==0) return 100.0;
     double rs = up_/dn_;
     return 100.0 - 100.0/(1.0+rs);
@@ -134,13 +135,13 @@ private:
   RollingRSI  rsi_;
 
   // Cached per-bar computations
-  double last_ret_1m_{NAN};
-  double last_ret_5m_{NAN};
-  double last_rsi_{NAN};
-  double last_sma_fast_{NAN};
-  double last_sma_slow_{NAN};
-  double last_vol_1m_{NAN};
-  double last_spread_bp_{NAN};
+  double last_ret_1m_{std::numeric_limits<double>::quiet_NaN()};
+  double last_ret_5m_{std::numeric_limits<double>::quiet_NaN()};
+  double last_rsi_{std::numeric_limits<double>::quiet_NaN()};
+  double last_sma_fast_{std::numeric_limits<double>::quiet_NaN()};
+  double last_sma_slow_{std::numeric_limits<double>::quiet_NaN()};
+  double last_vol_1m_{std::numeric_limits<double>::quiet_NaN()};
+  double last_spread_bp_{std::numeric_limits<double>::quiet_NaN()};
 
   // helpers
   static inline bool finite(double x){ return std::isfinite(x); }

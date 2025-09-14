@@ -41,24 +41,29 @@ PROD_PERF_TEST_TARGET = $(BUILD_DIR)/test_production_performance
 PROGRESS_BAR_TEST_TARGET = $(BUILD_DIR)/test_progress_bar
 WF_PROGRESS_TEST_TARGET = $(BUILD_DIR)/test_wf_progress
 SANITY_INTEGRATION_TARGET = $(BUILD_DIR)/sanity_integration_example
-HYBRID_PPO_TEST_TARGET = $(BUILD_DIR)/test_hybrid_ppo
+# HYBRID_PPO_TEST_TARGET removed - strategy deregistered
 LEVERAGE_TEST_TARGET = $(BUILD_DIR)/test_leverage
 BUILDER_GUARD_TEST_TARGET = $(BUILD_DIR)/test_builder_guard
 LEVERAGE_EXAMPLE_TARGET = $(BUILD_DIR)/leverage_guarded_example
 TFA_CORRUPTION_TEST_TARGET = $(BUILD_DIR)/test_tfa_corruption
 POSITION_GUARDIAN_TEST_TARGET = $(BUILD_DIR)/test_position_guardian
+LEVERAGE_PRICING_TEST_TARGET = $(BUILD_DIR)/test_leverage_pricing
+LEVERAGE_PNL_COMPARISON_TARGET = $(BUILD_DIR)/leverage_pnl_comparison
+MINUTE_ANALYSIS_TARGET = $(BUILD_DIR)/minute_by_minute_analysis
+ACCURATE_MINUTE_ANALYSIS_TARGET = $(BUILD_DIR)/accurate_minute_analysis
+CALIBRATED_ANALYSIS_TARGET = $(BUILD_DIR)/calibrated_accurate_analysis
 PYTHON_MODULE_TARGET = sentio_features.cpython-313-darwin.so
 REPLAY_AUDIT_TARGET = $(BUILD_DIR)/replay_audit
 PNL_TEST_TARGET = $(BUILD_DIR)/test_pnl_engine
-KOCHI_BIN_RUNNER = $(BUILD_DIR)/kochi_bin_runner
+# KOCHI_BIN_RUNNER removed - strategy deregistered
 RULE_ENSEMBLE_TARGET = $(BUILD_DIR)/run_rule_ensemble
-IRE_SWEEP_TARGET = $(BUILD_DIR)/ire_param_sweep
+# IRE_SWEEP_TARGET removed - strategy deregistered
 CSV_RUNNER_TARGET = $(BUILD_DIR)/csv_runner
 RSI_TEST_TARGET = $(BUILD_DIR)/test_rsi_strategy
 AUDIT_CLI_TARGET = $(BUILD_DIR)/sentio_audit
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(HYBRID_PPO_TEST_TARGET) $(TS_TEST_TARGET) $(TS_PARITY_TEST_TARGET) $(FEATURE_BUILDER_TEST_TARGET) $(PERF_TEST_TARGET) $(PROD_PERF_TEST_TARGET) $(PROGRESS_BAR_TEST_TARGET) $(WF_PROGRESS_TEST_TARGET) $(LEVERAGE_TEST_TARGET) $(BUILDER_GUARD_TEST_TARGET) $(LEVERAGE_EXAMPLE_TARGET) $(PYTHON_MODULE_TARGET) $(REPLAY_AUDIT_TARGET) $(PNL_TEST_TARGET) $(KOCHI_BIN_RUNNER) $(RULE_ENSEMBLE_TARGET) $(IRE_SWEEP_TARGET) $(CSV_RUNNER_TARGET) $(RSI_TEST_TARGET) $(AUDIT_CLI_TARGET)
+all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(TS_TEST_TARGET) $(TS_PARITY_TEST_TARGET) $(FEATURE_BUILDER_TEST_TARGET) $(PERF_TEST_TARGET) $(PROD_PERF_TEST_TARGET) $(PROGRESS_BAR_TEST_TARGET) $(WF_PROGRESS_TEST_TARGET) $(LEVERAGE_TEST_TARGET) $(BUILDER_GUARD_TEST_TARGET) $(LEVERAGE_EXAMPLE_TARGET) $(PYTHON_MODULE_TARGET) $(REPLAY_AUDIT_TARGET) $(PNL_TEST_TARGET) $(RULE_ENSEMBLE_TARGET) $(CSV_RUNNER_TARGET) $(RSI_TEST_TARGET) $(AUDIT_CLI_TARGET)
 
 # Main executable
 $(MAIN_TARGET): $(ALL_OBJECTS)
@@ -106,7 +111,7 @@ $(AUDIT_SIMPLE_TEST_TARGET): tests/test_audit_simple.cpp $(OBJ_DIR)/audit.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 # Sanity test
-$(SANITY_TEST_TARGET): tests/test_sanity_end_to_end.cpp $(OBJ_DIR)/sanity.o $(OBJ_DIR)/sim_data.o
+$(SANITY_TEST_TARGET): tests/test_sanity_end_to_end.cpp $(OBJ_DIR)/sanity.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
@@ -142,15 +147,12 @@ $(WF_PROGRESS_TEST_TARGET): tests/test_wf_progress.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBS)
 
 # Sanity integration example
-$(SANITY_INTEGRATION_TARGET): tools/sanity_integration_example.cpp $(OBJ_DIR)/sanity.o $(OBJ_DIR)/sim_data.o
+$(SANITY_INTEGRATION_TARGET): tools/sanity_integration_example.cpp $(OBJ_DIR)/sanity.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
-$(HYBRID_PPO_TEST_TARGET): tests/test_hybrid_ppo.cpp $(OBJ_DIR)/strategy_hybrid_ppo.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/ml/model_registry_ts.o $(OBJ_DIR)/ml/ts_model.o
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+# HybridPPO test target removed - strategy deregistered
 
 # TorchScript test targets
 TS_TEST_TARGET = $(BUILD_DIR)/test_torchscript
@@ -199,17 +201,14 @@ $(POSITION_GUARDIAN_TEST_TARGET): tests/test_position_guardian.cpp $(OBJ_DIR)/po
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(OBJ_DIR)/position_guardian.o $(OBJ_DIR)/position_orchestrator.o -lgtest -lgtest_main $(LIBS)
 
 # Python module
-$(PYTHON_MODULE_TARGET): bindings/featurebridge.cpp $(OBJ_DIR)/feature_builder.o $(OBJ_DIR)/feature_engineering/technical_indicators.o $(OBJ_DIR)/feature_engineering/kochi_features.o
+$(PYTHON_MODULE_TARGET): bindings/featurebridge.cpp $(OBJ_DIR)/feature_builder.o $(OBJ_DIR)/feature_engineering/technical_indicators.o
 	@echo "Building Python module $@"
 	$(CXX) -std=c++17 -O3 -shared -fPIC $(PYTHON_INCLUDES) -o $@ $^ $(PYTHON_LIBS)
 
 # Kochi binary runner
 
 # Header-only deps; compile single TU
-$(KOCHI_BIN_RUNNER): tools/kochi_bin_runner.cpp
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+# Kochi binary runner removed - strategy deregistered
 
 # Rule ensemble runner
 $(RULE_ENSEMBLE_TARGET): src/strategy/run_rule_ensemble.cpp
@@ -218,10 +217,7 @@ $(RULE_ENSEMBLE_TARGET): src/strategy/run_rule_ensemble.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBS)
 
 # IRE parameter sweep tool
-$(IRE_SWEEP_TARGET): tools/ire_param_sweep.cpp
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBS)
+# IRE parameter sweep removed - strategy deregistered
 
 # CSV runner for RSI strategy
 $(CSV_RUNNER_TARGET): tools/csv_runner.cpp $(OBJ_DIR)/rsi_strategy.o $(OBJ_DIR)/base_strategy.o
@@ -235,11 +231,69 @@ $(RSI_TEST_TARGET): tests/test_rsi_strategy.cpp $(OBJ_DIR)/rsi_strategy.o $(OBJ_
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
 
-# Audit CLI
-$(AUDIT_CLI_TARGET): audit/src/audit_cli.cpp audit/src/audit_db.cpp audit/src/hash.cpp audit/src/clock.cpp
+# Leverage pricing test
+$(LEVERAGE_PRICING_TEST_TARGET): tests/test_leverage_pricing.cpp $(OBJ_DIR)/leverage_pricing.o $(OBJ_DIR)/csv_loader.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -Iaudit/include -o $@ $^ $(LIBS)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# Leverage P&L comparison tool
+$(LEVERAGE_PNL_COMPARISON_TARGET): tools/leverage_pnl_comparison.cpp $(OBJ_DIR)/leverage_pricing.o $(OBJ_DIR)/leverage_aware_csv_loader.o $(OBJ_DIR)/csv_loader.o $(OBJ_DIR)/accurate_leverage_pricing.o $(OBJ_DIR)/global_leverage_config.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# Minute-by-minute analysis tool
+$(MINUTE_ANALYSIS_TARGET): tools/minute_by_minute_analysis.cpp $(OBJ_DIR)/leverage_pricing.o $(OBJ_DIR)/csv_loader.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# Accurate minute-by-minute analysis tool
+$(ACCURATE_MINUTE_ANALYSIS_TARGET): tools/accurate_minute_analysis.cpp $(OBJ_DIR)/accurate_leverage_pricing.o $(OBJ_DIR)/csv_loader.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# Calibrated accurate analysis tool
+$(CALIBRATED_ANALYSIS_TARGET): tools/calibrated_accurate_analysis.cpp $(OBJ_DIR)/accurate_leverage_pricing.o $(OBJ_DIR)/csv_loader.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# PSQ pricing accuracy test
+PSQ_PRICING_TEST_TARGET = $(BUILD_DIR)/test_psq_pricing_accuracy
+$(PSQ_PRICING_TEST_TARGET): tools/test_psq_pricing_accuracy.cpp $(OBJ_DIR)/accurate_leverage_pricing.o $(OBJ_DIR)/csv_loader.o $(OBJ_DIR)/global_leverage_config.o $(OBJ_DIR)/leverage_aware_csv_loader.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# PSQ routing test
+PSQ_ROUTING_TEST_TARGET = $(BUILD_DIR)/test_psq_routing
+$(PSQ_ROUTING_TEST_TARGET): tools/test_psq_routing.cpp $(OBJ_DIR)/router.o $(OBJ_DIR)/global_leverage_config.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# PSQ comprehensive integration test
+PSQ_INTEGRATION_TEST_TARGET = $(BUILD_DIR)/test_psq_integration
+$(PSQ_INTEGRATION_TEST_TARGET): tools/test_psq_integration.cpp $(OBJ_DIR)/router.o $(OBJ_DIR)/global_leverage_config.o $(OBJ_DIR)/accurate_leverage_pricing.o $(OBJ_DIR)/csv_loader.o $(OBJ_DIR)/leverage_aware_csv_loader.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
+# Comprehensive strategy analysis tool
+COMPREHENSIVE_ANALYSIS_TARGET = $(BUILD_DIR)/comprehensive_strategy_analysis
+$(COMPREHENSIVE_ANALYSIS_TARGET): tools/comprehensive_strategy_analysis.cpp
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^
+
+# Audit CLI
+$(AUDIT_CLI_TARGET): $(OBJ_DIR)/audit_audit_cli.o $(OBJ_DIR)/audit_audit_db.o $(OBJ_DIR)/audit_hash.o $(OBJ_DIR)/audit_clock.o $(OBJ_DIR)/audit_price_csv.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ -L/opt/homebrew/opt/sqlite/lib -lsqlite3
 
 
 
@@ -309,6 +363,11 @@ position-guardian-test: $(POSITION_GUARDIAN_TEST_TARGET)
 	@echo "Running position guardian test..."
 	@$(POSITION_GUARDIAN_TEST_TARGET)
 
+# Run leverage pricing test
+leverage-pricing-test: $(LEVERAGE_PRICING_TEST_TARGET)
+	@echo "Running leverage pricing test..."
+	@$(LEVERAGE_PRICING_TEST_TARGET)
+
 # Run audit test
 audit-test: $(AUDIT_TEST_TARGET)
 	@echo "Running audit replay test..."
@@ -353,6 +412,7 @@ help:
 	@echo "  release      - Build with release optimization"
 	@echo "  test         - Run basic tests"
 	@echo "  pipeline-test - Run pipeline test"
+	@echo "  leverage-pricing-test - Run leverage pricing test"
 	@echo "  audit-test - Run audit replay test"
 	@echo "  sanity-test - Run sanity end-to-end test"
 	@echo "  sanity-integration - Run sanity integration example"
@@ -365,4 +425,4 @@ help:
 	@echo "  help         - Show this help"
 
 # Phony targets
-.PHONY: all clean clean-all debug release test pipeline-test audit-test sanity-test sanity-integration test-torchscript test-ts-parity test-feature-builder test-ml test-compile install-deps help
+.PHONY: all clean clean-all debug release test pipeline-test leverage-pricing-test audit-test sanity-test sanity-integration test-torchscript test-ts-parity test-feature-builder test-ml test-compile install-deps help

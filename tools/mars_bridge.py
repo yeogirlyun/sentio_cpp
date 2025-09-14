@@ -16,6 +16,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import logging
+import signal
 
 # Add MarS to Python path
 mars_path = Path(__file__).parent.parent / "MarS"
@@ -51,9 +52,24 @@ except ImportError as e:
     print(f"Warning: HistoricalContextAgent not available: {e}")
     HISTORICAL_AGENT_AVAILABLE = False
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# Configure logging with better error handling
+def setup_logging():
+    """Setup logging with broken pipe error handling"""
+    try:
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+        logger = logging.getLogger(__name__)
+        
+        # Handle broken pipe errors gracefully
+        def signal_handler(signum, frame):
+            sys.exit(0)
+        
+        signal.signal(signal.SIGPIPE, signal_handler)
+        return logger
+    except:
+        # Fallback to basic logging if there are issues
+        return logging.getLogger(__name__)
+
+logger = setup_logging()
 
 class MarsDataGenerator:
     """Generates realistic market data using MarS simulation engine."""
@@ -443,6 +459,7 @@ def main():
     parser.add_argument("--historical-data", help="Path to historical CSV data file")
     parser.add_argument("--continuation-minutes", type=int, default=60, help="Minutes to continue after historical data")
     parser.add_argument("--use-mars-ai", action="store_true", help="Use MarS AI for continuation (requires model server)")
+    parser.add_argument("--quiet", action="store_true", help="Suppress debug output")
     
     args = parser.parse_args()
     
@@ -477,16 +494,17 @@ def main():
     else:
         export_to_json(data, args.output)
     
-    print(f"Generated {len(data)} bars for {args.symbol}")
-    print(f"MarS available: {MARS_AVAILABLE}")
-    
-    if data:
-        valid_bars = [bar for bar in data if 'low' in bar and 'high' in bar and 'volume' in bar]
-        if valid_bars:
-            print(f"Price range: ${min(bar['low'] for bar in valid_bars):.2f} - ${max(bar['high'] for bar in valid_bars):.2f}")
-            print(f"Volume range: {min(bar['volume'] for bar in valid_bars):,} - {max(bar['volume'] for bar in valid_bars):,}")
-        else:
-            print("No valid bars generated")
+    if not args.quiet:
+        print(f"Generated {len(data)} bars for {args.symbol}")
+        print(f"MarS available: {MARS_AVAILABLE}")
+        
+        if data:
+            valid_bars = [bar for bar in data if 'low' in bar and 'high' in bar and 'volume' in bar]
+            if valid_bars:
+                print(f"Price range: ${min(bar['low'] for bar in valid_bars):.2f} - ${max(bar['high'] for bar in valid_bars):.2f}")
+                print(f"Volume range: {min(bar['volume'] for bar in valid_bars):,} - {max(bar['volume'] for bar in valid_bars):,}")
+            else:
+                print("No valid bars generated")
 
 if __name__ == "__main__":
     main()

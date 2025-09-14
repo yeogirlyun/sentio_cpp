@@ -5,6 +5,7 @@
 #include "diversity_weighter.hpp"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -62,7 +63,7 @@ public:
 
     for (size_t r=0;r<R;r++){
       auto out = rules_[r]->eval(b, i);
-      if (!out) { raw_p_.push_back(NAN); continue; }
+      if (!out) { raw_p_.push_back(std::numeric_limits<float>::quiet_NaN()); continue; }
       float p = to_probability(*out, cfg_.score_logistic_k);
       raw_p_.push_back(std::clamp(p, cfg_.eps_clip, 1.f-cfg_.eps_clip));
     }

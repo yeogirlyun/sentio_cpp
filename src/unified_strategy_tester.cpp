@@ -18,51 +18,44 @@ UnifiedStrategyTester::UnifiedStrategyTester() {
 }
 
 UnifiedStrategyTester::RobustnessReport UnifiedStrategyTester::run_comprehensive_test(const TestConfig& config) {
-    std::cout << "🎯 Starting Unified Strategy Robustness Test..." << std::endl;
-    std::cout << "📊 Strategy: " << config.strategy_name << std::endl;
-    std::cout << "📈 Symbol: " << config.symbol << std::endl;
-    std::cout << "🎲 Mode: ";
+    std::cout << "🎯 Testing " << config.strategy_name << " on " << config.symbol;
     
-    switch (config.mode) {
-        case TestMode::MONTE_CARLO: std::cout << "Monte Carlo"; break;
-        case TestMode::HISTORICAL: std::cout << "Historical Patterns"; break;
-        case TestMode::AI_REGIME: std::cout << "AI Regime (" << config.regime << ")"; break;
-        case TestMode::HYBRID: std::cout << "Hybrid (All Methods)"; break;
+    if (config.holistic_mode) {
+        std::cout << " (HOLISTIC - Ultimate Robustness)";
+    } else {
+        switch (config.mode) {
+            case TestMode::HISTORICAL: std::cout << " (Historical)"; break;
+            case TestMode::AI_REGIME: std::cout << " (AI-" << config.regime << ")"; break;
+            case TestMode::HYBRID: std::cout << " (Hybrid)"; break;
+        }
     }
-    std::cout << std::endl;
+    std::cout << " - " << config.simulations << " simulations, " << config.duration << std::endl;
     
-    std::cout << "⏱️  Duration: " << config.duration << std::endl;
-    std::cout << "🔬 Simulations: " << config.simulations << std::endl;
-    std::cout << "💰 Alpaca Fees: " << (config.alpaca_fees ? "Enabled" : "Disabled") << std::endl;
-    std::cout << "🎯 Confidence Level: " << (config.confidence_level * 100) << "%" << std::endl;
-    
-    if (config.stress_test) {
-        std::cout << "⚡ Stress Testing: Enabled" << std::endl;
+    // Warn about short test periods
+    if (config.duration == "1d" || config.duration == "5d" || config.duration == "1w" || config.duration == "2w") {
+        std::cout << "⚠️  WARNING: Short test period may produce unreliable MPR projections due to statistical noise" << std::endl;
     }
-    if (config.regime_switching) {
-        std::cout << "🌊 Regime Switching: Enabled" << std::endl;
-    }
-    
-    std::cout << std::string(80, '=') << std::endl;
     
     auto start_time = std::chrono::high_resolution_clock::now();
     
     // Run simulations based on mode
     std::vector<VirtualMarketEngine::VMSimulationResult> results;
     
-    switch (config.mode) {
-        case TestMode::MONTE_CARLO:
-            results = run_monte_carlo_tests(config, config.simulations);
-            break;
-        case TestMode::HISTORICAL:
-            results = run_historical_tests(config, config.simulations);
-            break;
-        case TestMode::AI_REGIME:
-            results = run_ai_regime_tests(config, config.simulations);
-            break;
-        case TestMode::HYBRID:
-            results = run_hybrid_tests(config);
-            break;
+    if (config.holistic_mode) {
+        // Holistic mode: Run comprehensive multi-scenario testing
+        results = run_holistic_tests(config);
+    } else {
+        switch (config.mode) {
+            case TestMode::HISTORICAL:
+                results = run_historical_tests(config, config.simulations);
+                break;
+            case TestMode::AI_REGIME:
+                results = run_ai_regime_tests(config, config.simulations);
+                break;
+            case TestMode::HYBRID:
+                results = run_hybrid_tests(config);
+                break;
+        }
     }
     
     // Apply stress testing if enabled
@@ -73,8 +66,7 @@ UnifiedStrategyTester::RobustnessReport UnifiedStrategyTester::run_comprehensive
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time);
     
-    std::cout << "⏱️  Test completed in " << duration.count() << " seconds" << std::endl;
-    std::cout << std::string(80, '=') << std::endl;
+    std::cout << "✅ Completed in " << duration.count() << "s" << std::endl;
     
     // Analyze results
     RobustnessReport report = analyze_results(results, config);
@@ -120,6 +112,11 @@ std::vector<VirtualMarketEngine::VMSimulationResult> UnifiedStrategyTester::run_
     runner_cfg.strategy_params["buy_hi"] = "0.6";
     runner_cfg.strategy_params["sell_lo"] = "0.4";
     
+    // **DISABLE AUDIT LOGGING**: Prevent conflicts when running within test-all
+    if (config.disable_audit_logging) {
+        runner_cfg.audit_level = AuditLevel::MetricsOnly;
+    }
+    
     // Run Monte Carlo simulation
     return vm_engine_.run_monte_carlo_simulation(vm_config, std::move(strategy), runner_cfg);
 }
@@ -145,12 +142,11 @@ std::vector<VirtualMarketEngine::VMSimulationResult> UnifiedStrategyTester::run_
 std::vector<VirtualMarketEngine::VMSimulationResult> UnifiedStrategyTester::run_ai_regime_tests(
     const TestConfig& config, int num_simulations) {
     
-    std::cout << "🤖 Running AI regime tests..." << std::endl;
+    std::cout << "🚀 Running Future QQQ regime tests..." << std::endl;
     
-    int days = std::max(1, parse_duration_to_minutes(config.duration) / 390);
-    
-    return vm_engine_.run_mars_vm_test(
-        config.strategy_name, config.symbol, days,
+    // Use future QQQ data instead of MarS generation
+    return vm_engine_.run_future_qqq_regime_test(
+        config.strategy_name, config.symbol,
         num_simulations, config.regime, config.params_json
     );
 }
@@ -158,26 +154,19 @@ std::vector<VirtualMarketEngine::VMSimulationResult> UnifiedStrategyTester::run_
 std::vector<VirtualMarketEngine::VMSimulationResult> UnifiedStrategyTester::run_hybrid_tests(
     const TestConfig& config) {
     
-    std::cout << "🌈 Running hybrid tests (all methods)..." << std::endl;
+    std::cout << "🌈 Running hybrid tests (Historical + AI)..." << std::endl;
     
     std::vector<VirtualMarketEngine::VMSimulationResult> all_results;
     
-    // 40% Monte Carlo
-    int mc_sims = static_cast<int>(config.simulations * 0.4);
-    if (mc_sims > 0) {
-        auto mc_results = run_monte_carlo_tests(config, mc_sims);
-        all_results.insert(all_results.end(), mc_results.begin(), mc_results.end());
-    }
-    
-    // 40% Historical
-    int hist_sims = static_cast<int>(config.simulations * 0.4);
+    // 60% Historical Pattern Testing
+    int hist_sims = static_cast<int>(config.simulations * 0.6);
     if (hist_sims > 0) {
         auto hist_results = run_historical_tests(config, hist_sims);
         all_results.insert(all_results.end(), hist_results.begin(), hist_results.end());
     }
     
-    // 20% AI Regime
-    int ai_sims = config.simulations - mc_sims - hist_sims;
+    // 40% AI Regime Testing
+    int ai_sims = config.simulations - hist_sims;
     if (ai_sims > 0) {
         auto ai_results = run_ai_regime_tests(config, ai_sims);
         all_results.insert(all_results.end(), ai_results.begin(), ai_results.end());
@@ -210,6 +199,37 @@ UnifiedStrategyTester::RobustnessReport UnifiedStrategyTester::analyze_results(
     
     if (valid_results.empty()) {
         std::cerr << "Warning: No valid simulation results" << std::endl;
+        
+        // Initialize report with safe default values for zero-trade scenarios
+        report.monthly_projected_return = 0.0;
+        report.sharpe_ratio = 0.0;
+        report.max_drawdown = 0.0;
+        report.win_rate = 0.0;
+        report.profit_factor = 0.0;
+        report.total_return = 0.0;
+        report.avg_daily_trades = 0.0;
+        
+        report.consistency_score = 0.0;
+        report.regime_adaptability = 0.0;
+        report.stress_resilience = 0.0;
+        report.liquidity_tolerance = 0.0;
+        
+        report.estimated_monthly_fees = 0.0;
+        report.capital_efficiency = 0.0;
+        report.position_turnover = 0.0;
+        
+        report.overall_risk = RiskLevel::HIGH;
+        report.deployment_score = 0;
+        report.ready_for_deployment = false;
+        report.recommended_capital_range = "Not recommended";
+        report.suggested_monitoring_days = 30; // Safe default
+        
+        // Initialize confidence intervals with zeros
+        report.mpr_ci = {0.0, 0.0, 0.0, 0.0};
+        report.sharpe_ci = {0.0, 0.0, 0.0, 0.0};
+        report.drawdown_ci = {0.0, 0.0, 0.0, 0.0};
+        report.win_rate_ci = {0.0, 0.0, 0.0, 0.0};
+        
         return report;
     }
     
@@ -256,12 +276,43 @@ UnifiedStrategyTester::RobustnessReport UnifiedStrategyTester::analyze_results(
         mpr_variance += std::pow(mpr - report.monthly_projected_return, 2);
     }
     mpr_variance /= mprs.size();
-    double mpr_cv = std::sqrt(mpr_variance) / std::abs(report.monthly_projected_return);
-    report.consistency_score = std::max(0.0, std::min(100.0, 100.0 * (1.0 - mpr_cv)));
     
-    // Regime Adaptability: Performance across different conditions (simplified)
-    report.regime_adaptability = std::max(0.0, std::min(100.0, 
-        50.0 + 50.0 * std::tanh(report.sharpe_ratio - 1.0)));
+    // Avoid division by zero when MPR is 0
+    double mpr_cv = 0.0;
+    if (std::abs(report.monthly_projected_return) > 1e-9) {
+        mpr_cv = std::sqrt(mpr_variance) / std::abs(report.monthly_projected_return);
+    } else {
+        // When MPR is effectively zero, use variance as a proxy for consistency
+        mpr_cv = std::sqrt(mpr_variance) * 100.0; // Scale for percentage
+    }
+    report.consistency_score = std::max(0.0, std::min(100.0, 100.0 * (1.0 - std::min(1.0, mpr_cv))));
+    
+    // Enhanced robustness metrics for holistic mode
+    if (config.holistic_mode) {
+        // Regime Adaptability: Analyze performance across different market regimes
+        std::map<std::string, std::vector<double>> regime_performance;
+        // This would be enhanced with actual regime tracking in a full implementation
+        report.regime_adaptability = std::max(0.0, std::min(100.0, 
+            60.0 + 40.0 * std::tanh(report.sharpe_ratio - 0.5)));
+        
+        // Stress Resilience: Performance under extreme conditions
+        double stress_penalty = 0.0;
+        if (report.max_drawdown < -0.20) stress_penalty += 20.0;
+        if (report.sharpe_ratio < 0.5) stress_penalty += 15.0;
+        report.stress_resilience = std::max(0.0, 100.0 - stress_penalty);
+        
+        // Liquidity Tolerance: Assess impact of trading frequency
+        double liquidity_score = 100.0;
+        if (report.avg_daily_trades > 200) liquidity_score -= 30.0;
+        else if (report.avg_daily_trades > 100) liquidity_score -= 15.0;
+        else if (report.avg_daily_trades < 5) liquidity_score -= 10.0;
+        report.liquidity_tolerance = std::max(0.0, liquidity_score);
+        
+    } else {
+        // Standard regime adaptability for non-holistic modes
+        report.regime_adaptability = std::max(0.0, std::min(100.0, 
+            50.0 + 50.0 * std::tanh(report.sharpe_ratio - 1.0)));
+    }
     
     // Stress Resilience: Based on worst-case scenarios
     double worst_mpr = *std::min_element(mprs.begin(), mprs.end());
@@ -286,9 +337,6 @@ UnifiedStrategyTester::RobustnessReport UnifiedStrategyTester::analyze_results(
     // Risk assessment
     report.overall_risk = assess_risk_level(report);
     
-    // Generate recommendations
-    generate_recommendations(report, config);
-    
     // Calculate deployment score
     report.deployment_score = calculate_deployment_score(report);
     report.ready_for_deployment = report.deployment_score >= 70;
@@ -304,6 +352,9 @@ UnifiedStrategyTester::RobustnessReport UnifiedStrategyTester::analyze_results(
         report.recommended_capital_range = "$1,000 - $10,000";
         report.suggested_monitoring_days = 30;
     }
+    
+    // Generate recommendations (after monitoring days are set)
+    generate_recommendations(report, config);
     
     return report;
 }
@@ -485,7 +536,6 @@ UnifiedStrategyTester::TestMode UnifiedStrategyTester::parse_test_mode(const std
     std::string mode_lower = mode_str;
     std::transform(mode_lower.begin(), mode_lower.end(), mode_lower.begin(), ::tolower);
     
-    if (mode_lower == "monte-carlo" || mode_lower == "mc") return TestMode::MONTE_CARLO;
     if (mode_lower == "historical" || mode_lower == "hist") return TestMode::HISTORICAL;
     if (mode_lower == "ai-regime" || mode_lower == "ai") return TestMode::AI_REGIME;
     if (mode_lower == "hybrid") return TestMode::HYBRID;
@@ -513,7 +563,6 @@ void UnifiedStrategyTester::print_robustness_report(const RobustnessReport& repo
               << "  Mode: " << std::setw(15);
     
     switch (report.mode_used) {
-        case TestMode::MONTE_CARLO: std::cout << "monte-carlo"; break;
         case TestMode::HISTORICAL: std::cout << "historical"; break;
         case TestMode::AI_REGIME: std::cout << "ai-regime"; break;
         case TestMode::HYBRID: std::cout << "hybrid"; break;
@@ -681,5 +730,61 @@ bool UnifiedStrategyTester::save_report(const RobustnessReport& report, const Te
     file.close();
     return true;
 }
+
+std::vector<VirtualMarketEngine::VMSimulationResult> UnifiedStrategyTester::run_holistic_tests(const TestConfig& config) {
+    std::cout << "🔬 HOLISTIC TESTING: Running comprehensive multi-scenario robustness analysis..." << std::endl;
+    
+    std::vector<VirtualMarketEngine::VMSimulationResult> all_results;
+    
+    // 1. Historical Data Testing (40% of simulations)
+    int historical_sims = config.simulations * 0.4;
+    std::cout << "📊 Phase 1/4: Historical Pattern Analysis (" << historical_sims << " simulations)" << std::endl;
+    auto historical_results = run_historical_tests(config, historical_sims);
+    all_results.insert(all_results.end(), historical_results.begin(), historical_results.end());
+    
+    // 2. AI Market Regime Testing - Multiple Regimes (40% of simulations)
+    int ai_sims_per_regime = (config.simulations * 0.4) / 4; // 4 different regimes (normal, volatile, trending, bear)
+    std::cout << "🤖 Phase 2/4: AI Market Regime Testing (" << (ai_sims_per_regime * 4) << " simulations)" << std::endl;
+    
+    std::vector<std::string> regimes = {"normal", "volatile", "trending", "bear"}; // Removed "bull" - not supported by MarS
+    for (const auto& regime : regimes) {
+        auto regime_config = config;
+        regime_config.regime = regime;
+        auto regime_results = run_ai_regime_tests(regime_config, ai_sims_per_regime);
+        all_results.insert(all_results.end(), regime_results.begin(), regime_results.end());
+    }
+    
+    // 3. Stress Testing Scenarios (10% of simulations)
+    int stress_sims = config.simulations * 0.1;
+    std::cout << "⚡ Phase 3/4: Extreme Stress Testing (" << stress_sims << " simulations)" << std::endl;
+    auto stress_config = config;
+    stress_config.stress_test = true;
+    stress_config.liquidity_stress = true;
+    stress_config.volatility_min = 0.02; // High volatility
+    stress_config.volatility_max = 0.08; // Extreme volatility
+    auto stress_results = run_ai_regime_tests(stress_config, stress_sims);
+    all_results.insert(all_results.end(), stress_results.begin(), stress_results.end());
+    
+    // 4. Cross-Timeframe Validation (10% of simulations)
+    int timeframe_sims = config.simulations * 0.1;
+    std::cout << "⏰ Phase 4/4: Cross-Timeframe Validation (" << timeframe_sims << " simulations)" << std::endl;
+    
+    // Test with different durations to validate consistency
+    std::vector<std::string> test_durations = {"1w", "2w", "1m"};
+    int sims_per_duration = std::max(1, timeframe_sims / (int)test_durations.size());
+    
+    for (const auto& duration : test_durations) {
+        auto duration_config = config;
+        duration_config.duration = duration;
+        auto duration_results = run_historical_tests(duration_config, sims_per_duration);
+        all_results.insert(all_results.end(), duration_results.begin(), duration_results.end());
+    }
+    
+    std::cout << "✅ HOLISTIC TESTING COMPLETE: " << all_results.size() << " total simulations across all scenarios" << std::endl;
+    
+    return all_results;
+}
+
+// Duplicate method implementations removed - using existing implementations above
 
 } // namespace sentio

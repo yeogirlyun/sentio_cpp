@@ -1,5 +1,7 @@
 #include "sentio/csv_loader.hpp"
 #include "sentio/binio.hpp"
+#include "sentio/global_leverage_config.hpp"
+#include "sentio/leverage_aware_csv_loader.hpp"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -10,6 +12,28 @@
 namespace sentio {
 
 bool load_csv(const std::string& filename, std::vector<Bar>& out) {
+    // Check if this is a leverage instrument and theoretical pricing is enabled
+    if (GlobalLeverageConfig::is_theoretical_leverage_pricing_enabled()) {
+        // Extract symbol from filename
+        std::string symbol;
+        size_t last_slash = filename.find_last_of("/\\");
+        size_t last_dot = filename.find_last_of(".");
+        if (last_slash != std::string::npos && last_dot != std::string::npos && last_dot > last_slash) {
+            symbol = filename.substr(last_slash + 1, last_dot - last_slash - 1);
+            // Remove any suffix like _NH_ALIGNED
+            size_t underscore = symbol.find('_');
+            if (underscore != std::string::npos) {
+                symbol = symbol.substr(0, underscore);
+            }
+        }
+        
+        // If this is a leverage instrument, use theoretical pricing
+        if (symbol == "TQQQ" || symbol == "SQQQ" || symbol == "PSQ") {
+            std::cout << "🧮 Using theoretical pricing for " << symbol << " (based on QQQ)" << std::endl;
+            return load_csv_leverage_aware(symbol, out);
+        }
+    }
+    
     namespace fs = std::filesystem;
     
     // **SMART FRESHNESS-BASED LOADING**: Choose between CSV and binary based on file timestamps
@@ -65,6 +89,7 @@ bool load_csv(const std::string& filename, std::vector<Bar>& out) {
         std::stringstream ss(line);
         std::string timestamp_str, symbol, open_str, high_str, low_str, close_str, volume_str;
         
+        // Standard Polygon format: timestamp,symbol,open,high,low,close,volume
         std::getline(ss, timestamp_str, ',');
         std::getline(ss, symbol, ',');
         std::getline(ss, open_str, ',');
