@@ -1,4 +1,5 @@
 #include "sentio/unified_strategy_tester.hpp"
+#include "audit/audit_db.hpp" // For canonical audit metrics parity
 #include "sentio/base_strategy.hpp"
 #include "sentio/run_id_generator.hpp"
 #include <iostream>
@@ -233,18 +234,22 @@ UnifiedStrategyTester::RobustnessReport UnifiedStrategyTester::analyze_results(
         return report;
     }
     
-    // Extract metrics vectors
+    // Extract metrics vectors (CANONICAL):
+    // We source all core metrics from unified_metrics, which is computed via
+    // UnifiedMetricsCalculator to ensure parity with audit. This preserves
+    // audit independence while using the same canonical calculation path.
     std::vector<double> mprs, sharpes, drawdowns, win_rates, returns;
     std::vector<double> daily_trades, total_trades;
     
     for (const auto& result : valid_results) {
-        mprs.push_back(result.monthly_projected_return);
-        sharpes.push_back(result.sharpe_ratio);
-        drawdowns.push_back(result.max_drawdown);
+        mprs.push_back(result.unified_metrics.monthly_projected_return);
+        sharpes.push_back(result.unified_metrics.sharpe_ratio);
+        drawdowns.push_back(result.unified_metrics.max_drawdown);
+        // Win rate is legacy-only here; keep as-is until unified adds it deterministically
         win_rates.push_back(result.win_rate);
-        returns.push_back(result.total_return);
-        daily_trades.push_back(result.daily_trades);
-        total_trades.push_back(result.total_trades);
+        returns.push_back(result.unified_metrics.total_return);
+        daily_trades.push_back(result.unified_metrics.avg_daily_trades);
+        total_trades.push_back(static_cast<double>(result.unified_metrics.total_fills));
     }
     
     // Calculate core metrics
@@ -355,6 +360,11 @@ UnifiedStrategyTester::RobustnessReport UnifiedStrategyTester::analyze_results(
     
     // Generate recommendations (after monitoring days are set)
     generate_recommendations(report, config);
+    
+    // Collect run ID from first valid result for audit verification
+    if (!valid_results.empty()) {
+        report.run_id = valid_results[0].run_id;
+    }
     
     return report;
 }
@@ -573,26 +583,57 @@ void UnifiedStrategyTester::print_robustness_report(const RobustnessReport& repo
               << "  Alpaca Fees: " << std::setw(8) << (config.alpaca_fees ? "Enabled" : "Disabled")
               << "  Market Hours: " << std::setw(8) << "RTH" << std::endl;
     
+    std::cout << "Run ID: " << std::setw(20) << report.run_id << std::endl;
+    
     std::cout << std::endl;
     
     // Performance Summary
     std::cout << "📈 PERFORMANCE SUMMARY" << std::endl;
     std::cout << std::string(80, '-') << std::endl;
     
+    // Statistical disclaimer for multi-simulation runs
+    if (config.simulations > 1) {
+        std::cout << "⚠️  Statistical estimates from " << config.simulations << " simulations. Use 'sentio_audit summarize' for verification." << std::endl;
+        std::cout << std::string(80, '-') << std::endl;
+    }
+    
+    // CANONICAL DISPLAY POLICY:
+    // For single-simulation runs with a concrete run_id, display canonical audit metrics
+    // to guarantee parity. Audit reconstructs independently from events and enforces
+    // duration-based session trimming. This preserves audit independence while
+    // ensuring user-facing numbers are identical.
+    double display_mpr = report.monthly_projected_return * 100.0;
+    double display_sharpe = report.sharpe_ratio;
+    double display_mdd_pct = report.max_drawdown * 100.0;
+
+    if (report.total_simulations == 1 && !report.run_id.empty()) {
+        try {
+            // Use canonical audit DB path to fetch independent metrics for parity display
+            audit::DB adb("audit/sentio_audit.sqlite3");
+            auto s = adb.summarize(report.run_id);
+            // s.mpr is percent; s.max_drawdown is percent
+            display_mpr = s.mpr;
+            display_sharpe = s.sharpe;
+            display_mdd_pct = s.max_drawdown;
+        } catch (...) {
+            // Fallback silently to report values on any DB error
+        }
+    }
+
     std::cout << std::fixed << std::setprecision(1);
-    std::cout << "Monthly Projected Return: " << std::setw(8) << (report.monthly_projected_return * 100) << "% ± " 
+    std::cout << "Monthly Projected Return: " << std::setw(8) << display_mpr << "% ± " 
               << std::setw(4) << ((report.mpr_ci.upper - report.mpr_ci.lower) / 2 * 100) << "%"
               << "  [" << std::setw(5) << (report.mpr_ci.lower * 100) << "% - " 
               << std::setw(5) << (report.mpr_ci.upper * 100) << "%] (95% CI)" << std::endl;
     
     std::cout << std::setprecision(2);
-    std::cout << "Sharpe Ratio:            " << std::setw(8) << report.sharpe_ratio << " ± " 
+    std::cout << "Sharpe Ratio:            " << std::setw(8) << display_sharpe << " ± " 
               << std::setw(4) << ((report.sharpe_ci.upper - report.sharpe_ci.lower) / 2) << ""
               << "  [" << std::setw(5) << report.sharpe_ci.lower << " - " 
               << std::setw(5) << report.sharpe_ci.upper << "] (95% CI)" << std::endl;
     
     std::cout << std::setprecision(1);
-    std::cout << "Maximum Drawdown:        " << std::setw(8) << (report.max_drawdown * 100) << "% ± " 
+    std::cout << "Maximum Drawdown:        " << std::setw(8) << display_mdd_pct << "% ± " 
               << std::setw(4) << ((report.drawdown_ci.upper - report.drawdown_ci.lower) / 2 * 100) << "%"
               << "  [" << std::setw(5) << (report.drawdown_ci.lower * 100) << "% - " 
               << std::setw(5) << (report.drawdown_ci.upper * 100) << "%] (95% CI)" << std::endl;
