@@ -22,6 +22,15 @@ Sentio is a high-performance quantitative trading system built in C++ that imple
 
 ## System Components
 
+### Canonical Metrics and Audit Parity
+
+- Single source of truth: All core metrics (MPR, Sharpe, Max Drawdown, Daily Trades) are computed via `UnifiedMetricsCalculator` using day-aware compression.
+- Duration-constrained sessions: The expected number of trading sessions is derived from the user input (e.g., `4w -> 28`). Audit independently reconstructs equity from events/BARs and trims the series to the first N distinct US/Eastern sessions to ensure deterministic parity.
+- Independence: Audit never trusts strattest outputs; it reconstructs from raw `FILL`/`BAR` events and only uses the input contract (duration/test period) to constrain session counting.
+- strattest display policy: For single-simulation runs with a `run_id`, strattest displays the canonical audit metrics (fetched via `audit_db::summarize`) to guarantee that the console report matches audit exactly.
+- Effect: Identical metrics across `strattest`, `sentio_audit summarize`, and `sentio_audit position-history` for the same `run_id`, with Trading Days fixed by duration (e.g., 28 for `4w`) and Daily Trades derived consistently.
+
+
 ### 1. Data Filtering Architecture
 
 #### Market Data Processing
