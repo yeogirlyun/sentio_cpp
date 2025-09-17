@@ -112,11 +112,24 @@ public:
     // **NEW**: Get strategy-specific router configuration
     virtual RouterCfg get_router_config() const = 0;
     
-    // **NEW**: Get strategy-specific sizer configuration  
-    virtual SizerCfg get_sizer_config() const = 0;
+    // REMOVED: get_sizer_config() - No artificial limits allowed for profit maximization
+    // Sizer will always use maximum capital deployment and leverage
     
     // **NEW**: Check if strategy requires special handling (e.g., dynamic leverage)
     virtual bool requires_dynamic_allocation() const { return false; }
+    
+    // **STRATEGY-AGNOSTIC CONFLICT PREVENTION**: Let strategy define its own constraints
+    virtual bool allows_simultaneous_positions(const std::string& instrument1, const std::string& instrument2) const {
+        // Default: allow all combinations (backward compatible)
+        (void)instrument1; (void)instrument2; // Suppress unused parameter warnings
+        return true;
+    }
+    
+    // **STRATEGY-AGNOSTIC TRANSITION CONTROL**: Let strategy control its own transitions
+    virtual bool requires_sequential_transitions() const {
+        // Default: allow simultaneous transitions (backward compatible)
+        return false;
+    }
     
     // **NEW**: Get strategy-specific signal processing (for audit/logging)
     virtual std::string get_signal_description(double probability) const {

@@ -60,10 +60,11 @@ RULE_ENSEMBLE_TARGET = $(BUILD_DIR)/run_rule_ensemble
 # IRE_SWEEP_TARGET removed - strategy deregistered
 CSV_RUNNER_TARGET = $(BUILD_DIR)/csv_runner
 RSI_TEST_TARGET = $(BUILD_DIR)/test_rsi_strategy
+BACKEND_INTEGRATION_TEST_TARGET = $(BUILD_DIR)/test_backend_integration
 AUDIT_CLI_TARGET = $(BUILD_DIR)/sentio_audit
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(TS_TEST_TARGET) $(TS_PARITY_TEST_TARGET) $(FEATURE_BUILDER_TEST_TARGET) $(PERF_TEST_TARGET) $(PROD_PERF_TEST_TARGET) $(PROGRESS_BAR_TEST_TARGET) $(WF_PROGRESS_TEST_TARGET) $(LEVERAGE_TEST_TARGET) $(BUILDER_GUARD_TEST_TARGET) $(LEVERAGE_EXAMPLE_TARGET) $(PYTHON_MODULE_TARGET) $(REPLAY_AUDIT_TARGET) $(PNL_TEST_TARGET) $(RULE_ENSEMBLE_TARGET) $(CSV_RUNNER_TARGET) $(RSI_TEST_TARGET) $(AUDIT_CLI_TARGET)
+all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(TS_TEST_TARGET) $(TS_PARITY_TEST_TARGET) $(FEATURE_BUILDER_TEST_TARGET) $(PERF_TEST_TARGET) $(PROD_PERF_TEST_TARGET) $(PROGRESS_BAR_TEST_TARGET) $(WF_PROGRESS_TEST_TARGET) $(LEVERAGE_TEST_TARGET) $(BUILDER_GUARD_TEST_TARGET) $(LEVERAGE_EXAMPLE_TARGET) $(PYTHON_MODULE_TARGET) $(REPLAY_AUDIT_TARGET) $(PNL_TEST_TARGET) $(RULE_ENSEMBLE_TARGET) $(CSV_RUNNER_TARGET) $(RSI_TEST_TARGET) $(BACKEND_INTEGRATION_TEST_TARGET) $(AUDIT_CLI_TARGET)
 
 # Main executable
 $(MAIN_TARGET): $(ALL_OBJECTS)
@@ -72,7 +73,7 @@ $(MAIN_TARGET): $(ALL_OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 # Poly fetch executable
-$(POLY_TARGET): $(OBJ_DIR)/poly_fetch_main.o $(OBJ_DIR)/polygon_client.o $(OBJ_DIR)/csv_loader.o
+$(POLY_TARGET): $(OBJ_DIR)/poly_fetch_main.o $(OBJ_DIR)/polygon_client.o $(OBJ_DIR)/csv_loader.o $(OBJ_DIR)/time_utils.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
@@ -231,6 +232,12 @@ $(RSI_TEST_TARGET): tests/test_rsi_strategy.cpp $(OBJ_DIR)/rsi_strategy.o $(OBJ_
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
 
+# Backend integration test
+$(BACKEND_INTEGRATION_TEST_TARGET): tests/test_backend_integration.cpp $(OBJ_DIR)/backend_architecture.o $(OBJ_DIR)/backend_audit_events.o $(OBJ_DIR)/allocation_manager.o $(OBJ_DIR)/strategy_signal_or.o $(OBJ_DIR)/strategy_tfa.o $(OBJ_DIR)/test_strategy.o $(OBJ_DIR)/base_strategy.o $(OBJ_DIR)/router.o $(OBJ_DIR)/virtual_market.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o $(OBJ_DIR)/ml/model_registry_ts.o $(OBJ_DIR)/ml/ts_model.o $(OBJ_DIR)/audit_audit_db.o $(OBJ_DIR)/audit_audit_db_recorder.o $(OBJ_DIR)/audit_hash.o $(OBJ_DIR)/audit_clock.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
+
 # Leverage pricing test
 $(LEVERAGE_PRICING_TEST_TARGET): tests/test_leverage_pricing.cpp $(OBJ_DIR)/leverage_pricing.o $(OBJ_DIR)/csv_loader.o
 	@echo "Linking $@"
@@ -290,7 +297,7 @@ $(COMPREHENSIVE_ANALYSIS_TARGET): tools/comprehensive_strategy_analysis.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^
 
 # Audit CLI
-$(AUDIT_CLI_TARGET): $(OBJ_DIR)/audit_audit_cli.o $(OBJ_DIR)/audit_audit_db.o $(OBJ_DIR)/audit_hash.o $(OBJ_DIR)/audit_clock.o $(OBJ_DIR)/audit_price_csv.o
+$(AUDIT_CLI_TARGET): $(OBJ_DIR)/audit_audit_cli.o $(OBJ_DIR)/audit_audit_db.o $(OBJ_DIR)/audit_hash.o $(OBJ_DIR)/audit_clock.o $(OBJ_DIR)/audit_price_csv.o $(OBJ_DIR)/unified_metrics.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ -L/opt/homebrew/opt/sqlite/lib -lsqlite3
@@ -397,6 +404,11 @@ test-ts-parity: $(TS_PARITY_TEST_TARGET)
 test-feature-builder: $(FEATURE_BUILDER_TEST_TARGET)
 	@echo "Running FeatureBuilder test..."
 	@$(FEATURE_BUILDER_TEST_TARGET)
+
+# Run Backend Integration test
+test-backend-integration: $(BACKEND_INTEGRATION_TEST_TARGET)
+	@echo "Running Backend Integration test..."
+	@$(BACKEND_INTEGRATION_TEST_TARGET)
 
 # Run all ML tests
 test-ml: test-torchscript test-ts-parity test-feature-builder

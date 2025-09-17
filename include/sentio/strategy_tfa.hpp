@@ -4,6 +4,7 @@
 #include "sentio/ml/feature_window.hpp"
 #include "sentio/feature/column_projector.hpp"
 #include "sentio/feature/column_projector_safe.hpp"
+#include "sentio/tfa/tfa_seq_context.hpp"
 #include "sentio/router.hpp"
 #include "sentio/sizer.hpp"
 #include <optional>
@@ -42,8 +43,11 @@ public:
       const std::string& bull3x_symbol,
       const std::string& bear3x_symbol) override;
   
-  RouterCfg get_router_config() const override;
-  SizerCfg get_sizer_config() const override;
+    RouterCfg get_router_config() const override;
+    // REMOVED: get_sizer_config() - No artificial limits allowed for profit maximization
+    
+    // **ARCHITECTURAL COMPLIANCE**: TFA requires dynamic allocation for profit maximization
+    bool requires_dynamic_allocation() const override { return true; }
 
 private:
   TFACfg cfg_;
@@ -58,6 +62,16 @@ private:
   mutable std::unique_ptr<ColumnProjectorSafe> projector_safe_;
   mutable bool projector_initialized_{false};
   mutable int expected_feat_dim_{56};
+  
+  // CRITICAL FIX: Move static state from calculate_probability to class members
+  // This prevents data leakage between different test runs and ensures deterministic behavior
+  mutable int probability_calls_{0};
+  mutable bool seq_context_initialized_{false};
+  mutable TfaSeqContext seq_context_;
+  mutable std::vector<float> precomputed_probabilities_;
+  mutable std::vector<float> probability_history_;
+  mutable int cooldown_long_until_{-1};
+  mutable int cooldown_short_until_{-1};
 };
 
 } // namespace sentio

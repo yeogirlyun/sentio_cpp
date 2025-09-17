@@ -2,14 +2,31 @@
 #include "sentio/signal_utils.hpp"
 #include "sentio/router.hpp"
 #include "sentio/sizer.hpp"
+#include "sentio/allocation_manager.hpp"
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <vector>
 
 namespace sentio {
 
 SignalOrStrategy::SignalOrStrategy(const SignalOrCfg& cfg) 
     : BaseStrategy("SignalOR"), cfg_(cfg) {
+    // **PROFIT MAXIMIZATION**: Override OR config for more aggressive signals
+    cfg_.or_config.aggression = 0.95;      // Maximum aggression for stronger signals
+    cfg_.or_config.min_conf = 0.01;       // Lower threshold to capture weak signals
+    cfg_.or_config.conflict_soften = 0.2; // Less softening to preserve strong signals
+    
+    // **MATHEMATICAL ALLOCATION MANAGER**: Initialize with Signal OR tuned parameters
+    AllocationConfig alloc_config;
+    alloc_config.entry_threshold_1x = cfg_.long_threshold - 0.05;  // Slightly lower for 1x
+    alloc_config.entry_threshold_3x = cfg_.long_threshold + 0.15;  // Higher for 3x leverage
+    alloc_config.partial_exit_threshold = 0.5 - (cfg_.long_threshold - 0.5) * 0.5; // Dynamic
+    alloc_config.full_exit_threshold = 0.5 - (cfg_.long_threshold - 0.5) * 0.8;    // More aggressive
+    alloc_config.min_signal_change = cfg_.min_signal_strength;     // Align with strategy config
+    
+    allocation_manager_ = std::make_unique<AllocationManager>(alloc_config);
+    
     apply_params();
 }
 
@@ -51,72 +68,81 @@ std::vector<SignalOrStrategy::AllocationDecision> SignalOrStrategy::get_allocati
     }
     
     double probability = calculate_probability(bars, current_index);
-    double signal_strength = std::abs(probability - 0.5) * 2.0;
     
-    // Only make allocation decisions if signal is strong enough
-    if (signal_strength < cfg_.min_signal_strength) {
-        return decisions; // Empty if signal too weak
-    }
-    
-    // Determine target weight based on probability
+    // **STATE-AWARE TRANSITION ALGORITHM**
+    // Determine target position based on signal strength
+    std::string target_instrument = "";
     double target_weight = 0.0;
-    std::string target_symbol;
-    std::string reason;
+    std::string reason = "";
     
-    if (probability > cfg_.long_threshold) {
-        // Long signal - choose between base and 3x based on strength
-        if (signal_strength > 0.7) {
-            target_symbol = bull3x_symbol;
-            target_weight = cfg_.max_position_weight;
-            reason = "Strong long signal - 3x leveraged";
-        } else {
-            target_symbol = base_symbol;
-            target_weight = cfg_.max_position_weight * 0.6; // Conservative sizing
-            reason = "Moderate long signal - base position";
-        }
+    if (probability > 0.7) {
+        // Strong buy: 100% TQQQ (3x leveraged long)
+        target_instrument = bull3x_symbol;
+        target_weight = 1.0;
+        reason = "Signal OR strong buy: 100% TQQQ (3x leverage)";
+        
+    } else if (probability > cfg_.long_threshold) {
+        // Moderate buy: 100% QQQ (1x long)
+        target_instrument = base_symbol;
+        target_weight = 1.0;
+        reason = "Signal OR moderate buy: 100% QQQ";
+        
+    } else if (probability < 0.3) {
+        // Strong sell: 100% SQQQ (3x leveraged short)
+        target_instrument = bear3x_symbol;
+        target_weight = 1.0;
+        reason = "Signal OR strong sell: 100% SQQQ (3x inverse)";
+        
     } else if (probability < cfg_.short_threshold) {
-        // Short signal - choose between inverse and bear 3x
-        if (signal_strength > 0.7) {
-            target_symbol = bear3x_symbol;
-            target_weight = -cfg_.max_position_weight; // Negative for short
-            reason = "Strong short signal - 3x leveraged short";
-        } else {
-            // Use SHORT QQQ for moderate sell signals instead of inverse ETF
-            target_symbol = base_symbol;
-            target_weight = -cfg_.max_position_weight * 0.6; // Conservative sizing (negative for short)
-            reason = "Moderate short signal - SHORT QQQ";
-        }
+        // Weak sell: 100% PSQ (1x inverse)
+        target_instrument = "PSQ";
+        target_weight = 1.0;
+        reason = "Signal OR weak sell: 100% PSQ (1x inverse)";
+        
+    } else {
+        // Neutral: Stay in cash
+        target_instrument = "CASH";
+        target_weight = 0.0;
+        reason = "Signal OR neutral: Stay in cash";
     }
     
-    if (!target_symbol.empty() && std::abs(target_weight) > 1e-6) {
-        AllocationDecision decision;
-        decision.instrument = target_symbol;
-        decision.target_weight = target_weight;
-        decision.confidence = signal_strength;
-        decision.reason = reason;
-        decisions.push_back(decision);
+    // **TEMPORARY SIMPLE ALLOCATION**: Return target if different from last bar
+    bool different_bar = (current_index != last_decision_bar_);
+    
+    if (different_bar && target_instrument != "CASH") {
+        // Return only the target allocation - runner will handle atomic rebalancing
+        decisions.push_back({target_instrument, target_weight, probability, reason});
+        last_decision_bar_ = current_index;
     }
+    // If target is CASH or same bar, return empty decisions (no action needed)
     
     return decisions;
 }
 
 RouterCfg SignalOrStrategy::get_router_config() const {
     RouterCfg cfg;
+    
+    // **PROFIT MAXIMIZATION**: Configure router for maximum leverage and 100% capital deployment
+    cfg.min_signal_strength = 0.01;    // Lower threshold to capture more signals
+    cfg.signal_multiplier = 1.0;       // No scaling
+    cfg.max_position_pct = 1.0;        // 100% position size (profit maximization)
+    cfg.require_rth = true;
+    
+    // Instrument configuration
+    cfg.base_symbol = "QQQ";
+    cfg.bull3x = "TQQQ";
+    cfg.bear3x = "SQQQ";
+    // Note: PSQ will be handled via SHORT QQQ for moderate sell signals
+    
+    cfg.min_shares = 1.0;
+    cfg.lot_size = 1.0;
+    cfg.ire_min_conf_strong_short = 0.85;
+    
     return cfg;
 }
 
-SizerCfg SignalOrStrategy::get_sizer_config() const {
-    SizerCfg cfg;
-    cfg.fractional_allowed = true;
-    cfg.min_notional = 100.0; // $100 minimum
-    cfg.max_leverage = 3.0; // Allow 3x leverage
-    cfg.max_position_pct = cfg_.max_position_weight;
-    cfg.volatility_target = 0.20; // 20% target volatility
-    cfg.allow_negative_cash = false;
-    cfg.vol_lookback_days = 20;
-    cfg.cash_reserve_pct = 0.05; // 5% cash reserve
-    return cfg;
-}
+// REMOVED: get_sizer_config() - No artificial limits allowed for profit maximization
+// Sizer will use profit-maximizing defaults: 100% capital deployment, maximum leverage
 
 // Configuration
 ParameterMap SignalOrStrategy::get_default_params() const {
@@ -125,8 +151,6 @@ ParameterMap SignalOrStrategy::get_default_params() const {
         {"long_threshold", cfg_.long_threshold},
         {"short_threshold", cfg_.short_threshold},
         {"hold_threshold", cfg_.hold_threshold},
-        {"max_position_weight", cfg_.max_position_weight},
-        {"position_decay", cfg_.position_decay},
         {"momentum_window", static_cast<double>(cfg_.momentum_window)},
         {"momentum_scale", cfg_.momentum_scale},
         {"or_aggression", cfg_.or_config.aggression},
@@ -140,8 +164,6 @@ ParameterSpace SignalOrStrategy::get_param_space() const {
     space["min_signal_strength"] = {ParamType::FLOAT, 0.05, 0.3, cfg_.min_signal_strength};
     space["long_threshold"] = {ParamType::FLOAT, 0.55, 0.75, cfg_.long_threshold};
     space["short_threshold"] = {ParamType::FLOAT, 0.25, 0.45, cfg_.short_threshold};
-    space["max_position_weight"] = {ParamType::FLOAT, 0.5, 1.0, cfg_.max_position_weight};
-    space["position_decay"] = {ParamType::FLOAT, 0.9, 0.99, cfg_.position_decay};
     space["momentum_window"] = {ParamType::INT, 10, 50, static_cast<double>(cfg_.momentum_window)};
     space["momentum_scale"] = {ParamType::FLOAT, 10.0, 50.0, cfg_.momentum_scale};
     space["or_aggression"] = {ParamType::FLOAT, 0.6, 0.95, cfg_.or_config.aggression};
@@ -164,12 +186,6 @@ void SignalOrStrategy::apply_params() {
     if (params_.count("hold_threshold")) {
         cfg_.hold_threshold = params_.at("hold_threshold");
     }
-    if (params_.count("max_position_weight")) {
-        cfg_.max_position_weight = params_.at("max_position_weight");
-    }
-    if (params_.count("position_decay")) {
-        cfg_.position_decay = params_.at("position_decay");
-    }
     if (params_.count("momentum_window")) {
         cfg_.momentum_window = static_cast<int>(params_.at("momentum_window"));
     }
@@ -187,7 +203,6 @@ void SignalOrStrategy::apply_params() {
     }
     
     // Reset state
-    current_position_weight_ = 0.0;
     warmup_bars_ = 0;
 }
 
@@ -247,31 +262,13 @@ double SignalOrStrategy::calculate_momentum_probability(const std::vector<Bar>& 
     // Calculate momentum
     double momentum = (bars[current_index].close - ma) / ma;
     
-    // Convert momentum to probability
-    double momentum_prob = 0.5 + std::clamp(momentum * cfg_.momentum_scale, -0.4, 0.4);
+    // **PROFIT MAXIMIZATION**: Allow extreme probabilities for leverage triggers
+    double momentum_prob = 0.5 + std::clamp(momentum * cfg_.momentum_scale, -0.45, 0.45);
     
     return momentum_prob;
 }
 
-double SignalOrStrategy::calculate_position_weight(double signal_strength) {
-    // Calculate position weight based on signal strength
-    double base_weight = signal_strength * cfg_.max_position_weight;
-    
-    // Apply position decay
-    current_position_weight_ *= cfg_.position_decay;
-    
-    // Update with new signal
-    current_position_weight_ = std::max(current_position_weight_, base_weight);
-    
-    return std::min(current_position_weight_, cfg_.max_position_weight);
-}
-
-void SignalOrStrategy::update_position_decay() {
-    // Apply position decay to reduce position over time without new signals
-    current_position_weight_ *= cfg_.position_decay;
-    
-    // Prevent position from becoming negative
-    current_position_weight_ = std::max(0.0, current_position_weight_);
-}
+// **PROFIT MAXIMIZATION**: Old position weight calculation removed
+// Now using 100% capital deployment with maximum leverage
 
 } // namespace sentio

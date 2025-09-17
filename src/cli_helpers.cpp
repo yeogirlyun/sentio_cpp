@@ -293,4 +293,108 @@ bool CLIHelpers::is_flag(const std::string& arg) {
     return arg.starts_with("--") && arg.find('=') == std::string::npos;
 }
 
+bool CLIHelpers::validate_options(const ParsedArgs& args, const std::string& command,
+                                 const std::vector<std::string>& allowed_options,
+                                 const std::vector<std::string>& allowed_flags) {
+    // Check for unknown options
+    for (const auto& [option, value] : args.options) {
+        bool found = false;
+        for (const auto& allowed : allowed_options) {
+            if (normalize_option_key(option) == normalize_option_key(allowed)) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            print_unknown_option_error(option, command, allowed_options, allowed_flags);
+            return false;
+        }
+    }
+    
+    // Check for unknown flags
+    for (const auto& [flag, value] : args.flags) {
+        // Skip global flags
+        if (flag == "verbose" || flag == "help" || flag == "h" || flag == "v") {
+            continue;
+        }
+        
+        bool found = false;
+        for (const auto& allowed : allowed_flags) {
+            if (normalize_option_key(flag) == normalize_option_key(allowed)) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            print_unknown_option_error(flag, command, allowed_options, allowed_flags);
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+void CLIHelpers::print_unknown_option_error(const std::string& unknown_option,
+                                           const std::string& command,
+                                           const std::vector<std::string>& allowed_options,
+                                           const std::vector<std::string>& allowed_flags) {
+    std::cout << "\033[31m❌ ERROR:\033[0m Unknown option '--" << unknown_option << "' for command '" << command << "'" << std::endl;
+    std::cout << std::endl;
+    
+    // Find similar options (simple string matching)
+    std::vector<std::string> suggestions;
+    std::string normalized_unknown = normalize_option_key(unknown_option);
+    
+    // Check for partial matches in allowed options
+    for (const auto& allowed : allowed_options) {
+        std::string normalized_allowed = normalize_option_key(allowed);
+        if (normalized_allowed.find(normalized_unknown) != std::string::npos ||
+            normalized_unknown.find(normalized_allowed) != std::string::npos) {
+            suggestions.push_back(allowed);
+        }
+    }
+    
+    // Check for partial matches in allowed flags
+    for (const auto& allowed : allowed_flags) {
+        std::string normalized_allowed = normalize_option_key(allowed);
+        if (normalized_allowed.find(normalized_unknown) != std::string::npos ||
+            normalized_unknown.find(normalized_allowed) != std::string::npos) {
+            suggestions.push_back(allowed);
+        }
+    }
+    
+    if (!suggestions.empty()) {
+        std::cout << "\033[33m💡 Did you mean:\033[0m" << std::endl;
+        for (const auto& suggestion : suggestions) {
+            std::cout << "  --" << suggestion << std::endl;
+        }
+        std::cout << std::endl;
+    }
+    
+    std::cout << "\033[36m📋 Available options for '" << command << "':\033[0m" << std::endl;
+    
+    if (!allowed_options.empty()) {
+        std::cout << "\033[1mOptions (require values):\033[0m" << std::endl;
+        for (const auto& option : allowed_options) {
+            std::cout << "  --" << option << " <value>" << std::endl;
+        }
+        std::cout << std::endl;
+    }
+    
+    if (!allowed_flags.empty()) {
+        std::cout << "\033[1mFlags (no values):\033[0m" << std::endl;
+        for (const auto& flag : allowed_flags) {
+            std::cout << "  --" << flag << std::endl;
+        }
+        std::cout << std::endl;
+    }
+    
+    std::cout << "\033[1mGlobal options:\033[0m" << std::endl;
+    std::cout << "  --help, -h                Show command help" << std::endl;
+    std::cout << "  --verbose, -v             Enable verbose output" << std::endl;
+    std::cout << std::endl;
+    
+    std::cout << "Use 'sentio_cli " << command << " --help' for detailed usage information." << std::endl;
+}
+
 } // namespace sentio

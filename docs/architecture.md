@@ -20,6 +20,14 @@ Sentio is a high-performance quantitative trading system built in C++ that imple
 - **SOTA Optimization**: Remove artificial constraints, let utility-maximizing frameworks determine optimal allocation
 - **Performance Over Safety**: Bias towards aggressive profit-seeking parameters
 
+### 3. Architectural Contract (CRITICAL)
+- **Strategy-Agnostic Backend**: Runner, router, and sizer must work with ANY BaseStrategy implementation
+- **BaseStrategy API Control**: ALL strategy behavior controlled via BaseStrategy virtual methods
+- **100% Capital Deployment**: Always use full available capital for maximum profit
+- **Maximum Leverage**: Use leveraged instruments (TQQQ, SQQQ, PSQ) for strong signals
+- **Position Integrity**: Never allow negative positions or conflicting long/short positions
+- **Extension Protocol**: Extend BaseStrategy API, never modify core systems for specific strategies
+
 ## System Components
 
 ### Canonical Metrics and Audit Parity
@@ -47,7 +55,57 @@ Sentio is a high-performance quantitative trading system built in C++ that imple
 4. **Binary Caching**: Processed data cached as `.bin` files for performance
 5. **UTC-Only Processing**: No timezone conversions - all data remains in UTC
 
-### 2. Strategy Layer
+### 2. BaseStrategy Extension Pattern
+
+The system uses a rigid architectural pattern to ensure backend systems remain strategy-agnostic:
+
+#### Virtual Method Control
+```cpp
+class BaseStrategy {
+public:
+    // Core signal generation
+    virtual double calculate_probability(const std::vector<Bar>& bars, int current_index) = 0;
+    
+    // Allocation decisions for profit maximization
+    virtual std::vector<AllocationDecision> get_allocation_decisions(
+        const std::vector<Bar>& bars, int current_index,
+        const std::string& base_symbol, const std::string& bull3x_symbol, 
+        const std::string& bear3x_symbol) = 0;
+    
+    // Strategy configuration
+    virtual RouterCfg get_router_config() const = 0;
+    
+    // Execution path control
+    virtual bool requires_dynamic_allocation() const { return false; }
+    
+    // Signal description for audit/logging
+    virtual std::string get_signal_description(double probability) const;
+};
+```
+
+#### Strategy-Agnostic Runner Pattern
+```cpp
+// ✅ CORRECT: Strategy controls its execution path
+if (strategy->requires_dynamic_allocation()) {
+    // Dynamic allocation path for profit maximization
+    auto decisions = strategy->get_allocation_decisions(bars, i, base_symbol, "TQQQ", "SQQQ");
+    // Process allocation decisions
+} else {
+    // Legacy router path for backward compatibility
+    auto signal = StrategySignal::from_probability(strategy->calculate_probability(bars, i));
+    auto route_decision = route(signal, strategy->get_router_config(), base_symbol);
+    // Process router decision
+}
+```
+
+#### Extension Protocol
+1. **Identify New Behavior**: Determine what new capability is needed
+2. **Add Virtual Method**: Add virtual method to BaseStrategy with sensible default
+3. **Implement in Strategy**: Override method in specific strategy implementations
+4. **Update Runner Logic**: Add strategy-agnostic conditional logic in runner
+5. **Test Compatibility**: Ensure all existing strategies continue to work
+
+### 3. Strategy Layer
 
 #### Base Strategy Interface
 ```cpp
@@ -74,11 +132,11 @@ public:
 #### Strategy Signal Standardization
 - **Probability Range**: All signals output 0-1 probability where:
   - `1.0` = Very strong buy signal
-  - `0.8-1.0` = Strong buy
-  - `0.6-0.8` = Buy
-  - `0.4-0.6` = Hold/Neutral
-  - `0.2-0.4` = Sell
-  - `0.0-0.2` = Strong sell
+  - `0.7-1.0` = Strong buy
+  - `0.51-0.7` = Buy
+  - `0.49-0.51` = Hold/Neutral (no-trade zone)
+  - `0.3-0.49` = Sell
+  - `0.0-0.3` = Strong sell
   - `0.0` = Very strong sell signal
 
 #### Registered Strategies

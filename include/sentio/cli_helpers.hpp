@@ -93,6 +93,21 @@ public:
     static std::vector<std::string> get_available_strategies();
     
     /**
+     * Validate command options against allowed options
+     */
+    static bool validate_options(const ParsedArgs& args, const std::string& command,
+                                const std::vector<std::string>& allowed_options,
+                                const std::vector<std::string>& allowed_flags);
+    
+    /**
+     * Print unknown option error with suggestions
+     */
+    static void print_unknown_option_error(const std::string& unknown_option,
+                                          const std::string& command,
+                                          const std::vector<std::string>& allowed_options,
+                                          const std::vector<std::string>& allowed_flags);
+    
+    /**
      * Format duration for display (e.g., 1800 minutes -> "30h" or "1.25d")
      */
     static std::string format_duration(int minutes);

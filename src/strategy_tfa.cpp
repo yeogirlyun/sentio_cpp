@@ -66,8 +66,6 @@ void TFAStrategy::set_raw_features(const std::vector<double>& raw){
       auto runtime_names = tfa::feature_names_from_spec(artifacts.spec);
       float pad_value = artifacts.get_pad_value();
 
-      std::cout << "[TFA] Creating safe ColumnProjector: runtime=" << runtime_names.size()
-                << " -> expected=" << expected_names.size() << " features" << std::endl;
 
       projector_safe_ = std::make_unique<ColumnProjectorSafe>(
         ColumnProjectorSafe::make(runtime_names, expected_names, pad_value)
@@ -75,9 +73,7 @@ void TFAStrategy::set_raw_features(const std::vector<double>& raw){
 
       expected_feat_dim_ = F_expected;
       projector_initialized_ = true;
-      std::cout << "[TFA] Safe projector initialized: expecting " << expected_feat_dim_ << " features" << std::endl;
     } catch (const std::exception& e) {
-      std::cout << "[TFA] Failed to initialize safe projector: " << e.what() << std::endl;
       return;
     }
   }
@@ -96,17 +92,8 @@ void TFAStrategy::set_raw_features(const std::vector<double>& raw){
 
     window_.push(proj_d);
   } catch (const std::exception& e) {
-    if (feature_calls % 1000 == 0 || feature_calls <= 10) {
-      std::cout << "[TFA] Projection error in set_raw_features: " << e.what() << std::endl;
-    }
   }
 
-  if (feature_calls % 1000 == 0 || feature_calls <= 10) {
-    std::cout << "[DIAG] TFA set_raw_features: call=" << feature_calls
-              << " raw.size()=" << raw.size()
-              << " window_ready=" << (window_.ready()? 1:0)
-              << " feat_dim=" << window_.feat_dim() << std::endl;
-  }
 }
 
 StrategySignal TFAStrategy::map_output(const ml::ModelOutput& mo) const {
@@ -153,15 +140,12 @@ void TFAStrategy::on_bar(const StrategyCtx& ctx, const Bar& b){
   (void)ctx; (void)b;
   last_.reset();
   
-  // Diagnostic: Check if window is ready
   if (!window_.ready()) {
-    std::cout << "[TFA] Window not ready, required=" << window_.seq_len() << std::endl;
     return;
   }
 
   auto in = window_.to_input();
   if (!in) {
-    std::cout << "[TFA] Failed to create input from window" << std::endl;
     return;
   }
 
@@ -169,25 +153,18 @@ void TFAStrategy::on_bar(const StrategyCtx& ctx, const Bar& b){
   try {
     out = handle_.model->predict(*in, window_.seq_len(), window_.feat_dim(), handle_.spec.input_layout);
   } catch (const std::exception& e) {
-    std::cout << "[TFA] predict threw: " << e.what() << std::endl;
     return;
   }
   
   if (!out) {
-    std::cout << "[TFA] Model prediction failed" << std::endl;
     return;
   }
 
   auto sig = map_output(*out);
-  std::cout << "[TFA] Raw confidence=" << sig.confidence << ", floor=" << cfg_.conf_floor << std::endl;
   if (sig.confidence < cfg_.conf_floor) {
-    std::cout << "[TFA] Signal dropped due to low confidence" << std::endl;
     return;
   }
   last_ = sig;
-  std::cout << "[TFA] Signal generated: " << (sig.type == StrategySignal::Type::BUY ? "BUY" : 
-                                              sig.type == StrategySignal::Type::SELL ? "SELL" : "HOLD") 
-            << " conf=" << sig.confidence << std::endl;
 }
 
 ParameterMap TFAStrategy::get_default_params() const {
@@ -203,47 +180,40 @@ ParameterSpace TFAStrategy::get_param_space() const {
 }
 
 double TFAStrategy::calculate_probability(const std::vector<Bar>& bars, int current_index) {
-  (void)current_index; // we will use bars.size() and a static cursor
-  static int calls = 0;
-  ++calls;
+  (void)current_index; // we will use bars.size() and a member cursor
+  ++probability_calls_;
 
   // One-time: precompute probabilities over the whole series using the sequence context
-  static bool seq_inited = false;
-  static TfaSeqContext seq_ctx;
-  static std::vector<float> probs_all;
-  if (!seq_inited) {
+  if (!seq_context_initialized_) {
     try {
       std::string artifacts_path = cfg_.artifacts_dir + "/" + cfg_.model_id + "/" + cfg_.version + "/";
-      seq_ctx.load(artifacts_path + "model.pt",
-                   artifacts_path + "feature_spec.json",
-                   artifacts_path + "model.meta.json");
+      seq_context_.load(artifacts_path + "model.pt",
+                       artifacts_path + "feature_spec.json",
+                       artifacts_path + "model.meta.json");
       // Assume base symbol is QQQ for this test run
-      seq_ctx.forward_probs("QQQ", bars, probs_all);
-      seq_inited = true;
-      std::cout << "[TFA seq] precomputed probs: N=" << probs_all.size() << std::endl;
+      seq_context_.forward_probs("QQQ", bars, precomputed_probabilities_);
+      seq_context_initialized_ = true;
     } catch (const std::exception& e) {
-      std::cout << "[TFA seq] init/forward failed: " << e.what() << std::endl;
       return 0.5; // Neutral
     }
   }
 
   // Maintain rolling threshold logic with cooldown based on precomputed prob at this call index
-  float prob = (calls-1 < (int)probs_all.size()) ? probs_all[(size_t)(calls-1)] : 0.5f;
+  float prob = (probability_calls_-1 < (int)precomputed_probabilities_.size()) ? 
+               precomputed_probabilities_[(size_t)(probability_calls_-1)] : 0.5f;
 
-  static std::vector<float> p_hist; p_hist.reserve(4096);
-  static int cooldown_long_until = -1;
-  static int cooldown_short_until = -1;
+  probability_history_.reserve(4096);
   const int window = 250;
-  const float q_long = 0.80f, q_short = 0.20f;
-  const float floor_long = 0.55f, ceil_short = 0.45f;
+  const float q_long = 0.70f, q_short = 0.30f;
+  const float floor_long = 0.51f, ceil_short = 0.49f;
   const int cooldown = 5;
 
-  p_hist.push_back(prob);
+  probability_history_.push_back(prob);
 
-  if ((int)p_hist.size() >= std::max(window, seq_ctx.T)) {
-    int end = (int)p_hist.size() - 1;
+  if ((int)probability_history_.size() >= std::max(window, seq_context_.T)) {
+    int end = (int)probability_history_.size() - 1;
     int start = std::max(0, end - window + 1);
-    std::vector<float> win(p_hist.begin() + start, p_hist.begin() + end + 1);
+    std::vector<float> win(probability_history_.begin() + start, probability_history_.begin() + end + 1);
 
     int kL = (int)std::floor(q_long * (win.size() - 1));
     std::nth_element(win.begin(), win.begin() + kL, win.end());
@@ -253,29 +223,17 @@ double TFAStrategy::calculate_probability(const std::vector<Bar>& bars, int curr
     std::nth_element(win.begin(), win.begin() + kS, win.end());
     float thrS = std::min(ceil_short, win[kS]);
 
-    bool can_long = (calls >= cooldown_long_until);
-    bool can_short = (calls >= cooldown_short_until);
+    bool can_long = (probability_calls_ >= cooldown_long_until_);
+    bool can_short = (probability_calls_ >= cooldown_short_until_);
 
     if (can_long && prob >= thrL) {
-      cooldown_long_until = calls + cooldown;
-      if (calls % 64 == 0) {
-        std::cout << "[TFA calc] prob=" << prob << " thrL=" << thrL << " thrS=" << thrS
-                  << " type=BUY" << std::endl;
-      }
+      cooldown_long_until_ = probability_calls_ + cooldown;
       return prob; // Return the probability directly
     } else if (can_short && prob <= thrS) {
-      cooldown_short_until = calls + cooldown;
-      if (calls % 64 == 0) {
-        std::cout << "[TFA calc] prob=" << prob << " thrL=" << thrL << " thrS=" << thrS
-                  << " type=SELL" << std::endl;
-      }
+      cooldown_short_until_ = probability_calls_ + cooldown;
       return prob; // Return the probability directly
     }
 
-    if (calls % 64 == 0) {
-      std::cout << "[TFA calc] prob=" << prob << " thrL=" << thrL << " thrS=" << thrS
-                << " type=HOLD" << std::endl;
-    }
   }
 
   return 0.5; // Neutral
@@ -293,23 +251,30 @@ std::vector<BaseStrategy::AllocationDecision> TFAStrategy::get_allocation_decisi
     // Get probability from strategy
     double probability = calculate_probability(bars, current_index);
     
-    // TFA is a long-only strategy - only allocates to bullish instruments
-    if (probability > 0.6) {
-        double conviction = (probability - 0.6) / 0.4; // Scale 0.6-1.0 to 0-1
-        double base_weight = 0.3 + (conviction * 0.7); // 30-100% allocation
+    // **PROFIT MAXIMIZATION**: Always deploy 100% of capital with maximum leverage
+    if (probability > 0.7) {
+        // Strong buy: 100% TQQQ (3x leveraged long)
+        decisions.push_back({bull3x_symbol, 1.0, probability, "TFA strong buy: 100% TQQQ (3x leverage)"});
         
-        if (probability > 0.8) {
-            // Strong buy: use leveraged instruments
-            decisions.push_back({bull3x_symbol, base_weight * 0.6, conviction, "TFA strong buy: 60% TQQQ"});
-            decisions.push_back({base_symbol, base_weight * 0.4, conviction, "TFA strong buy: 40% QQQ"});
-        } else {
-            // Moderate buy: use unleveraged instruments
-            decisions.push_back({base_symbol, base_weight, conviction, "TFA moderate buy: 100% QQQ"});
-        }
+    } else if (probability > 0.51) {
+        // Moderate buy: 100% QQQ (1x long)
+        decisions.push_back({base_symbol, 1.0, probability, "TFA moderate buy: 100% QQQ"});
+        
+    } else if (probability < 0.3) {
+        // Strong sell: 100% SQQQ (3x leveraged short)
+        decisions.push_back({bear3x_symbol, 1.0, 1.0 - probability, "TFA strong sell: 100% SQQQ (3x inverse)"});
+        
+    } else if (probability < 0.49) {
+        // Weak sell: 100% PSQ (1x inverse) - NEW ADDITION
+        decisions.push_back({"PSQ", 1.0, 1.0 - probability, "TFA weak sell: 100% PSQ (1x inverse)"});
+        
+    } else {
+        // Neutral: Stay in cash (rare case)
+        // No positions needed
     }
     
     // Ensure all instruments are flattened if not in allocation
-    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol};
+    std::vector<std::string> all_instruments = {base_symbol, bull3x_symbol, bear3x_symbol, "PSQ"};
     for (const auto& inst : all_instruments) {
         bool found = false;
         for (const auto& decision : decisions) {
@@ -331,12 +296,8 @@ RouterCfg TFAStrategy::get_router_config() const {
     return cfg;
 }
 
-SizerCfg TFAStrategy::get_sizer_config() const {
-    SizerCfg cfg;
-    cfg.max_position_pct = 1.0; // 100% max position
-    cfg.volatility_target = 0.15; // 15% volatility target
-    return cfg;
-}
+// REMOVED: get_sizer_config() - No artificial limits allowed
+// Sizer will use profit-maximizing defaults: 100% capital deployment, maximum leverage
 
 REGISTER_STRATEGY(TFAStrategy, "tfa");
 

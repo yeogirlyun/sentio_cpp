@@ -9,16 +9,17 @@
 
 namespace sentio {
 
-// Advanced Sizer Configuration with Risk Controls
+// Profit-Maximizing Sizer Configuration - NO ARTIFICIAL LIMITS
 struct SizerCfg {
   bool fractional_allowed = true;
   double min_notional = 1.0;
-  double max_leverage = 2.0;
-  double max_position_pct = 0.25;
-  double volatility_target = 0.15;
-  bool allow_negative_cash = false;
-  int vol_lookback_days = 20;
-  double cash_reserve_pct = 0.05;
+  // REMOVED: All artificial constraints that limit profit
+  // - max_leverage: Always use maximum available leverage
+  // - max_position_pct: Always use 100% of capital
+  // - allow_negative_cash: Always enabled for margin trading
+  // - cash_reserve_pct: No cash reserves, deploy 100% of capital
+  double volatility_target = 0.15;  // Keep for volatility targeting only
+  int vol_lookback_days = 20;       // Keep for volatility calculation only
 };
 
 // Advanced Sizer Class with Multiple Constraints
@@ -46,7 +47,7 @@ public:
     return std::sqrt(variance) * std::sqrt(252.0); // Annualized
   }
 
-  // **MODIFIED**: Signature and logic updated for the ID-based, high-performance architecture.
+  // **PROFIT MAXIMIZATION**: Deploy 100% of capital with maximum leverage
   double calculate_target_quantity(const Portfolio& portfolio,
                                    const SymbolTable& ST,
                                    const std::vector<double>& last_prices,
@@ -62,30 +63,13 @@ public:
         return 0.0;
     }
     
-    // **CONFLICT PREVENTION**: Strategy-level conflict prevention should prevent conflicts
-    // No need for smart conflict resolution since strategy checks existing positions
     double instrument_price = last_prices[instrument_id];
 
-    // --- Calculate size based on multiple constraints ---
+    // **PROFIT MAXIMIZATION MANDATE**: Use 100% of capital with maximum leverage
+    // No artificial constraints - let the strategy determine optimal allocation
     double desired_notional = equity * std::abs(target_weight);
-
-    // 1. Max Position Size Constraint
-    desired_notional = std::min(desired_notional, equity * cfg.max_position_pct);
-
-    // 2. Leverage Constraint
-    double current_exposure = 0.0;
-    for (size_t sid = 0; sid < portfolio.positions.size(); ++sid) {
-        current_exposure += std::abs(portfolio.positions[sid].qty * last_prices[sid]);
-    }
-    double available_leverage_notional = (equity * cfg.max_leverage) - current_exposure;
-    desired_notional = std::min(desired_notional, std::max(0.0, available_leverage_notional));
-
-    // 4. Cash Constraint
-    if (!cfg.allow_negative_cash) {
-      double usable_cash = portfolio.cash * (1.0 - cfg.cash_reserve_pct);
-      desired_notional = std::min(desired_notional, std::max(0.0, usable_cash));
-    }
     
+    // Apply minimum notional filter only (to avoid dust trades)
     if (desired_notional < cfg.min_notional) return 0.0;
     
     double qty = desired_notional / instrument_price;

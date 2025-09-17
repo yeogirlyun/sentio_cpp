@@ -2,23 +2,19 @@
 #include "sentio/base_strategy.hpp"
 #include "sentio/pricebook.hpp"
 #include "sentio/metrics.hpp"
-#include "sentio/unified_metrics.hpp"
-#include "sentio/metrics/mpr.hpp"
-#include "sentio/metrics/session_utils.hpp"
 #include "audit/audit_db_recorder.hpp"
 #include "sentio/sizer.hpp"
-#include "sentio/cost_model.hpp"
 #include "sentio/feature_feeder.hpp"
-#include "sentio/position_validator.hpp"
 #include "sentio/position_coordinator.hpp"
 #include "sentio/router.hpp"
+#include "sentio/canonical_evaluation.hpp"
 #include <iostream>
 #include <iomanip>
 #include <memory>
 #include <stdexcept>
 #include <chrono>
-#include <map>
 #include <ctime>
+#include <sqlite3.h>
 
 namespace sentio {
 
@@ -46,10 +42,17 @@ static void execute_target_position(const std::string& instrument, double target
     double current_qty = portfolio.positions[instrument_id].qty;
     double trade_qty = target_qty - current_qty;
 
-    // **BUG FIX**: Prevent zero-quantity trades that generate phantom P&L
-    // Early return to completely avoid processing zero or tiny trades
+    // **INTEGRITY FIX**: Prevent impossible trades that create negative positions
+    // 1. Prevent zero-quantity trades that generate phantom P&L
+    // 2. Prevent SELL orders on zero positions (would create negative positions)
     if (std::abs(trade_qty) < 1e-9 || std::abs(trade_qty * instrument_price) <= 10.0) {
         return; // No logging, no execution, no audit entries
+    }
+    
+    // **CRITICAL INTEGRITY CHECK**: Prevent SELL orders that would create negative positions
+    if (trade_qty < 0 && current_qty <= 1e-6) {
+        // Cannot sell what we don't own - this would create negative positions
+        return; // Skip this trade to maintain position integrity
     }
 
     // **PROFIT MAXIMIZATION**: Execute meaningful trades
@@ -88,11 +91,12 @@ static void execute_target_position(const std::string& instrument, double target
     total_fills++;
 }
 
-RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
-                      int base_symbol_id, const RunnerCfg& cfg) {
+// CHANGED: The function now returns a BacktestOutput struct with raw data and accepts dataset metadata.
+BacktestOutput run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
+                      int base_symbol_id, const RunnerCfg& cfg, const DatasetMetadata& dataset_meta) {
     
     // 1. ============== INITIALIZATION ==============
-    RunResult result{};
+    BacktestOutput output{}; // NEW: Initialize the output struct
     
     const bool logging_enabled = (cfg.audit_level == AuditLevel::Full);
     // Calculate actual test period in trading days
@@ -125,7 +129,7 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
     auto strategy = StrategyFactory::instance().create_strategy(cfg.strategy_name);
     if (!strategy) {
         std::cerr << "FATAL: Could not create strategy '" << cfg.strategy_name << "'. Check registration." << std::endl;
-        return result;
+        return output;
     }
     
     ParameterMap params;
@@ -141,6 +145,7 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
     Pricebook pricebook(base_symbol_id, ST, series);
     
     std::vector<std::pair<std::string, double>> equity_curve;
+    std::vector<std::int64_t> equity_curve_ts_ms;
     const auto& base_series = series[base_symbol_id];
     equity_curve.reserve(base_series.size());
 
@@ -174,10 +179,10 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
         for (size_t i = warmup_bars; i < base_series.size(); ++i) {
             filtered_timestamps.push_back(base_series[i].ts_utc_epoch * 1000);
         }
-        run_trading_days = sentio::metrics::count_trading_days(filtered_timestamps);
+        run_trading_days = filtered_timestamps.size() / 390.0; // Approximate: 390 bars per trading day
     }
     
-    // Start audit run with canonical metadata
+    // Start audit run with canonical metadata including dataset information
     std::string meta = "{";
     meta += "\"strategy\":\"" + cfg.strategy_name + "\",";
     meta += "\"base_symbol_id\":" + std::to_string(base_symbol_id) + ",";
@@ -187,13 +192,22 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
     meta += "\"test_period_days\":" + std::to_string(run_trading_days) + ",";
     meta += "\"run_period_start_ts_ms\":" + std::to_string(run_period_start_ts_ms) + ",";
     meta += "\"run_period_end_ts_ms\":" + std::to_string(run_period_end_ts_ms) + ",";
-    meta += "\"run_trading_days\":" + std::to_string(run_trading_days);
+    meta += "\"run_trading_days\":" + std::to_string(run_trading_days) + ",";
+    // **DATASET TRACEABILITY**: Include comprehensive dataset metadata
+    meta += "\"dataset_source_type\":\"" + (dataset_meta.source_type.empty() ? dataset_type : dataset_meta.source_type) + "\",";
+    meta += "\"dataset_file_path\":\"" + dataset_meta.file_path + "\",";
+    meta += "\"dataset_file_hash\":\"" + dataset_meta.file_hash + "\",";
+    meta += "\"dataset_track_id\":\"" + dataset_meta.track_id + "\",";
+    meta += "\"dataset_regime\":\"" + dataset_meta.regime + "\",";
+    meta += "\"dataset_bars_count\":" + std::to_string(dataset_meta.bars_count > 0 ? dataset_meta.bars_count : static_cast<int>(series[base_symbol_id].size())) + ",";
+    meta += "\"dataset_time_range_start\":" + std::to_string(dataset_meta.time_range_start > 0 ? dataset_meta.time_range_start : run_period_start_ts_ms) + ",";
+    meta += "\"dataset_time_range_end\":" + std::to_string(dataset_meta.time_range_end > 0 ? dataset_meta.time_range_end : run_period_end_ts_ms);
     meta += "}";
     
     // Use current time for run timestamp (for proper run ordering)
     std::int64_t start_ts = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
-    if (logging_enabled) audit.event_run_start(start_ts, meta);
+    if (logging_enabled && !cfg.skip_audit_run_creation) audit.event_run_start(start_ts, meta);
     
     for (size_t i = warmup_bars; i < base_series.size(); ++i) {
         
@@ -266,47 +280,59 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
         if (logging_enabled) audit.event_bar(bar.ts_utc_epoch, ST.get_symbol(base_symbol_id), audit_bar.open, audit_bar.high, audit_bar.low, audit_bar.close, audit_bar.volume);
         
         // **STRATEGY-AGNOSTIC**: Feed features to any strategy that needs them
-        [[maybe_unused]] auto start_feed = std::chrono::high_resolution_clock::now();
         FeatureFeeder::feed_features_to_strategy(strategy.get(), base_series, i, strategy->get_name());
-        [[maybe_unused]] auto end_feed = std::chrono::high_resolution_clock::now();
         
         // **RENOVATED ARCHITECTURE**: Governor-based target weight system
-        [[maybe_unused]] auto start_signal = std::chrono::high_resolution_clock::now();
         
-        // **CORRECT ARCHITECTURE**: Strategy emits ONE signal, router selects instrument
+        // **STRATEGY-AGNOSTIC ARCHITECTURE**: Let strategy control its execution path
         std::string chain_id = std::to_string(bar.ts_utc_epoch) + ":" + std::to_string((long long)i);
         
-        // Get strategy signal (ONE signal per bar)
+        // Get strategy probability for logging
         double probability = strategy->calculate_probability(base_series, i);
-        StrategySignal signal = StrategySignal::from_probability(probability);
-        
-        // Get strategy-specific router configuration
-        RouterCfg strategy_router = strategy->get_router_config();
-        
-        // Router determines which instrument to use based on signal strength
         std::string base_symbol = ST.get_symbol(base_symbol_id);
-        auto route_decision = route(signal, strategy_router, base_symbol);
         
-        // Convert router decision to allocation format
+        // **ARCHITECTURAL COMPLIANCE**: Check strategy preference for execution path
         std::vector<AllocationDecision> allocation_decisions;
-        if (route_decision.has_value()) {
-            // **AUDIT**: Log router decision
-            if (logging_enabled) {
-                audit.event_route(bar.ts_utc_epoch, base_symbol, route_decision->instrument, route_decision->target_weight);
+        
+        if (strategy->requires_dynamic_allocation()) {
+            // **DYNAMIC PATH**: Strategy handles its own allocation decisions
+            auto strategy_decisions = strategy->get_allocation_decisions(base_series, i, base_symbol, "TQQQ", "SQQQ");
+            
+            // Convert BaseStrategy::AllocationDecision to AllocationDecision
+            for (const auto& strategy_decision : strategy_decisions) {
+                AllocationDecision decision;
+                decision.instrument = strategy_decision.instrument;
+                decision.target_weight = strategy_decision.target_weight;
+                decision.confidence = strategy_decision.confidence;
+                decision.reason = strategy_decision.reason;
+                allocation_decisions.push_back(decision);
             }
             
-            AllocationDecision decision;
-            decision.instrument = route_decision->instrument;
-            decision.target_weight = route_decision->target_weight;
-            decision.confidence = signal.confidence;
-            decision.reason = "Router selected " + route_decision->instrument + " for signal strength " + std::to_string(signal.confidence);
-            allocation_decisions.push_back(decision);
         } else {
-            // **AUDIT**: Log when router returns no decision
-            if (logging_enabled) {
-                audit.event_route(bar.ts_utc_epoch, base_symbol, "NO_ROUTE", 0.0);
+            // **LEGACY PATH**: Use signal-router system for backward compatibility
+            StrategySignal signal = StrategySignal::from_probability(probability);
+            RouterCfg strategy_router = strategy->get_router_config();
+            auto route_decision = route(signal, strategy_router, base_symbol);
+            
+            if (route_decision.has_value()) {
+                AllocationDecision decision;
+                decision.instrument = route_decision->instrument;
+                decision.target_weight = route_decision->target_weight;
+                decision.confidence = signal.confidence;
+                decision.reason = "Router selected " + route_decision->instrument + " for signal strength " + std::to_string(signal.confidence);
+                allocation_decisions.push_back(decision);
+            } else {
+                no_route_count++;
             }
-            no_route_count++;
+        }
+        
+        // **AUDIT**: Log allocation decisions (strategy-agnostic)
+        if (logging_enabled) {
+            for (const auto& decision : allocation_decisions) {
+                if (std::abs(decision.target_weight) > 1e-6) {
+                    audit.event_route(bar.ts_utc_epoch, base_symbol, decision.instrument, decision.target_weight);
+                }
+            }
         }
         
         // **STRATEGY-AGNOSTIC**: Log signal for diagnostics
@@ -333,7 +359,6 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
                                 sig_type, probability, chain_id);
         }
         
-        [[maybe_unused]] auto end_signal = std::chrono::high_resolution_clock::now();
         
         // **STRATEGY-ISOLATED COORDINATION**: Create fresh coordinator for each run
         PositionCoordinator coordinator(5); // Max 5 orders per bar (QQQ family + extras)
@@ -352,11 +377,11 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
         // Convert to coordination requests
         auto allocation_requests = convert_allocation_decisions(coord_allocation_decisions, cfg.strategy_name, chain_id);
         
-        // Coordinate all allocations to prevent conflicts
-        auto coordination_decisions = coordinator.coordinate_allocations(allocation_requests, portfolio, ST);
+        // **STRATEGY-AGNOSTIC COORDINATION**: Use strategy's conflict rules
+        auto coordination_decisions = coordinator.coordinate_allocations(allocation_requests, portfolio, ST, strategy.get());
         
         // Log coordination statistics
-        auto coord_stats = coordinator.get_stats();
+        // auto coord_stats = coordinator.get_stats(); // Unused during cleanup
         int approved_orders = 0;
         int rejected_conflicts = 0;
         int rejected_frequency = 0;
@@ -444,10 +469,11 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
             }
             
             equity_curve.emplace_back(timestamp, current_equity);
+            equity_curve_ts_ms.emplace_back(static_cast<std::int64_t>(bar.ts_utc_epoch) * 1000);
             
             // Log account snapshot
             // Calculate actual position value and track cumulative realized P&L  
-            double position_value = current_equity - portfolio.cash;
+            // double position_value = current_equity - portfolio.cash; // Unused during cleanup
             
             AccountState state;
             state.cash = portfolio.cash;
@@ -467,89 +493,549 @@ RunResult run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::
     }
 
     if (equity_curve.empty()) {
-        return result;
+        return output;
     }
     
-    // **CANONICAL METRICS**: Use canonical MPR calculation and store daily returns
-    auto summary = UnifiedMetricsCalculator::calculate_from_equity_curve(equity_curve, total_fills, true);
-    
-    // Calculate daily returns from equity curve for canonical MPR
-    std::vector<double> daily_equity_values;
-    std::vector<std::pair<std::string, double>> daily_returns_with_dates;
-    
-    if (!equity_curve.empty()) {
-        // Group equity by session date and calculate daily returns
-        // The equity_curve already has string timestamps, so we need to extract session dates
-        std::map<std::string, double> daily_equity_map;
-        for (const auto& [timestamp_str, equity] : equity_curve) {
-            // Extract date from timestamp string (format: "YYYY-MM-DD HH:MM:SS")
-            std::string session_date = timestamp_str.substr(0, 10); // Extract "YYYY-MM-DD"
-            daily_equity_map[session_date] = equity; // Keep last equity of each day
-        }
-        
-        // Convert to vectors and calculate returns
-        std::vector<std::string> dates;
-        for (const auto& [date, equity] : daily_equity_map) {
-            dates.push_back(date);
-            daily_equity_values.push_back(equity);
-        }
-        
-        // Calculate daily returns
-        for (size_t i = 1; i < daily_equity_values.size(); ++i) {
-            double daily_return = (daily_equity_values[i] / daily_equity_values[i-1]) - 1.0;
-            daily_returns_with_dates.emplace_back(dates[i], daily_return);
-        }
-    }
-    
-    // Use canonical MPR calculation
-    std::vector<double> daily_returns;
-    for (const auto& [date, ret] : daily_returns_with_dates) {
-        daily_returns.push_back(ret);
-    }
-    double canonical_mpr = sentio::metrics::compute_mpr_from_daily_returns(daily_returns);
+    // 3. ============== RAW DATA COLLECTION COMPLETE ==============
+    // All metric calculation logic moved to UnifiedMetricsCalculator
 
-    result.final_equity = equity_curve.empty() ? 100000.0 : equity_curve.back().second;
-    result.total_return = summary.ret_total; // Already in decimal form (0.0366 = 3.66%)
-    result.sharpe_ratio = summary.sharpe;
-    result.max_drawdown = summary.mdd; // Already in decimal form
-    result.monthly_projected_return = canonical_mpr; // **CANONICAL MPR**
-    result.daily_trades = static_cast<int>(summary.daily_trades);
-    result.total_fills = summary.trades;
-    result.no_route = no_route_count;
-    result.no_qty = no_qty_count;
+    // 4. ============== POPULATE OUTPUT & RETURN ==============
+    
+    // NEW: Populate the output struct with the raw data from the simulation.
+    output.equity_curve = equity_curve;
+    output.equity_curve_ts_ms = equity_curve_ts_ms;
+    output.total_fills = total_fills;
+    output.no_route_events = no_route_count;
+    output.no_qty_events = no_qty_count;
+    output.run_trading_days = run_trading_days;
 
-    // **CANONICAL STORAGE**: Store daily returns and update run with canonical period fields
-    std::int64_t end_ts = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
+    // Audit system reconstructs equity curve for metrics
+
+    // Log the end of the run to the audit trail
+    std::string end_meta = "{}";
     if (logging_enabled) {
-        // Store daily returns for canonical MPR calculation
-        if (!daily_returns_with_dates.empty()) {
-            // Cast to AuditDBRecorder to access canonical MPR methods
-            if (auto* db_recorder = dynamic_cast<audit::AuditDBRecorder*>(&audit)) {
-                db_recorder->store_daily_returns(daily_returns_with_dates);
+        std::int64_t end_ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        audit.event_run_end(end_ts, end_meta);
+    }
+
+    return output;
+}
+
+// ============== CANONICAL EVALUATION SYSTEM ==============
+
+CanonicalReport run_canonical_backtest(
+    IAuditRecorder& audit, 
+    const SymbolTable& ST, 
+    const std::vector<std::vector<Bar>>& series, 
+    int base_symbol_id, 
+    const RunnerCfg& cfg, 
+    const DatasetMetadata& dataset_meta,
+    const TradingBlockConfig& block_config) {
+    
+    // Create the main audit run for the canonical backtest
+    std::string meta = "{";
+    meta += "\"strategy\":\"" + cfg.strategy_name + "\",";
+    meta += "\"base_symbol_id\":" + std::to_string(base_symbol_id) + ",";
+    meta += "\"trading_blocks\":" + std::to_string(block_config.num_blocks) + ",";
+    meta += "\"block_size\":" + std::to_string(block_config.block_size) + ",";
+    meta += "\"dataset_source_type\":\"" + dataset_meta.source_type + "\",";
+    meta += "\"dataset_file_path\":\"" + dataset_meta.file_path + "\",";
+    meta += "\"dataset_regime\":\"" + dataset_meta.regime + "\",";
+    meta += "\"evaluation_type\":\"canonical_trading_blocks\"";
+    meta += "}";
+    
+    std::int64_t start_ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    audit.event_run_start(start_ts, meta);
+    
+    CanonicalReport report;
+    report.config = block_config;
+    report.strategy_name = cfg.strategy_name;
+    report.dataset_source = dataset_meta.source_type;
+    
+    const auto& base_series = series[base_symbol_id];
+    
+    // Calculate warmup bars - proportional to new 480-bar Trading Blocks
+    // Use ~250 bars warmup (about half a Trading Block) for technical indicators
+    size_t warmup_bars = 250;
+    if (base_series.size() <= warmup_bars) {
+        std::cout << "Warning: Not enough bars for warmup (need " << warmup_bars << ", have " << base_series.size() << ")" << std::endl;
+        warmup_bars = 0;
+    }
+    
+    // Calculate total bars needed for the canonical test
+    size_t total_bars_needed = warmup_bars + block_config.total_bars();
+    if (base_series.size() < total_bars_needed) {
+        std::cout << "Warning: Not enough data for complete test (need " << total_bars_needed 
+                  << ", have " << base_series.size() << "). Running partial test." << std::endl;
+        // Adjust block count to fit available data
+        size_t available_test_bars = base_series.size() - warmup_bars;
+        int possible_blocks = static_cast<int>(available_test_bars / block_config.block_size);
+        if (possible_blocks == 0) {
+            std::cerr << "Error: Not enough data for even one block" << std::endl;
+            return report;
+        }
+        // Note: We'll process only the possible blocks
+    }
+    
+    // Calculate test period using most recent data (work backwards from end)
+    size_t test_end_idx = base_series.size() - 1;
+    size_t test_start_idx = test_end_idx - block_config.total_bars() + 1;
+    size_t warmup_start_idx = test_start_idx - warmup_bars;
+    
+    // Store test period metadata
+    report.test_start_ts_ms = base_series[test_start_idx].ts_utc_epoch * 1000;
+    report.test_end_ts_ms = base_series[test_end_idx].ts_utc_epoch * 1000;
+    
+    std::vector<BlockResult> block_results;
+    
+    // Process each block (using most recent data)
+    for (int block_index = 0; block_index < block_config.num_blocks; ++block_index) {
+        size_t block_start_idx = test_start_idx + (block_index * block_config.block_size);
+        size_t block_end_idx = block_start_idx + block_config.block_size;
+        
+        // Check if we have enough data for this block
+        if (block_end_idx > base_series.size()) {
+            std::cout << "Insufficient data for block " << block_index << ". Stopping at " 
+                      << block_results.size() << " completed blocks." << std::endl;
+            break;
+        }
+        
+        std::cout << "Processing Trading Block " << (block_index + 1) << "/" << block_config.num_blocks 
+                  << " (bars " << block_start_idx << "-" << (block_end_idx - 1) << ")..." << std::endl;
+        
+        // Create a data slice for this block (including warmup from the correct position)
+        std::vector<std::vector<Bar>> block_series;
+        block_series.reserve(series.size());
+        
+        // Calculate the actual warmup start for this block
+        size_t block_warmup_start = (block_start_idx >= warmup_bars) ? block_start_idx - warmup_bars : 0;
+        
+        for (const auto& symbol_series : series) {
+            if (symbol_series.size() > block_end_idx) {
+                // Include warmup + this block's data (from warmup start to block end)
+                std::vector<Bar> slice(symbol_series.begin() + block_warmup_start, symbol_series.begin() + block_end_idx);
+                block_series.push_back(slice);
+            } else if (symbol_series.size() > block_start_idx) {
+                // Partial data case
+                std::vector<Bar> slice(symbol_series.begin() + block_warmup_start, symbol_series.end());
+                block_series.push_back(slice);
+            } else {
+                // Empty series for this symbol in this block
+                block_series.emplace_back();
             }
         }
         
-        // Log final metrics with canonical MPR
-        audit.event_metric(end_ts, "final_equity", result.final_equity);
-        audit.event_metric(end_ts, "total_return", result.total_return);
-        audit.event_metric(end_ts, "sharpe_ratio", result.sharpe_ratio);
-        audit.event_metric(end_ts, "max_drawdown", result.max_drawdown);
-        audit.event_metric(end_ts, "canonical_mpr", canonical_mpr);
-        audit.event_metric(end_ts, "run_trading_days", static_cast<double>(run_trading_days));
-        audit.event_metric(end_ts, "total_fills", result.total_fills);
-        audit.event_metric(end_ts, "no_route", result.no_route);
-        audit.event_metric(end_ts, "no_qty", result.no_qty);
+        // Create block-specific dataset metadata
+        DatasetMetadata block_meta = dataset_meta;
+        if (!base_series.empty()) {
+            block_meta.time_range_start = base_series[block_start_idx].ts_utc_epoch * 1000;
+            block_meta.time_range_end = base_series[block_end_idx - 1].ts_utc_epoch * 1000;
+            block_meta.bars_count = block_config.block_size;
+        }
+        
+        // Get starting equity for this block
+        double starting_equity = 100000.0; // Default starting capital
+        if (!block_results.empty()) {
+            starting_equity = block_results.back().ending_equity;
+        }
+        
+        // Create block-specific config that skips audit run creation
+        RunnerCfg block_cfg = cfg;
+        block_cfg.skip_audit_run_creation = true;  // Skip audit run creation for individual blocks
+        
+        // Run backtest for this block
+        BacktestOutput block_output = run_backtest(audit, ST, block_series, base_symbol_id, block_cfg, block_meta);
+        
+        // Calculate block metrics
+        BlockResult block_result = CanonicalEvaluator::calculate_block_metrics(
+            block_output.equity_curve,
+            block_index,
+            starting_equity,
+            block_output.total_fills,
+            base_series[block_start_idx].ts_utc_epoch * 1000,
+            base_series[block_end_idx - 1].ts_utc_epoch * 1000
+        );
+        
+        block_results.push_back(block_result);
+        
+        std::cout << "Block " << (block_index + 1) << " completed: "
+                  << "RPB=" << std::fixed << std::setprecision(4) << (block_result.return_per_block * 100) << "%, "
+                  << "Sharpe=" << std::fixed << std::setprecision(2) << block_result.sharpe_ratio << ", "
+                  << "Fills=" << block_result.fills << std::endl;
     }
     
-    std::string end_meta = "{";
-    end_meta += "\"final_equity\":" + std::to_string(result.final_equity) + ",";
-    end_meta += "\"total_return\":" + std::to_string(result.total_return) + ",";
-    end_meta += "\"sharpe_ratio\":" + std::to_string(result.sharpe_ratio);
-    end_meta += "}";
-    if (logging_enabled) audit.event_run_end(end_ts, end_meta);
-
-    return result;
+    if (block_results.empty()) {
+        std::cerr << "Error: No blocks were processed successfully" << std::endl;
+        return report;
+    }
+    
+    // Aggregate all block results
+    report = CanonicalEvaluator::aggregate_block_results(block_config, block_results, cfg.strategy_name, dataset_meta.source_type);
+    
+    // Store block results in audit database (if it supports it)
+    try {
+        if (auto* db_recorder = dynamic_cast<audit::AuditDBRecorder*>(&audit)) {
+            db_recorder->get_db().store_block_results(db_recorder->get_run_id(), block_results);
+        }
+    } catch (const std::exception& e) {
+        std::cout << "Warning: Could not store block results in audit database: " << e.what() << std::endl;
+    }
+    
+    // Helper function to convert timestamp to ISO format
+    auto to_iso_string = [](std::int64_t timestamp_ms) -> std::string {
+        std::time_t time_sec = timestamp_ms / 1000;
+        std::tm* utc_tm = std::gmtime(&time_sec);
+        
+        char buffer[32];
+        std::strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", utc_tm);
+        return std::string(buffer) + "Z";
+    };
+    
+    // Get run ID from audit recorder
+    std::string run_id = "unknown";
+    if (auto* db_recorder = dynamic_cast<audit::AuditDBRecorder*>(&audit)) {
+        run_id = db_recorder->get_run_id();
+    }
+    
+    // Calculate trades per TB
+    double trades_per_tb = 0.0;
+    if (report.successful_blocks() > 0) {
+        trades_per_tb = static_cast<double>(report.total_fills) / report.successful_blocks();
+    }
+    
+    // Calculate MRB (Monthly Return per Block) - projected monthly return
+    // Assuming ~20 Trading Blocks per month (480 bars/block, ~390 bars/day, ~20 trading days/month)
+    double blocks_per_month = 20.0;
+    double mrb = 0.0;
+    if (report.mean_rpb != 0.0) {
+        // Use compound interest formula: MRB = ((1 + mean_RPB) ^ 20) - 1
+        mrb = (std::pow(1.0 + report.mean_rpb, blocks_per_month) - 1.0) * 100.0;
+    }
+    
+    // Calculate MRP20B (Mean Return per 20TB) if we have enough data - for comparison
+    double mrp20b = 0.0;
+    if (report.successful_blocks() >= 20) {
+        double twenty_tb_return = 1.0;
+        for (int i = 0; i < 20 && i < static_cast<int>(report.block_results.size()); ++i) {
+            twenty_tb_return *= (1.0 + report.block_results[i].return_per_block);
+        }
+        mrp20b = (twenty_tb_return - 1.0) * 100.0;
+    }
+    
+    // ANSI color codes for enhanced visual formatting
+    const std::string RESET = "\033[0m";
+    const std::string BOLD = "\033[1m";
+    const std::string DIM = "\033[2m";
+    
+    // Colors
+    const std::string BLUE = "\033[34m";
+    const std::string GREEN = "\033[32m";
+    const std::string RED = "\033[31m";
+    const std::string YELLOW = "\033[33m";
+    const std::string CYAN = "\033[36m";
+    const std::string MAGENTA = "\033[35m";
+    const std::string WHITE = "\033[37m";
+    
+    // Background colors
+    const std::string BG_BLUE = "\033[44m";
+    const std::string BG_GREEN = "\033[42m";
+    const std::string BG_RED = "\033[41m";
+    const std::string BG_YELLOW = "\033[43m";
+    const std::string BG_CYAN = "\033[46m";
+    const std::string BG_DARK = "\033[100m";
+    
+    // Determine performance color based on Mean RPB
+    std::string perf_color = RED;
+    std::string perf_bg = "";
+    if (report.mean_rpb > 0.001) {  // > 0.1%
+        perf_color = GREEN;
+        perf_bg = "";
+    } else if (report.mean_rpb > -0.001) {  // -0.1% to 0.1%
+        perf_color = YELLOW;
+        perf_bg = "";
+    }
+    
+    // Header with enhanced styling
+    std::cout << "\n" << BOLD << BG_BLUE << WHITE << "╔══════════════════════════════════════════════════════════════════════════════════╗" << RESET << std::endl;
+    std::cout << BOLD << BG_BLUE << WHITE << "║                        🎯 CANONICAL EVALUATION COMPLETE                          ║" << RESET << std::endl;
+    std::cout << BOLD << BG_BLUE << WHITE << "╚══════════════════════════════════════════════════════════════════════════════════╝" << RESET << std::endl;
+    
+    // Run Information Section
+    std::cout << "\n" << BOLD << CYAN << "📋 RUN INFORMATION" << RESET << std::endl;
+    std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
+    std::cout << "│ " << BOLD << "Run ID:" << RESET << "       " << BLUE << run_id << RESET << std::endl;
+    std::cout << "│ " << BOLD << "Strategy:" << RESET << "     " << MAGENTA << cfg.strategy_name << RESET << std::endl;
+    std::cout << "│ " << BOLD << "Dataset:" << RESET << "      " << DIM << dataset_meta.file_path << RESET << std::endl;
+    std::cout << "└─────────────────────────────────────────────────────────────────────────────────┘" << std::endl;
+    
+    // Time Periods Section
+    std::cout << "\n" << BOLD << CYAN << "📅 TIME PERIODS" << RESET << std::endl;
+    std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
+    
+    // Dataset Period
+    if (dataset_meta.time_range_start > 0 && dataset_meta.time_range_end > 0) {
+        double dataset_days = (dataset_meta.time_range_end - dataset_meta.time_range_start) / (1000.0 * 60.0 * 60.0 * 24.0);
+        std::cout << "│ " << BOLD << "Dataset Period:" << RESET << " " << BLUE << to_iso_string(dataset_meta.time_range_start) 
+                  << RESET << " → " << BLUE << to_iso_string(dataset_meta.time_range_end) << RESET << " " 
+                  << DIM << "(" << std::fixed << std::setprecision(1) << dataset_days << " days)" << RESET << std::endl;
+    }
+    
+    // Test Period (full available period)
+    if (report.test_start_ts_ms > 0 && report.test_end_ts_ms > 0) {
+        double test_days = (report.test_end_ts_ms - report.test_start_ts_ms) / (1000.0 * 60.0 * 60.0 * 24.0);
+        std::cout << "│ " << BOLD << "Test Period:" << RESET << "    " << GREEN << to_iso_string(report.test_start_ts_ms) 
+                  << RESET << " → " << GREEN << to_iso_string(report.test_end_ts_ms) << RESET << " " 
+                  << DIM << "(" << std::fixed << std::setprecision(1) << test_days << " days)" << RESET << std::endl;
+    }
+    
+    // TB Period (actual Trading Blocks period)
+    if (report.successful_blocks() > 0 && !report.block_results.empty()) {
+        uint64_t tb_start_ms = report.block_results[0].start_ts_ms;
+        uint64_t tb_end_ms = report.block_results[report.successful_blocks() - 1].end_ts_ms;
+        double tb_days = (tb_end_ms - tb_start_ms) / (1000.0 * 60.0 * 60.0 * 24.0);
+        std::cout << "│ " << BOLD << "TB Period:" << RESET << "      " << YELLOW << to_iso_string(tb_start_ms) 
+                  << RESET << " → " << YELLOW << to_iso_string(tb_end_ms) << RESET << " " 
+                  << DIM << "(" << std::fixed << std::setprecision(1) << tb_days << " days, " << report.successful_blocks() << " TBs)" << RESET << std::endl;
+    }
+    
+    std::cout << "└─────────────────────────────────────────────────────────────────────────────────┘" << std::endl;
+    
+    // Trading Configuration Section
+    std::cout << "\n" << BOLD << CYAN << "⚙️  TRADING CONFIGURATION" << RESET << std::endl;
+    std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
+    std::cout << "│ " << BOLD << "Trading Blocks:" << RESET << "  " << YELLOW << report.successful_blocks() << RESET << "/" 
+              << YELLOW << block_config.num_blocks << RESET << " TB " << DIM << "(480 bars each ≈ 8hrs)" << RESET << std::endl;
+    std::cout << "│ " << BOLD << "Total Bars:" << RESET << "     " << WHITE << report.total_bars_processed << RESET << " " 
+              << DIM << "(" << std::fixed << std::setprecision(1) << (report.total_bars_processed / 390.0) << " trading days)" << RESET << std::endl;
+    std::cout << "│ " << BOLD << "Total Fills:" << RESET << "    " << CYAN << report.total_fills << RESET << std::endl;
+    std::cout << "│ " << BOLD << "Trades per TB:" << RESET << "  " << CYAN << std::fixed << std::setprecision(1) << trades_per_tb << RESET << " " << DIM << "(≈Daily)" << RESET << std::endl;
+    std::cout << "└─────────────────────────────────────────────────────────────────────────────────┘" << std::endl;
+    
+    // Performance Metrics Section - with color coding
+    std::cout << "\n" << BOLD << CYAN << "📈 PERFORMANCE METRICS" << RESET << std::endl;
+    std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
+    std::cout << "│ " << BOLD << "Mean RPB:" << RESET << "       " << perf_color << BOLD << std::fixed << std::setprecision(4) 
+              << (report.mean_rpb * 100) << "%" << RESET << " " << DIM << "(Return Per Block - Net of Fees)" << RESET << std::endl;
+    std::cout << "│ " << BOLD << "Std Dev RPB:" << RESET << "    " << WHITE << std::fixed << std::setprecision(4) 
+              << (report.stdev_rpb * 100) << "%" << RESET << " " << DIM << "(Volatility)" << RESET << std::endl;
+    std::cout << "│ " << BOLD << "MRB:" << RESET << "            " << perf_color << BOLD << std::fixed << std::setprecision(2) 
+              << mrb << "%" << RESET << " " << DIM << "(Monthly Return)" << RESET << std::endl;
+    std::cout << "│ " << BOLD << "ARB:" << RESET << "            " << perf_color << BOLD << std::fixed << std::setprecision(2) 
+              << (report.annualized_return_on_block * 100) << "%" << RESET << " " << DIM << "(Annualized Return)" << RESET << std::endl;
+    
+    // Risk metrics
+    std::string sharpe_color = (report.aggregate_sharpe > 1.0) ? GREEN : (report.aggregate_sharpe > 0) ? YELLOW : RED;
+    std::cout << "│ " << BOLD << "Sharpe Ratio:" << RESET << "   " << sharpe_color << std::fixed << std::setprecision(2) 
+              << report.aggregate_sharpe << RESET << " " << DIM << "(Risk-Adjusted Return)" << RESET << std::endl;
+    
+    std::string consistency_color = (report.consistency_score < 1.0) ? GREEN : (report.consistency_score < 2.0) ? YELLOW : RED;
+    std::cout << "│ " << BOLD << "Consistency:" << RESET << "    " << consistency_color << std::fixed << std::setprecision(4) 
+              << report.consistency_score << RESET << " " << DIM << "(Lower = More Consistent)" << RESET << std::endl;
+    std::cout << "└─────────────────────────────────────────────────────────────────────────────────┘" << std::endl;
+    
+    // Performance Summary Box
+    std::cout << "\n" << BOLD;
+    if (report.mean_rpb > 0.001) {
+        std::cout << BG_GREEN << WHITE << "🎉 PROFITABLE STRATEGY ";
+    } else if (report.mean_rpb > -0.001) {
+        std::cout << BG_YELLOW << WHITE << "⚖️  NEUTRAL STRATEGY ";
+    } else {
+        std::cout << BG_RED << WHITE << "⚠️  LOSING STRATEGY ";
+    }
+    std::cout << RESET << std::endl;
+    
+    // **NEW**: Instrument Distribution with P&L Breakdown for Canonical Evaluation
+    std::cout << "\n" << BOLD << CYAN << "🎯 INSTRUMENT DISTRIBUTION & P&L BREAKDOWN" << RESET << std::endl;
+    std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
+    std::cout << "│ Instrument │  Total Volume  │  Net P&L       │  Fill Count    │ Avg Fill Size  │" << std::endl;
+    std::cout << "├────────────┼────────────────┼────────────────┼────────────────┼────────────────┤" << std::endl;
+    
+    // Get instrument statistics from audit database
+    std::map<std::string, double> instrument_volume;
+    std::map<std::string, double> instrument_pnl;
+    std::map<std::string, int> instrument_fills;
+    
+    // Query the audit database for fill events
+    if (auto* db_recorder = dynamic_cast<audit::AuditDBRecorder*>(&audit)) {
+        std::string run_id = db_recorder->get_run_id();
+        sqlite3* db = db_recorder->get_db().get_db();
+        
+        std::string query = "SELECT symbol, qty, price, pnl_delta FROM audit_events WHERE run_id = ? AND kind = 'FILL' ORDER BY seq ASC";
+        sqlite3_stmt* stmt;
+        if (sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
+            sqlite3_bind_text(stmt, 1, run_id.c_str(), -1, SQLITE_TRANSIENT);
+            
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                std::string symbol = (char*)sqlite3_column_text(stmt, 0);
+                double qty = sqlite3_column_double(stmt, 1);
+                double price = sqlite3_column_double(stmt, 2);
+                double pnl_delta = sqlite3_column_double(stmt, 3);
+                
+                instrument_volume[symbol] += std::abs(qty * price);
+                instrument_pnl[symbol] += pnl_delta;
+                instrument_fills[symbol]++;
+            }
+            sqlite3_finalize(stmt);
+        }
+    }
+    
+    // **FIX P&L MISMATCH**: Get canonical total P&L from final equity
+    double canonical_total_pnl = 0.0;
+    double starting_capital = 100000.0; // Standard starting capital
+    
+    // Extract final equity from the last FILL event's note field (matches canonical evaluation)
+    if (auto* db_recorder = dynamic_cast<audit::AuditDBRecorder*>(&audit)) {
+        std::string run_id = db_recorder->get_run_id();
+        sqlite3* db = db_recorder->get_db().get_db();
+        
+        std::string query = "SELECT note FROM audit_events WHERE run_id = ? AND kind = 'FILL' ORDER BY seq DESC LIMIT 1";
+        sqlite3_stmt* stmt;
+        if (sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
+            sqlite3_bind_text(stmt, 1, run_id.c_str(), -1, SQLITE_TRANSIENT);
+            if (sqlite3_step(stmt) == SQLITE_ROW) {
+                std::string note = (char*)sqlite3_column_text(stmt, 0);
+                size_t eq_pos = note.find("eq_after=");
+                if (eq_pos != std::string::npos) {
+                    size_t start = eq_pos + 9; // Length of "eq_after="
+                    size_t end = note.find(",", start);
+                    if (end == std::string::npos) end = note.length();
+                    std::string eq_str = note.substr(start, end - start);
+                    try {
+                        double final_equity = std::stod(eq_str);
+                        canonical_total_pnl = final_equity - starting_capital;
+                    } catch (...) {
+                        // Fall back to sum of pnl_delta if parsing fails
+                        canonical_total_pnl = 0.0;
+                        for (const auto& [instrument, pnl] : instrument_pnl) {
+                            canonical_total_pnl += pnl;
+                        }
+                    }
+                }
+            }
+            sqlite3_finalize(stmt);
+        }
+    }
+    
+    // **FIX**: Display ALL expected instruments (including those with zero activity)
+    double total_volume = 0.0;
+    double total_instrument_pnl = 0.0; // Sum of individual instrument P&Ls
+    int total_fills = 0;
+    
+    // **ENSURE ALL QQQ FAMILY INSTRUMENTS ARE SHOWN**
+    std::vector<std::string> all_expected_instruments = {"PSQ", "QQQ", "TQQQ", "SQQQ"};
+    
+    for (const std::string& instrument : all_expected_instruments) {
+        double volume = instrument_volume.count(instrument) ? instrument_volume[instrument] : 0.0;
+        double pnl = instrument_pnl.count(instrument) ? instrument_pnl[instrument] : 0.0;
+        int fills = instrument_fills.count(instrument) ? instrument_fills[instrument] : 0;
+        double avg_fill_size = (fills > 0) ? volume / fills : 0.0;
+        
+        total_volume += volume;
+        total_instrument_pnl += pnl;
+        total_fills += fills;
+        
+        // Color coding
+        const char* pnl_color = (pnl >= 0) ? GREEN.c_str() : RED.c_str();
+        
+        printf("│ %-10s │ $%12.2f │ %s$%+12.2f%s │ %14d │ $%12.2f │\n",
+               instrument.c_str(), volume,
+               pnl_color, pnl, RESET.c_str(),
+               fills, avg_fill_size);
+    }
+    
+    std::cout << "├────────────┼────────────────┼────────────────┼────────────────┼────────────────┤" << std::endl;
+    
+    // Totals row - use canonical P&L for accuracy
+    const char* canonical_pnl_color = (canonical_total_pnl >= 0) ? GREEN.c_str() : RED.c_str();
+    printf("│ %-10s │ $%12.2f │ %s$%+12.2f%s │ %14d │ $%12.2f │\n",
+           "TOTAL", total_volume,
+           canonical_pnl_color, canonical_total_pnl, RESET.c_str(),
+           total_fills, (total_fills > 0) ? total_volume / total_fills : 0.0);
+    
+    // **IMPROVED P&L RECONCILIATION**: Show breakdown of realized vs unrealized P&L
+    if (std::abs(total_instrument_pnl - canonical_total_pnl) > 1.0) {
+        double unrealized_pnl = canonical_total_pnl - total_instrument_pnl;
+        printf("│ %-10s │ $%12s │ %s$%+12.2f%s │ %14s │ $%12s │\n",
+               "Realized", "",
+               (total_instrument_pnl >= 0) ? GREEN.c_str() : RED.c_str(), 
+               total_instrument_pnl, RESET.c_str(), "", "");
+        printf("│ %-10s │ $%12s │ %s$%+12.2f%s │ %14s │ $%12s │\n",
+               "Unrealized", "",
+               (unrealized_pnl >= 0) ? GREEN.c_str() : RED.c_str(),
+               unrealized_pnl, RESET.c_str(), "", "");
+    }
+    
+    std::cout << "└────────────┴────────────────┴────────────────┴────────────────┴────────────────┘" << std::endl;
+    
+    // **NEW**: Transaction Cost Analysis to explain Mean RPB vs Net P&L relationship
+    if (auto* db_recorder = dynamic_cast<audit::AuditDBRecorder*>(&audit)) {
+        std::string run_id = db_recorder->get_run_id();
+        sqlite3* db = db_recorder->get_db().get_db();
+        
+        // Calculate total transaction costs from FILL events
+        double total_transaction_costs = 0.0;
+        int sell_count = 0;
+        
+        std::string cost_query = "SELECT qty, price, note FROM audit_events WHERE run_id = ? AND kind = 'FILL' ORDER BY seq ASC";
+        sqlite3_stmt* cost_stmt;
+        if (sqlite3_prepare_v2(db, cost_query.c_str(), -1, &cost_stmt, nullptr) == SQLITE_OK) {
+            sqlite3_bind_text(cost_stmt, 1, run_id.c_str(), -1, SQLITE_TRANSIENT);
+            
+            while (sqlite3_step(cost_stmt) == SQLITE_ROW) {
+                double qty = sqlite3_column_double(cost_stmt, 0);
+                double price = sqlite3_column_double(cost_stmt, 1);
+                std::string note = (char*)sqlite3_column_text(cost_stmt, 2);
+                
+                // Extract fees from note (fees=X.XX format)
+                size_t fees_pos = note.find("fees=");
+                if (fees_pos != std::string::npos) {
+                    size_t start = fees_pos + 5; // Length of "fees="
+                    size_t end = note.find(",", start);
+                    if (end == std::string::npos) end = note.find(")", start);
+                    if (end == std::string::npos) end = note.length();
+                    std::string fees_str = note.substr(start, end - start);
+                    try {
+                        double fees = std::stod(fees_str);
+                        total_transaction_costs += fees;
+                        if (qty < 0) sell_count++; // Count sell transactions (which have SEC/TAF fees)
+                    } catch (...) {
+                        // Skip if parsing fails
+                    }
+                }
+            }
+            sqlite3_finalize(cost_stmt);
+        }
+        
+        // Display transaction cost breakdown
+        std::cout << "\n" << BOLD << CYAN << "💰 TRANSACTION COST ANALYSIS" << RESET << std::endl;
+        std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
+        printf("│ Total Transaction Costs   │ %s$%10.2f%s │ SEC fees + FINRA TAF (sells only)    │\n", 
+               RED.c_str(), total_transaction_costs, RESET.c_str());
+        printf("│ Sell Transactions         │ %10d │ Transactions subject to fees         │\n", sell_count);
+        printf("│ Avg Cost per Sell         │ $%10.2f │ Average SEC + TAF cost per sell      │\n", 
+               (sell_count > 0) ? total_transaction_costs / sell_count : 0.0);
+        printf("│ Cost as %% of Net P&L      │ %9.2f%% │ Transaction costs vs profit          │\n", 
+               (canonical_total_pnl != 0) ? (total_transaction_costs / std::abs(canonical_total_pnl)) * 100.0 : 0.0);
+        std::cout << "├─────────────────────────────────────────────────────────────────────────────────┤" << std::endl;
+        std::cout << "│ " << BOLD << "Mean RPB includes all transaction costs" << RESET << " │ Block-by-block returns are net │" << std::endl;
+        std::cout << "│ " << BOLD << "Net P&L is final equity difference" << RESET << "   │ Before/after capital comparison │" << std::endl;
+        std::cout << "└─────────────────────────────────────────────────────────────────────────────────┘" << std::endl;
+    }
+    
+    // Performance insight
+    if (canonical_total_pnl >= 0) {
+        std::cout << GREEN << "✅ Net Positive P&L: Strategy generated profit across instruments" << RESET << std::endl;
+    } else {
+        std::cout << RED << "❌ Net Negative P&L: Strategy lost money across instruments" << RESET << std::endl;
+    }
+    // End the main audit run
+    std::int64_t end_ts = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    audit.event_run_end(end_ts, "{}");
+    
+    return report;
 }
 
 } // namespace sentio
