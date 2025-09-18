@@ -33,7 +33,6 @@ std::vector<std::string> kochi_feature_names() {
 
 // Helpers
 static double safe_div(double a, double b){ return b!=0.0? a/b : 0.0; }
-static double clip(double x, double lo, double hi){ return std::max(lo, std::min(hi, x)); }
 
 std::vector<double> calculate_kochi_features(const std::vector<Bar>& bars, int i) {
   std::vector<double> f; f.reserve(64);

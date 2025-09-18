@@ -3,11 +3,18 @@
 #include "sentio/pricebook.hpp"
 #include "sentio/metrics.hpp"
 #include "audit/audit_db_recorder.hpp"
-#include "sentio/sizer.hpp"
+#include "sentio/safe_sizer.hpp"
+#include "sentio/audit.hpp"
+// Strategy-Agnostic Backend Components
+#include "sentio/strategy_profiler.hpp"
+#include "sentio/adaptive_allocation_manager.hpp"
+#include "sentio/universal_position_coordinator.hpp"
+#include "sentio/adaptive_eod_manager.hpp"
 #include "sentio/feature_feeder.hpp"
-#include "sentio/position_coordinator.hpp"
-#include "sentio/router.hpp"
 #include "sentio/canonical_evaluation.hpp"
+// Golden Rule Enforcement Components
+#include "sentio/execution_verifier.hpp"
+#include "sentio/circuit_breaker.hpp"
 #include <iostream>
 #include <iomanip>
 #include <memory>
@@ -18,82 +25,218 @@
 
 namespace sentio {
 
-// **RENOVATED HELPER**: Execute target position for any instrument
-static void execute_target_position(const std::string& instrument, double target_weight,            
-                                   Portfolio& portfolio, const SymbolTable& ST, const Pricebook& pricebook,                    
-                                   const AdvancedSizer& sizer, const RunnerCfg& cfg,                
-                                   const std::vector<std::vector<Bar>>& series, const Bar& bar,     
-                                   const std::string& chain_id, IAuditRecorder& audit, bool logging_enabled, int& total_fills) {
+// **GOLDEN RULE ENFORCEMENT PIPELINE**
+// Strict phase ordering with enforcement mechanisms that cannot be bypassed
+static void execute_bar_pipeline(
+    double strategy_probability,
+    Portfolio& portfolio, 
+    const SymbolTable& ST, 
+    const Pricebook& pricebook,
+    StrategyProfiler& profiler,
+    AdaptiveAllocationManager& allocation_mgr,
+    UniversalPositionCoordinator& position_coord, 
+    AdaptiveEODManager& eod_mgr,
+    const std::vector<std::vector<Bar>>& series, 
+    const Bar& bar,
+    const std::string& chain_id,
+    IAuditRecorder& audit,
+    bool logging_enabled,
+    int& total_fills,
+    const std::string& strategy_name,
+    size_t bar_index) {
     
-    int instrument_id = ST.get_id(instrument);
-    if (instrument_id == -1) return;
+    // ENFORCEMENT COMPONENTS - Cannot be bypassed
+    static ExecutionVerifier verifier;
+    static CircuitBreaker breaker;
     
-    double instrument_price = pricebook.last_px[instrument_id];
-    if (instrument_price <= 0) return;
-
-    // Calculate target quantity using sizer
-    double target_qty = sizer.calculate_target_quantity(portfolio, ST, pricebook.last_px, 
-                                                       instrument, target_weight, 
-                                                       series[instrument_id], cfg.sizer);
+    // PHASE 0: Reset and prepare for new bar
+    verifier.reset_bar(bar.ts_utc_epoch);
+    position_coord.reset_bar(bar.ts_utc_epoch);
     
-    // **CONFLICT PREVENTION**: Strategy-level conflict prevention should prevent conflicts
-    // No need for smart conflict resolution since strategy checks existing positions
+    auto profile = profiler.get_current_profile();
     
-    double current_qty = portfolio.positions[instrument_id].qty;
-    double trade_qty = target_qty - current_qty;
-
-    // **INTEGRITY FIX**: Prevent impossible trades that create negative positions
-    // 1. Prevent zero-quantity trades that generate phantom P&L
-    // 2. Prevent SELL orders on zero positions (would create negative positions)
-    if (std::abs(trade_qty) < 1e-9 || std::abs(trade_qty * instrument_price) <= 10.0) {
-        return; // No logging, no execution, no audit entries
+    // PHASE 1: MANDATORY EOD CHECK (ALWAYS runs first - Golden Rule)
+    verifier.mark_eod_checked(bar.ts_utc_epoch);
+    
+    auto eod_allocations = eod_mgr.get_eod_allocations(bar.ts_utc_epoch, portfolio, ST, profile);
+    if (!eod_allocations.empty()) {
+        // Execute ONLY the first EOD closing order (one trade per bar enforcement)
+        if (verifier.verify_can_execute(bar.ts_utc_epoch, eod_allocations[0].instrument)) {
+            const auto& decision = eod_allocations[0];
+            
+            // Execute the trade
+            SafeSizer sizer;
+            double target_qty = sizer.calculate_target_quantity(
+                portfolio, ST, pricebook.last_px, 
+                decision.instrument, decision.target_weight, 
+                bar.ts_utc_epoch, series[ST.get_id(decision.instrument)]
+            );
+            
+            int instrument_id = ST.get_id(decision.instrument);
+            if (instrument_id != -1) {
+                double current_qty = portfolio.positions[instrument_id].qty;
+                double trade_qty = target_qty - current_qty;
+                
+                if (std::abs(trade_qty) >= 1e-9) {
+                    double instrument_price = pricebook.last_px[instrument_id];
+                    if (instrument_price > 0) {
+                        portfolio.positions[instrument_id].qty = target_qty;
+                        total_fills++;
+                        verifier.mark_trade_executed(bar.ts_utc_epoch, decision.instrument);
+                        
+                        if (logging_enabled) {
+                            Side side = (trade_qty > 0) ? Side::Buy : Side::Sell;
+                            audit.event_fill(bar.ts_utc_epoch, decision.instrument, 
+                                            instrument_price, std::abs(trade_qty), 0.0, side);
+                        }
+                        
+                    }
+                }
+            }
+        }
+        
+        return; // GOLDEN RULE: No strategy consultation during EOD
     }
     
-    // **CRITICAL INTEGRITY CHECK**: Prevent SELL orders that would create negative positions
-    if (trade_qty < 0 && current_qty <= 1e-6) {
-        // Cannot sell what we don't own - this would create negative positions
-        return; // Skip this trade to maintain position integrity
+    // PHASE 2: CIRCUIT BREAKER CHECK (Emergency protection)
+    if (!breaker.check_portfolio_integrity(portfolio, ST, bar.ts_utc_epoch)) {
+        if (breaker.is_tripped()) {
+            
+            auto emergency_orders = breaker.get_emergency_closure(portfolio, ST);
+            if (!emergency_orders.empty() && verifier.verify_can_execute(bar.ts_utc_epoch, emergency_orders[0].instrument)) {
+                const auto& decision = emergency_orders[0];
+                
+                // Execute emergency close
+                int instrument_id = ST.get_id(decision.instrument);
+                if (instrument_id != -1) {
+                    portfolio.positions[instrument_id].qty = 0.0; // Force close
+                    total_fills++;
+                    verifier.mark_trade_executed(bar.ts_utc_epoch, decision.instrument);
+                }
+            }
+            
+            return; // GOLDEN RULE: No strategy consultation during emergency
+        }
     }
-
-    // **PROFIT MAXIMIZATION**: Execute meaningful trades
-    Side side = (trade_qty > 0) ? Side::Buy : Side::Sell;
     
-    if (logging_enabled) {
-        audit.event_order_ex(bar.ts_utc_epoch, instrument, side, std::abs(trade_qty), 0.0, chain_id);
+    // PHASE 3: STRATEGY CONSULTATION (Only if phases 1 & 2 allow)
+    if (!verifier.verify_can_execute(bar.ts_utc_epoch)) {
+        return;
     }
-
-    // Calculate realized P&L for position changes
-    double realized_delta = 0.0;
-    const auto& pos_before = portfolio.positions[instrument_id];
-    double closing = 0.0;
-    if (pos_before.qty > 0 && trade_qty < 0) closing = std::min(std::abs(trade_qty), pos_before.qty);
-    if (pos_before.qty < 0 && trade_qty > 0) closing = std::min(std::abs(trade_qty), std::abs(pos_before.qty));
-    if (closing > 0.0) {
-        if (pos_before.qty > 0) realized_delta = (instrument_price - pos_before.avg_price) * closing;
-        else                    realized_delta = (pos_before.avg_price - instrument_price) * closing;
+    
+    // Profile the strategy signal
+    profiler.observe_signal(strategy_probability, bar.ts_utc_epoch);
+    
+    // Get adaptive allocations based on profile
+    auto allocations = allocation_mgr.get_allocations(strategy_probability, profile);
+    
+    // Log signal activity
+    if (logging_enabled && !allocations.empty()) {
+        audit.event_signal_ex(bar.ts_utc_epoch, ST.get_symbol(0), 
+                            SigType::BUY, strategy_probability, chain_id);
     }
-
-    // **ALPACA COSTS**: Use realistic Alpaca fee model for accurate backtesting
-    bool is_sell = (side == Side::Sell);
-    double fees = AlpacaCostModel::calculate_fees(instrument, std::abs(trade_qty), instrument_price, is_sell);
-    double exec_px = instrument_price; // Perfect execution at market price (no slippage)
     
-    apply_fill(portfolio, instrument_id, trade_qty, exec_px);
-    portfolio.cash -= fees; // Apply transaction fees
+    // Position coordination with enforcement
+    verifier.mark_position_coordinated(bar.ts_utc_epoch);
+    auto coordination_decisions = position_coord.coordinate(
+        allocations, portfolio, ST, bar.ts_utc_epoch, profile
+    );
     
-    double equity_after = equity_mark_to_market(portfolio, pricebook.last_px);
-    double pos_after = portfolio.positions[instrument_id].qty;
+    // PHASE 4: EXECUTE APPROVED DECISIONS (With strict enforcement)
     
-    if (logging_enabled) {
-        audit.event_fill_ex(bar.ts_utc_epoch, instrument, exec_px, std::abs(trade_qty), fees, side,
-                           realized_delta, equity_after, pos_after, chain_id);
+    for (const auto& coord_decision : coordination_decisions) {
+        if (coord_decision.result != CoordinationResult::APPROVED) {
+            if (logging_enabled) {
+                audit.event_signal_drop(bar.ts_utc_epoch, strategy_name, 
+                                      coord_decision.decision.instrument,
+                                      DropReason::THRESHOLD, chain_id, 
+                                      coord_decision.reason);
+            }
+            continue;
+        }
+        
+        const auto& decision = coord_decision.decision;
+        
+        // ENFORCEMENT: Verify execution is allowed
+        if (!verifier.verify_can_execute(bar.ts_utc_epoch, decision.instrument)) {
+            continue;
+        }
+        
+        // Use SafeSizer for execution
+        SafeSizer sizer;
+        double target_qty = sizer.calculate_target_quantity(
+            portfolio, ST, pricebook.last_px, 
+            decision.instrument, decision.target_weight, 
+            bar.ts_utc_epoch, series[ST.get_id(decision.instrument)]
+        );
+        
+        int instrument_id = ST.get_id(decision.instrument);
+        if (instrument_id == -1) continue;
+        
+        double current_qty = portfolio.positions[instrument_id].qty;
+        double trade_qty = target_qty - current_qty;
+        
+        if (std::abs(trade_qty) < 1e-9) continue;
+        
+        double instrument_price = pricebook.last_px[instrument_id];
+        if (instrument_price <= 0) continue;
+        
+        // Execute trade
+        Side side = (trade_qty > 0) ? Side::Buy : Side::Sell;
+        
+        if (logging_enabled) {
+            audit.event_order_ex(bar.ts_utc_epoch, decision.instrument, side, 
+                               std::abs(trade_qty), 0.0, chain_id);
+        }
+        
+        // Calculate P&L
+        double realized_delta = 0.0;
+        const auto& pos_before = portfolio.positions[instrument_id];
+        double closing = 0.0;
+        if (pos_before.qty > 0 && trade_qty < 0) {
+            closing = std::min(std::abs(trade_qty), pos_before.qty);
+        } else if (pos_before.qty < 0 && trade_qty > 0) {
+            closing = std::min(std::abs(trade_qty), std::abs(pos_before.qty));
+        }
+        if (closing > 0.0) {
+            if (pos_before.qty > 0) {
+                realized_delta = (instrument_price - pos_before.avg_price) * closing;
+            } else {
+                realized_delta = (pos_before.avg_price - instrument_price) * closing;
+            }
+        }
+        
+        // Apply fill
+        double fees = AlpacaCostModel::calculate_fees(
+            decision.instrument, std::abs(trade_qty), instrument_price, side == Side::Sell
+        );
+        
+        apply_fill(portfolio, instrument_id, trade_qty, instrument_price);
+        portfolio.cash -= fees;
+        
+        double equity_after = equity_mark_to_market(portfolio, pricebook.last_px);
+        double pos_after = portfolio.positions[instrument_id].qty;
+        
+        if (logging_enabled) {
+            audit.event_fill_ex(bar.ts_utc_epoch, decision.instrument, 
+                              instrument_price, std::abs(trade_qty), fees, side,
+                              realized_delta, equity_after, pos_after, chain_id);
+        }
+        
+        // Update profiler with trade observation
+        profiler.observe_trade(strategy_probability, decision.instrument, bar.ts_utc_epoch);
+        total_fills++;
+        
+        // ENFORCEMENT: Mark trade as executed
+        verifier.mark_trade_executed(bar.ts_utc_epoch, decision.instrument);
     }
-    total_fills++;
 }
+
 
 // CHANGED: The function now returns a BacktestOutput struct with raw data and accepts dataset metadata.
 BacktestOutput run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const std::vector<std::vector<Bar>>& series, 
-                      int base_symbol_id, const RunnerCfg& cfg, const DatasetMetadata& dataset_meta) {
+                      int base_symbol_id, const RunnerCfg& cfg, const DatasetMetadata& dataset_meta, 
+                      StrategyProfiler* persistent_profiler) {
     
     // 1. ============== INITIALIZATION ==============
     BacktestOutput output{}; // NEW: Initialize the output struct
@@ -141,8 +284,14 @@ BacktestOutput run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const 
     strategy->set_params(params);
 
     Portfolio portfolio(ST.size());
-    AdvancedSizer sizer;
     Pricebook pricebook(base_symbol_id, ST, series);
+    
+    // **STRATEGY-AGNOSTIC EXECUTION PIPELINE COMPONENTS**
+    StrategyProfiler local_profiler;
+    StrategyProfiler& profiler = persistent_profiler ? *persistent_profiler : local_profiler;
+    AdaptiveAllocationManager adaptive_allocation_mgr;
+    UniversalPositionCoordinator universal_position_coord;
+    AdaptiveEODManager adaptive_eod_mgr;
     
     std::vector<std::pair<std::string, double>> equity_curve;
     std::vector<std::int64_t> equity_curve_ts_ms;
@@ -213,64 +362,6 @@ BacktestOutput run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const 
         
         const auto& bar = base_series[i];
         
-        // **DAY TRADING RULE**: Intraday risk management
-        if (i > warmup_bars) {
-            // Extract hour and minute from UTC timestamp for market close detection
-            // Market closes at 4:00 PM ET = 20:00 UTC (EDT) or 21:00 UTC (EST)
-            time_t raw_time = bar.ts_utc_epoch;
-            struct tm* utc_tm = gmtime(&raw_time);
-            int hour_utc = utc_tm->tm_hour;
-            int minute_utc = utc_tm->tm_min;
-            int month = utc_tm->tm_mon + 1; // tm_mon is 0-based
-            
-            // Simple DST check: April-October is EDT (20:00 close), rest is EST (21:00 close)
-            bool is_edt = (month >= 4 && month <= 10);
-            int market_close_hour = is_edt ? 20 : 21;
-            
-            // Calculate minutes until market close
-            int current_minutes = hour_utc * 60 + minute_utc;
-            int close_minutes = market_close_hour * 60; // Market close time in minutes
-            int minutes_to_close = close_minutes - current_minutes;
-            
-            // Handle day wrap-around (shouldn't happen with RTH data, but safety check)
-            if (minutes_to_close < -300) minutes_to_close += 24 * 60;
-            
-            // **MANDATORY POSITION CLOSURE**: 10 minutes before market close
-            if (minutes_to_close <= 10 && minutes_to_close > 0) {
-                for (size_t sid = 0; sid < portfolio.positions.size(); ++sid) {
-                    if (portfolio.positions[sid].qty != 0.0) {
-                        double close_qty = -portfolio.positions[sid].qty; // Close entire position
-                        double close_price = pricebook.last_px[sid];
-                        
-                        if (close_price > 0 && std::abs(close_qty * close_price) > 10.0) {
-                            std::string inst = ST.get_symbol(sid);
-                            Side close_side = (close_qty > 0) ? Side::Buy : Side::Sell;
-                            
-                            if (logging_enabled) {
-                                audit.event_order_ex(bar.ts_utc_epoch, inst, close_side, std::abs(close_qty), 0.0, "EOD_MANDATORY_CLOSE");
-                            }
-                            
-                            // **ZERO COSTS FOR TESTING**: Perfect execution for EOD close
-                            double fees = 0.0;
-                            double exec_px = close_price; // Perfect execution at market price
-                            
-                            double realized_pnl = (portfolio.positions[sid].qty > 0) 
-                                ? (exec_px - portfolio.positions[sid].avg_price) * std::abs(close_qty)
-                                : (portfolio.positions[sid].avg_price - exec_px) * std::abs(close_qty);
-                            
-                            apply_fill(portfolio, sid, close_qty, exec_px);
-                            // portfolio.cash -= fees; // No fees for EOD close
-                            
-                            double eq_after = equity_mark_to_market(portfolio, pricebook.last_px);
-                            if (logging_enabled) {
-                                audit.event_fill_ex(bar.ts_utc_epoch, inst, exec_px, std::abs(close_qty), fees, close_side, realized_pnl, eq_after, 0.0, "EOD_MANDATORY_CLOSE");
-                            }
-                            total_fills++;
-                        }
-                    }
-                }
-            }
-        }
         
         // **RENOVATED**: Governor handles day trading automatically - no manual time logic needed
         pricebook.sync_to_base_i(i);
@@ -291,49 +382,15 @@ BacktestOutput run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const 
         double probability = strategy->calculate_probability(base_series, i);
         std::string base_symbol = ST.get_symbol(base_symbol_id);
         
-        // **ARCHITECTURAL COMPLIANCE**: Check strategy preference for execution path
-        std::vector<AllocationDecision> allocation_decisions;
+        // **STRATEGY-AGNOSTIC EXECUTION PIPELINE**: Adaptive components that work for any strategy
+        // Execute the Golden Rule pipeline with strategy probability
+        execute_bar_pipeline(
+            probability, portfolio, ST, pricebook,
+            profiler, adaptive_allocation_mgr, universal_position_coord, adaptive_eod_mgr,
+            series, bar, chain_id, audit, logging_enabled, total_fills, cfg.strategy_name, i
+        );
         
-        if (strategy->requires_dynamic_allocation()) {
-            // **DYNAMIC PATH**: Strategy handles its own allocation decisions
-            auto strategy_decisions = strategy->get_allocation_decisions(base_series, i, base_symbol, "TQQQ", "SQQQ");
-            
-            // Convert BaseStrategy::AllocationDecision to AllocationDecision
-            for (const auto& strategy_decision : strategy_decisions) {
-                AllocationDecision decision;
-                decision.instrument = strategy_decision.instrument;
-                decision.target_weight = strategy_decision.target_weight;
-                decision.confidence = strategy_decision.confidence;
-                decision.reason = strategy_decision.reason;
-                allocation_decisions.push_back(decision);
-            }
-            
-        } else {
-            // **LEGACY PATH**: Use signal-router system for backward compatibility
-            StrategySignal signal = StrategySignal::from_probability(probability);
-            RouterCfg strategy_router = strategy->get_router_config();
-            auto route_decision = route(signal, strategy_router, base_symbol);
-            
-            if (route_decision.has_value()) {
-                AllocationDecision decision;
-                decision.instrument = route_decision->instrument;
-                decision.target_weight = route_decision->target_weight;
-                decision.confidence = signal.confidence;
-                decision.reason = "Router selected " + route_decision->instrument + " for signal strength " + std::to_string(signal.confidence);
-                allocation_decisions.push_back(decision);
-            } else {
-                no_route_count++;
-            }
-        }
-        
-        // **AUDIT**: Log allocation decisions (strategy-agnostic)
-        if (logging_enabled) {
-            for (const auto& decision : allocation_decisions) {
-                if (std::abs(decision.target_weight) > 1e-6) {
-                    audit.event_route(bar.ts_utc_epoch, base_symbol, decision.instrument, decision.target_weight);
-                }
-            }
-        }
+        // Audit logging configured based on system settings
         
         // **STRATEGY-AGNOSTIC**: Log signal for diagnostics
         if (logging_enabled) {
@@ -359,96 +416,6 @@ BacktestOutput run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const 
                                 sig_type, probability, chain_id);
         }
         
-        
-        // **STRATEGY-ISOLATED COORDINATION**: Create fresh coordinator for each run
-        PositionCoordinator coordinator(5); // Max 5 orders per bar (QQQ family + extras)
-        
-        // Convert strategy allocation decisions to coordination format
-        std::vector<AllocationDecision> coord_allocation_decisions;
-        for (const auto& decision : allocation_decisions) {
-            AllocationDecision coord_decision;
-            coord_decision.instrument = decision.instrument;
-            coord_decision.target_weight = decision.target_weight;
-            coord_decision.confidence = decision.confidence;
-            coord_decision.reason = decision.reason;
-            coord_allocation_decisions.push_back(coord_decision);
-        }
-        
-        // Convert to coordination requests
-        auto allocation_requests = convert_allocation_decisions(coord_allocation_decisions, cfg.strategy_name, chain_id);
-        
-        // **STRATEGY-AGNOSTIC COORDINATION**: Use strategy's conflict rules
-        auto coordination_decisions = coordinator.coordinate_allocations(allocation_requests, portfolio, ST, strategy.get());
-        
-        // Log coordination statistics
-        // auto coord_stats = coordinator.get_stats(); // Unused during cleanup
-        int approved_orders = 0;
-        int rejected_conflicts = 0;
-        int rejected_frequency = 0;
-        
-        // **COORDINATED EXECUTION**: Execute only approved allocation decisions
-        for (const auto& coord_decision : coordination_decisions) {
-            if (coord_decision.result == CoordinationResult::APPROVED) {
-                // Execute approved decision
-                execute_target_position(coord_decision.instrument, coord_decision.approved_weight, 
-                                      portfolio, ST, pricebook, sizer, cfg, series, bar, 
-                                      chain_id, audit, logging_enabled, total_fills);
-                approved_orders++;
-                
-            } else if (coord_decision.result == CoordinationResult::REJECTED_CONFLICT) {
-                // Log conflict prevention
-                if (logging_enabled) {
-                    audit.event_signal_drop(bar.ts_utc_epoch, cfg.strategy_name, coord_decision.instrument, 
-                                          DropReason::THRESHOLD, chain_id, 
-                                          "CONFLICT_PREVENTED: " + coord_decision.conflict_details);
-                }
-                rejected_conflicts++;
-                
-            } else if (coord_decision.result == CoordinationResult::REJECTED_FREQUENCY) {
-                // Log frequency limit
-                if (logging_enabled) {
-                    audit.event_signal_drop(bar.ts_utc_epoch, cfg.strategy_name, coord_decision.instrument, 
-                                          DropReason::THRESHOLD, chain_id, 
-                                          "FREQUENCY_LIMITED: " + coord_decision.reason);
-                }
-                rejected_frequency++;
-                
-            } else if (coord_decision.result == CoordinationResult::MODIFIED) {
-                // Execute modified decision (usually zero weight to prevent conflict)
-                if (std::abs(coord_decision.approved_weight) > 1e-6) {
-                    execute_target_position(coord_decision.instrument, coord_decision.approved_weight, 
-                                          portfolio, ST, pricebook, sizer, cfg, series, bar, 
-                                          chain_id, audit, logging_enabled, total_fills);
-                }
-                if (logging_enabled) {
-                    audit.event_signal_drop(bar.ts_utc_epoch, cfg.strategy_name, coord_decision.instrument, 
-                                          DropReason::THRESHOLD, chain_id, 
-                                          "MODIFIED_FOR_CONFLICT: " + coord_decision.conflict_details);
-                }
-            }
-        }
-        
-        // **COORDINATION VALIDATION**: Validate no conflicting positions exist after coordination
-        int post_coordination_conflicts = 0;
-        if (has_conflicting_positions(portfolio, ST)) {
-            post_coordination_conflicts++;
-        }
-        
-        // **AUDIT COORDINATION STATISTICS**: Log coordination metrics
-        if (logging_enabled && (approved_orders > 0 || rejected_conflicts > 0 || rejected_frequency > 0 || post_coordination_conflicts > 0)) {
-            std::string coord_stats = "COORDINATION_APPROVED:" + std::to_string(approved_orders) + 
-                                    ",CONFLICTS_PREVENTED:" + std::to_string(rejected_conflicts) + 
-                                    ",FREQUENCY_LIMITED:" + std::to_string(rejected_frequency) + 
-                                    ",POST_COORD_CONFLICTS:" + std::to_string(post_coordination_conflicts);
-            audit.event_signal_drop(bar.ts_utc_epoch, cfg.strategy_name, "COORDINATION_STATS", 
-                                  DropReason::NONE, chain_id, coord_stats);
-        }
-        
-        // **CRITICAL ASSERTION**: With proper coordination, there should NEVER be post-execution conflicts
-        if (post_coordination_conflicts > 0) {
-            std::cerr << "CRITICAL ERROR: Position Coordinator failed to prevent conflicts!" << std::endl;
-            std::cerr << "This indicates a bug in the coordination logic." << std::endl;
-        }
         
         // 3. ============== SNAPSHOT ==============
         if (i % cfg.snapshot_stride == 0 || i == base_series.size() - 1) {
@@ -510,6 +477,20 @@ BacktestOutput run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const 
     output.run_trading_days = run_trading_days;
 
     // Audit system reconstructs equity curve for metrics
+
+    // Log strategy profile analysis
+    auto final_profile = profiler.get_current_profile();
+    std::cout << "\n📊 Strategy Profile Analysis:\n";
+    std::cout << "  Trading Style: " << 
+        (final_profile.style == TradingStyle::AGGRESSIVE ? "AGGRESSIVE" :
+         final_profile.style == TradingStyle::CONSERVATIVE ? "CONSERVATIVE" :
+         final_profile.style == TradingStyle::BURST ? "BURST" : "ADAPTIVE") << "\n";
+    std::cout << "  Avg Signal Frequency: " << std::fixed << std::setprecision(3) << final_profile.avg_signal_frequency << "\n";
+    std::cout << "  Signal Volatility: " << std::fixed << std::setprecision(3) << final_profile.signal_volatility << "\n";
+    std::cout << "  Trades per Block: " << std::fixed << std::setprecision(1) << final_profile.trades_per_block << "\n";
+    std::cout << "  Adaptive Thresholds: 1x=" << std::fixed << std::setprecision(2) << final_profile.adaptive_entry_1x 
+              << ", 3x=" << final_profile.adaptive_entry_3x << "\n";
+    std::cout << "  Profile Confidence: " << std::fixed << std::setprecision(1) << (final_profile.confidence_level * 100) << "%\n";
 
     // Log the end of the run to the audit trail
     std::string end_meta = "{}";
@@ -590,6 +571,10 @@ CanonicalReport run_canonical_backtest(
     
     std::vector<BlockResult> block_results;
     
+    // **STRATEGY-AGNOSTIC**: Create persistent profiler across all blocks
+    // This allows the profiler to learn the strategy's behavior over time
+    StrategyProfiler persistent_profiler;
+    
     // Process each block (using most recent data)
     for (int block_index = 0; block_index < block_config.num_blocks; ++block_index) {
         size_t block_start_idx = test_start_idx + (block_index * block_config.block_size);
@@ -644,9 +629,11 @@ CanonicalReport run_canonical_backtest(
         // Create block-specific config that skips audit run creation
         RunnerCfg block_cfg = cfg;
         block_cfg.skip_audit_run_creation = true;  // Skip audit run creation for individual blocks
+        // ENSURE audit logging is enabled for instrument distribution
+        block_cfg.audit_level = AuditLevel::Full;
         
-        // Run backtest for this block
-        BacktestOutput block_output = run_backtest(audit, ST, block_series, base_symbol_id, block_cfg, block_meta);
+        // Run backtest for this block with persistent profiler
+        BacktestOutput block_output = run_backtest(audit, ST, block_series, base_symbol_id, block_cfg, block_meta, &persistent_profiler);
         
         // Calculate block metrics
         BlockResult block_result = CanonicalEvaluator::calculate_block_metrics(
@@ -659,6 +646,9 @@ CanonicalReport run_canonical_backtest(
         );
         
         block_results.push_back(block_result);
+        
+        // **STRATEGY-AGNOSTIC**: Update profiler with block completion
+        persistent_profiler.observe_block_complete(block_output.total_fills);
         
         std::cout << "Block " << (block_index + 1) << " completed: "
                   << "RPB=" << std::fixed << std::setprecision(4) << (block_result.return_per_block * 100) << "%, "
@@ -813,42 +803,9 @@ CanonicalReport run_canonical_backtest(
     std::cout << "│ " << BOLD << "Trades per TB:" << RESET << "  " << CYAN << std::fixed << std::setprecision(1) << trades_per_tb << RESET << " " << DIM << "(≈Daily)" << RESET << std::endl;
     std::cout << "└─────────────────────────────────────────────────────────────────────────────────┘" << std::endl;
     
-    // Performance Metrics Section - with color coding
-    std::cout << "\n" << BOLD << CYAN << "📈 PERFORMANCE METRICS" << RESET << std::endl;
-    std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
-    std::cout << "│ " << BOLD << "Mean RPB:" << RESET << "       " << perf_color << BOLD << std::fixed << std::setprecision(4) 
-              << (report.mean_rpb * 100) << "%" << RESET << " " << DIM << "(Return Per Block - Net of Fees)" << RESET << std::endl;
-    std::cout << "│ " << BOLD << "Std Dev RPB:" << RESET << "    " << WHITE << std::fixed << std::setprecision(4) 
-              << (report.stdev_rpb * 100) << "%" << RESET << " " << DIM << "(Volatility)" << RESET << std::endl;
-    std::cout << "│ " << BOLD << "MRB:" << RESET << "            " << perf_color << BOLD << std::fixed << std::setprecision(2) 
-              << mrb << "%" << RESET << " " << DIM << "(Monthly Return)" << RESET << std::endl;
-    std::cout << "│ " << BOLD << "ARB:" << RESET << "            " << perf_color << BOLD << std::fixed << std::setprecision(2) 
-              << (report.annualized_return_on_block * 100) << "%" << RESET << " " << DIM << "(Annualized Return)" << RESET << std::endl;
-    
-    // Risk metrics
-    std::string sharpe_color = (report.aggregate_sharpe > 1.0) ? GREEN : (report.aggregate_sharpe > 0) ? YELLOW : RED;
-    std::cout << "│ " << BOLD << "Sharpe Ratio:" << RESET << "   " << sharpe_color << std::fixed << std::setprecision(2) 
-              << report.aggregate_sharpe << RESET << " " << DIM << "(Risk-Adjusted Return)" << RESET << std::endl;
-    
-    std::string consistency_color = (report.consistency_score < 1.0) ? GREEN : (report.consistency_score < 2.0) ? YELLOW : RED;
-    std::cout << "│ " << BOLD << "Consistency:" << RESET << "    " << consistency_color << std::fixed << std::setprecision(4) 
-              << report.consistency_score << RESET << " " << DIM << "(Lower = More Consistent)" << RESET << std::endl;
-    std::cout << "└─────────────────────────────────────────────────────────────────────────────────┘" << std::endl;
-    
-    // Performance Summary Box
-    std::cout << "\n" << BOLD;
-    if (report.mean_rpb > 0.001) {
-        std::cout << BG_GREEN << WHITE << "🎉 PROFITABLE STRATEGY ";
-    } else if (report.mean_rpb > -0.001) {
-        std::cout << BG_YELLOW << WHITE << "⚖️  NEUTRAL STRATEGY ";
-    } else {
-        std::cout << BG_RED << WHITE << "⚠️  LOSING STRATEGY ";
-    }
-    std::cout << RESET << std::endl;
-    
     // **NEW**: Instrument Distribution with P&L Breakdown for Canonical Evaluation
     std::cout << "\n" << BOLD << CYAN << "🎯 INSTRUMENT DISTRIBUTION & P&L BREAKDOWN" << RESET << std::endl;
-    std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
+    std::cout << "┌────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
     std::cout << "│ Instrument │  Total Volume  │  Net P&L       │  Fill Count    │ Avg Fill Size  │" << std::endl;
     std::cout << "├────────────┼────────────────┼────────────────┼────────────────┼────────────────┤" << std::endl;
     
@@ -939,7 +896,7 @@ CanonicalReport run_canonical_backtest(
         // Color coding
         const char* pnl_color = (pnl >= 0) ? GREEN.c_str() : RED.c_str();
         
-        printf("│ %-10s │ $%12.2f │ %s$%+12.2f%s │ %14d │ $%12.2f │\n",
+        printf("│ %-10s │ %14.2f │ %s$%+13.2f%s │ %14d │ $%13.2f │\n",
                instrument.c_str(), volume,
                pnl_color, pnl, RESET.c_str(),
                fills, avg_fill_size);
@@ -949,7 +906,7 @@ CanonicalReport run_canonical_backtest(
     
     // Totals row - use canonical P&L for accuracy
     const char* canonical_pnl_color = (canonical_total_pnl >= 0) ? GREEN.c_str() : RED.c_str();
-    printf("│ %-10s │ $%12.2f │ %s$%+12.2f%s │ %14d │ $%12.2f │\n",
+    printf("│ %-10s │ %14.2f │ %s$%+13.2f%s │ %14d │ $%13.2f │\n",
            "TOTAL", total_volume,
            canonical_pnl_color, canonical_total_pnl, RESET.c_str(),
            total_fills, (total_fills > 0) ? total_volume / total_fills : 0.0);
@@ -957,11 +914,11 @@ CanonicalReport run_canonical_backtest(
     // **IMPROVED P&L RECONCILIATION**: Show breakdown of realized vs unrealized P&L
     if (std::abs(total_instrument_pnl - canonical_total_pnl) > 1.0) {
         double unrealized_pnl = canonical_total_pnl - total_instrument_pnl;
-        printf("│ %-10s │ $%12s │ %s$%+12.2f%s │ %14s │ $%12s │\n",
+        printf("│ %-10s │ %14s │ %s$%+13.2f%s │ %14s │ $%13s │\n",
                "Realized", "",
                (total_instrument_pnl >= 0) ? GREEN.c_str() : RED.c_str(), 
                total_instrument_pnl, RESET.c_str(), "", "");
-        printf("│ %-10s │ $%12s │ %s$%+12.2f%s │ %14s │ $%12s │\n",
+        printf("│ %-10s │ %14s │ %s$%+13.2f%s │ %14s │ $%13s │\n",
                "Unrealized", "",
                (unrealized_pnl >= 0) ? GREEN.c_str() : RED.c_str(),
                unrealized_pnl, RESET.c_str(), "", "");
@@ -1011,16 +968,16 @@ CanonicalReport run_canonical_backtest(
         // Display transaction cost breakdown
         std::cout << "\n" << BOLD << CYAN << "💰 TRANSACTION COST ANALYSIS" << RESET << std::endl;
         std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
-        printf("│ Total Transaction Costs   │ %s$%10.2f%s │ SEC fees + FINRA TAF (sells only)    │\n", 
+        printf("│ Total Transaction Costs   │ %s$%11.2f%s │ SEC fees + FINRA TAF (sells only)    │\n", 
                RED.c_str(), total_transaction_costs, RESET.c_str());
-        printf("│ Sell Transactions         │ %10d │ Transactions subject to fees         │\n", sell_count);
-        printf("│ Avg Cost per Sell         │ $%10.2f │ Average SEC + TAF cost per sell      │\n", 
+        printf("│ Sell Transactions         │ %11d  │ Transactions subject to fees         │\n", sell_count);
+        printf("│ Avg Cost per Sell         │ $%11.2f │ Average SEC + TAF cost per sell      │\n", 
                (sell_count > 0) ? total_transaction_costs / sell_count : 0.0);
-        printf("│ Cost as %% of Net P&L      │ %9.2f%% │ Transaction costs vs profit          │\n", 
+        printf("│ Cost as %% of Net P&L      │ %10.2f%%  │ Transaction costs vs profit          │\n", 
                (canonical_total_pnl != 0) ? (total_transaction_costs / std::abs(canonical_total_pnl)) * 100.0 : 0.0);
         std::cout << "├─────────────────────────────────────────────────────────────────────────────────┤" << std::endl;
-        std::cout << "│ " << BOLD << "Mean RPB includes all transaction costs" << RESET << " │ Block-by-block returns are net │" << std::endl;
-        std::cout << "│ " << BOLD << "Net P&L is final equity difference" << RESET << "   │ Before/after capital comparison │" << std::endl;
+        std::cout << "│ " << BOLD << "Mean RPB includes all transaction costs" << RESET << "  │ Block-by-block returns are net       │" << std::endl;
+        std::cout << "│ " << BOLD << "Net P&L is final equity difference" << RESET << "      │ Before/after capital comparison       │" << std::endl; 
         std::cout << "└─────────────────────────────────────────────────────────────────────────────────┘" << std::endl;
     }
     
@@ -1030,6 +987,40 @@ CanonicalReport run_canonical_backtest(
     } else {
         std::cout << RED << "❌ Net Negative P&L: Strategy lost money across instruments" << RESET << std::endl;
     }
+    
+    // Performance Metrics Section - with color coding
+    std::cout << "\n" << BOLD << CYAN << "📈 PERFORMANCE METRICS" << RESET << std::endl;
+    std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
+    std::cout << "│ " << BOLD << "Mean RPB:" << RESET << "       " << perf_color << BOLD << std::fixed << std::setprecision(4) 
+              << (report.mean_rpb * 100) << "%" << RESET << " " << DIM << "(Return Per Block - Net of Fees)" << RESET << std::endl;
+    std::cout << "│ " << BOLD << "Std Dev RPB:" << RESET << "    " << WHITE << std::fixed << std::setprecision(4) 
+              << (report.stdev_rpb * 100) << "%" << RESET << " " << DIM << "(Volatility)" << RESET << std::endl;
+    std::cout << "│ " << BOLD << "MRB:" << RESET << "            " << perf_color << BOLD << std::fixed << std::setprecision(2) 
+              << mrb << "%" << RESET << " " << DIM << "(Monthly Return)" << RESET << std::endl;
+    std::cout << "│ " << BOLD << "ARB:" << RESET << "            " << perf_color << BOLD << std::fixed << std::setprecision(2) 
+              << (report.annualized_return_on_block * 100) << "%" << RESET << " " << DIM << "(Annualized Return)" << RESET << std::endl;
+    
+    // Risk metrics
+    std::string sharpe_color = (report.aggregate_sharpe > 1.0) ? GREEN : (report.aggregate_sharpe > 0) ? YELLOW : RED;
+    std::cout << "│ " << BOLD << "Sharpe Ratio:" << RESET << "   " << sharpe_color << std::fixed << std::setprecision(2) 
+              << report.aggregate_sharpe << RESET << " " << DIM << "(Risk-Adjusted Return)" << RESET << std::endl;
+    
+    std::string consistency_color = (report.consistency_score < 1.0) ? GREEN : (report.consistency_score < 2.0) ? YELLOW : RED;
+    std::cout << "│ " << BOLD << "Consistency:" << RESET << "    " << consistency_color << std::fixed << std::setprecision(4) 
+              << report.consistency_score << RESET << " " << DIM << "(Lower = More Consistent)" << RESET << std::endl;
+    std::cout << "└─────────────────────────────────────────────────────────────────────────────────┘" << std::endl;
+    
+    // Performance Summary Box
+    std::cout << "\n" << BOLD;
+    if (report.mean_rpb > 0.001) {
+        std::cout << BG_GREEN << WHITE << "🎉 PROFITABLE STRATEGY ";
+    } else if (report.mean_rpb > -0.001) {
+        std::cout << BG_YELLOW << WHITE << "⚖️  NEUTRAL STRATEGY ";
+    } else {
+        std::cout << BG_RED << WHITE << "⚠️  LOSING STRATEGY ";
+    }
+    std::cout << RESET << std::endl;
+    
     // End the main audit run
     std::int64_t end_ts = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();

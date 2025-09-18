@@ -1,10 +1,11 @@
 #pragma once
 #include "sentio/base_strategy.hpp"
 #include "sentio/signal_or.hpp"
-#include "sentio/allocation_manager.hpp"
+#include "sentio/signal_utils.hpp"
 #include <algorithm>
 #include <vector>
 #include <memory>
+#include <map>
 
 namespace sentio {
 
@@ -35,43 +36,11 @@ public:
     
     // Required BaseStrategy methods
     double calculate_probability(const std::vector<Bar>& bars, int current_index) override;
-    std::vector<AllocationDecision> get_allocation_decisions(
-        const std::vector<Bar>& bars, 
-        int current_index,
-        const std::string& base_symbol,
-        const std::string& bull3x_symbol,
-        const std::string& bear3x_symbol) override;
-    RouterCfg get_router_config() const override;
     // REMOVED: get_sizer_config() - No artificial limits allowed for profit maximization
     
-    // **ARCHITECTURAL COMPLIANCE**: Use dynamic allocation with strategy-agnostic conflict prevention
-    bool requires_dynamic_allocation() const override { return true; }
+    // REMOVED: requires_dynamic_allocation - all strategies use same allocation pipeline
     
-    // **STRATEGY-SPECIFIC CONFLICT RULES**: Define instrument conflict constraints
-    bool allows_simultaneous_positions(const std::string& instrument1, const std::string& instrument2) const override {
-        // Define instrument groups
-        std::vector<std::string> long_instruments = {"QQQ", "TQQQ"};
-        std::vector<std::string> inverse_instruments = {"PSQ", "SQQQ"};
-        
-        auto is_long = [&](const std::string& inst) {
-            return std::find(long_instruments.begin(), long_instruments.end(), inst) != long_instruments.end();
-        };
-        auto is_inverse = [&](const std::string& inst) {
-            return std::find(inverse_instruments.begin(), inverse_instruments.end(), inst) != inverse_instruments.end();
-        };
-        
-        // Rule 1: Cannot hold multiple long instruments simultaneously
-        if (is_long(instrument1) && is_long(instrument2)) return false;
-        
-        // Rule 2: Cannot hold multiple inverse instruments simultaneously  
-        if (is_inverse(instrument1) && is_inverse(instrument2)) return false;
-        
-        // Rule 3: Cannot hold long + inverse simultaneously
-        if ((is_long(instrument1) && is_inverse(instrument2)) || 
-            (is_inverse(instrument1) && is_long(instrument2))) return false;
-        
-        return true; // All other combinations allowed
-    }
+    // Use hard default from BaseStrategy (no simultaneous positions)
     
     // **STRATEGY-SPECIFIC TRANSITION CONTROL**: Require sequential transitions for conflicts
     bool requires_sequential_transitions() const override { return true; }
@@ -92,11 +61,23 @@ private:
     int warmup_bars_ = 0;
     static constexpr int REQUIRED_WARMUP = 50;
     
-    // **MATHEMATICAL ALLOCATION MANAGER**: State-aware portfolio transitions
-    std::unique_ptr<AllocationManager> allocation_manager_;
-    int last_decision_bar_ = -1;
-    
-    // Helper methods
+    // **REMOVED**: AllocationManager is now handled by the strategy-agnostic backend
+    // Strategies only provide probability signals
+
+    // Integrated detector architecture
+    std::vector<std::unique_ptr<detectors::IDetector>> detectors_;
+    int max_warmup_ = 0;
+
+    struct AuditContext {
+        std::map<std::string, double> detector_probs;
+        int long_votes = 0;
+        int short_votes = 0;
+        double final_probability = 0.5;
+    };
+
+    AuditContext run_and_aggregate(const std::vector<Bar>& bars, int idx);
+
+    // Helper methods (legacy simple rules retained for fallback if needed)
     std::vector<RuleOut> evaluate_simple_rules(const std::vector<Bar>& bars, int current_index);
     double calculate_momentum_probability(const std::vector<Bar>& bars, int current_index);
     // **PROFIT MAXIMIZATION**: Old position weight methods removed
