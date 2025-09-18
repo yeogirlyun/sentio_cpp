@@ -114,11 +114,16 @@ bool load_csv(const std::string& filename, std::vector<Bar>& out) {
                     if (cctz::parse("%Y-%m-%dT%H:%M:%SZ", timestamp_str, utc_tz, &utc_tp)) {
                         bar.ts_utc_epoch = utc_tp.time_since_epoch().count();
                     } else {
-                        // Try space format
+                        // Try space format with timezone
                         if (cctz::parse("%Y-%m-%d %H:%M:%S%Ez", timestamp_str, utc_tz, &utc_tp)) {
                             bar.ts_utc_epoch = utc_tp.time_since_epoch().count();
                         } else {
-                            bar.ts_utc_epoch = 0;
+                            // Try space format without timezone (assume UTC)
+                            if (cctz::parse("%Y-%m-%d %H:%M:%S", timestamp_str, utc_tz, &utc_tp)) {
+                                bar.ts_utc_epoch = utc_tp.time_since_epoch().count();
+                            } else {
+                                bar.ts_utc_epoch = 0;
+                            }
                         }
                     }
                 }

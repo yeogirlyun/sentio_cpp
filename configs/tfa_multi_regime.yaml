@@ -1,0 +1,92 @@
+# Enhanced TFA Training Configuration
+# Combines 3 years of recent historic data (2022-2025) with MarS-enhanced future data (2026)
+
+symbol: "QQQ"
+out_dir: "artifacts/TFA/v2_multi_regime"
+
+# Feature configuration
+feature_spec: "configs/features/feature_spec_55_minimal.json"
+feature_cache: "data"
+
+# Multi-dataset configuration
+datasets:
+  # Historic data: 3 years of recent market data (Sep 2022 - Sep 2025)
+  - path: "data/equities/QQQ_RTH_NH.csv"
+    regime: "historic_real"
+    weight: 1.0
+    description: "3 years recent market data: bear market 2022, bull run 2023-2024, current 2025"
+  
+  # Normal market conditions (MarS-enhanced)
+  - path: "data/future_qqq/future_qqq_track_01.csv"
+    regime: "normal_1"
+    weight: 0.8
+    description: "Normal market: steady growth, typical volatility"
+  - path: "data/future_qqq/future_qqq_track_02.csv"
+    regime: "normal_2" 
+    weight: 0.8
+    description: "Normal market: steady growth, typical volatility"
+  - path: "data/future_qqq/future_qqq_track_03.csv"
+    regime: "normal_3"
+    weight: 0.8
+    description: "Normal market: steady growth, typical volatility"
+  
+  # Volatile market conditions (MarS-enhanced)
+  - path: "data/future_qqq/future_qqq_track_04.csv"
+    regime: "volatile_1"
+    weight: 1.2
+    description: "Volatile market: high volatility, frequent reversals"
+  - path: "data/future_qqq/future_qqq_track_05.csv"
+    regime: "volatile_2"
+    weight: 1.2
+    description: "Volatile market: high volatility, frequent reversals"
+  - path: "data/future_qqq/future_qqq_track_06.csv"
+    regime: "volatile_3"
+    weight: 1.2
+    description: "Volatile market: high volatility, frequent reversals"
+  
+  # Bear market conditions (MarS-enhanced)
+  - path: "data/future_qqq/future_qqq_track_07.csv"
+    regime: "bear_1"
+    weight: 1.5
+    description: "Bear market: sustained downtrend, elevated volatility"
+  - path: "data/future_qqq/future_qqq_track_08.csv"
+    regime: "bear_2"
+    weight: 1.5
+    description: "Bear market: sustained downtrend, elevated volatility"
+  - path: "data/future_qqq/future_qqq_track_09.csv"
+    regime: "bear_3"
+    weight: 1.5
+    description: "Bear market: sustained downtrend, elevated volatility"
+
+# Training parameters - optimized for multi-regime learning
+batch_size: 512        # Larger batches for stable gradients across regimes
+epochs: 75             # More epochs for complex multi-regime learning
+lr: 0.001              # Conservative learning rate for stability
+num_workers: 8         # More workers for large dataset
+train_split: 0.85      # More validation data for regime generalization
+
+# Enhanced Transformer architecture for multi-regime learning
+T: 48                  # Longer sequences to capture regime patterns
+d_model: 128           # Larger model for complex patterns
+nhead: 8               # More attention heads for regime awareness
+num_layers: 3          # Deeper network for better representation
+ffn_hidden: 256        # Larger feed-forward for complex mappings
+
+# Enhanced labeling for multi-regime signals
+label_horizon: 5       # Longer horizon for regime-aware signals
+label_kind: "logret_fwd"
+
+# Data quality filters - balanced for diverse regimes
+min_volume_threshold: 50000    # Lower threshold to include more regime data
+price_change_threshold: 0.0003 # More sensitive to capture regime transitions
+
+# Training strategy
+regime_balancing: true         # Balance training across regimes
+early_stopping_patience: 15    # More patience for complex learning
+gradient_clip_norm: 1.0        # Gradient clipping for stability
+weight_decay: 1e-4             # Regularization for generalization
+max_training_hours: 10         # Hard time limit (safety stop)
+
+# Validation strategy
+cross_regime_validation: true  # Validate across different regimes
+regime_specific_metrics: true  # Track performance per regime

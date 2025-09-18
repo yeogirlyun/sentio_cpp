@@ -1,0 +1,98 @@
+# Apple M4 Optimized TFA Training Configuration
+# Combines 3 years of recent historic data (2022-2025) with MarS-enhanced future data (2026)
+# Optimized for Apple M4's Neural Engine and unified memory architecture
+
+symbol: "QQQ"
+out_dir: "artifacts/TFA/v2_m4_optimized"
+
+# Feature configuration
+feature_spec: "configs/features/feature_spec_55_minimal.json"
+feature_cache: "data"
+
+# Multi-dataset configuration
+datasets:
+  # Historic data: 3 years of recent market data (Sep 2022 - Sep 2025)
+  - path: "data/equities/QQQ_RTH_NH.csv"
+    regime: "historic_real"
+    weight: 1.0
+    description: "3 years recent market data: bear market 2022, bull run 2023-2024, current 2025"
+  
+  # Normal market conditions (MarS-enhanced)
+  - path: "data/future_qqq/future_qqq_track_01.csv"
+    regime: "normal_1"
+    weight: 0.8
+    description: "Normal market: steady growth, typical volatility"
+  - path: "data/future_qqq/future_qqq_track_02.csv"
+    regime: "normal_2" 
+    weight: 0.8
+    description: "Normal market: steady growth, typical volatility"
+  - path: "data/future_qqq/future_qqq_track_03.csv"
+    regime: "normal_3"
+    weight: 0.8
+    description: "Normal market: steady growth, typical volatility"
+  
+  # Volatile market conditions (MarS-enhanced)
+  - path: "data/future_qqq/future_qqq_track_04.csv"
+    regime: "volatile_1"
+    weight: 1.2
+    description: "Volatile market: high volatility, frequent reversals"
+  - path: "data/future_qqq/future_qqq_track_05.csv"
+    regime: "volatile_2"
+    weight: 1.2
+    description: "Volatile market: high volatility, frequent reversals"
+  - path: "data/future_qqq/future_qqq_track_06.csv"
+    regime: "volatile_3"
+    weight: 1.2
+    description: "Volatile market: high volatility, frequent reversals"
+  
+  # Bear market conditions (MarS-enhanced)
+  - path: "data/future_qqq/future_qqq_track_07.csv"
+    regime: "bear_1"
+    weight: 1.5
+    description: "Bear market: sustained downtrend, elevated volatility"
+  - path: "data/future_qqq/future_qqq_track_08.csv"
+    regime: "bear_2"
+    weight: 1.5
+    description: "Bear market: sustained downtrend, elevated volatility"
+  - path: "data/future_qqq/future_qqq_track_09.csv"
+    regime: "bear_3"
+    weight: 1.5
+    description: "Bear market: sustained downtrend, elevated volatility"
+
+# M4-Optimized Training Parameters
+batch_size: 512        # Optimal for M4's memory bandwidth and Neural Engine
+epochs: 75             # Full training - M4 can handle this within time limit
+lr: 0.001              # Conservative learning rate for stability
+num_workers: 0         # Single-threaded for MPS compatibility (faster on M4)
+train_split: 0.85      # More validation data for regime generalization
+
+# M4-Enhanced Transformer Architecture
+T: 48                  # Longer sequences - M4's unified memory can handle it
+d_model: 128           # Larger model - M4 has sufficient memory and compute
+nhead: 8               # More attention heads - M4's Neural Engine excels here
+num_layers: 3          # Deeper network - M4 performance allows complexity
+ffn_hidden: 256        # Larger feed-forward - utilize M4's compute power
+
+# Enhanced labeling for multi-regime signals
+label_horizon: 5       # Longer horizon for regime-aware signals
+label_kind: "logret_fwd"
+
+# Data quality filters - balanced for diverse regimes
+min_volume_threshold: 50000    # Lower threshold to include more regime data
+price_change_threshold: 0.0003 # More sensitive to capture regime transitions
+
+# M4-Specific Training Strategy
+regime_balancing: true         # Balance training across regimes
+early_stopping_patience: 15    # More patience for complex learning
+gradient_clip_norm: 1.0        # Gradient clipping for stability
+weight_decay: 1e-4             # Regularization for generalization
+max_training_hours: 6          # Conservative limit for M4 (should finish in ~3h)
+
+# Validation strategy
+cross_regime_validation: true  # Validate across different regimes
+regime_specific_metrics: true  # Track performance per regime
+
+# M4 Performance Optimizations
+prefetch_factor: 4             # Optimize data loading for M4
+pin_memory: true               # Use pinned memory for faster transfers
+persistent_workers: true       # Keep workers alive between epochs
