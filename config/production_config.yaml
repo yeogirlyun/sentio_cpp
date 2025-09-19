@@ -1,0 +1,29 @@
+# production_config.yaml - Production-specific overrides
+strategy:
+  name: "transformer_production"
+  
+model:
+  training:
+    online:
+      update_interval_minutes: 30  # More frequent updates in production
+      learning_rate: 0.00005       # Lower learning rate for stability
+      
+performance:
+  latency:
+    max_inference_ms: 0.8          # Stricter latency requirements
+    
+risk_management:
+  position_limits:
+    max_position_size: 0.5         # More conservative position sizing
+    max_daily_trades: 50           # Reduced trading frequency
+    
+  safety:
+    max_drawdown_threshold: 0.05   # Tighter risk controls
+    
+monitoring:
+  alerts:
+    latency_threshold_ms: 1.0      # Stricter alerts
+    accuracy_threshold: 0.50
+    
+  logging:
+    level: "WARNING"               # Less verbose logging in production

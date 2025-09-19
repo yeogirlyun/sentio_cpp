@@ -126,8 +126,12 @@ CanonicalReport CanonicalEvaluator::aggregate_block_results(
         max_drawdown = std::max(max_drawdown, block.max_drawdown_pct);
     }
     
-    // Calculate mean RPB
-    report.mean_rpb = std::accumulate(rpb_values.begin(), rpb_values.end(), 0.0) / rpb_values.size();
+    // **FIX P&L CALCULATION BUG**: Calculate mean RPB from total return
+    // This ensures direct mathematical consistency with final P&L calculation
+    // Old method: arithmetic mean of block returns (WRONG - can be positive when total is negative!)
+    // New method: total return divided by number of blocks (CORRECT and intuitive)
+    double total_return = total_compounded_return - 1.0;
+    report.mean_rpb = (block_results.size() > 0) ? total_return / block_results.size() : 0.0;
     
     // Calculate standard deviation of RPB
     double variance = 0.0;

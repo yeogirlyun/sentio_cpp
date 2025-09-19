@@ -57,11 +57,11 @@ std::string calculate_start_date(int years, int months, int days) {
 
 int main(int argc,char**argv){
   if(argc<3){
-    std::cerr<<"Usage: poly_fetch FAMILY outdir [--years N] [--months N] [--days N] [--timespan day|hour|minute] [--multiplier N] [--symbols SYM1,SYM2,...] [--no-holidays]\n";
-    std::cerr<<"       poly_fetch FAMILY from to outdir [--timespan day|hour|minute] [--multiplier N] [--symbols SYM1,SYM2,...] [--no-holidays]\n";
+    std::cerr<<"Usage: poly_fetch FAMILY outdir [--years N] [--months N] [--days N] [--timespan day|hour|minute] [--multiplier N] [--symbols SYM1,SYM2,...] [--no-holidays] [--rth-only]\n";
+    std::cerr<<"       poly_fetch FAMILY from to outdir [--timespan day|hour|minute] [--multiplier N] [--symbols SYM1,SYM2,...] [--no-holidays] [--rth-only]\n";
     std::cerr<<"Examples:\n";
-    std::cerr<<"  poly_fetch qqq data/equities --years 3 --no-holidays\n";
-    std::cerr<<"  poly_fetch qqq 2022-01-01 2025-01-10 data/equities --timespan minute\n";
+    std::cerr<<"  poly_fetch qqq data/equities --years 3 --no-holidays --rth-only\n";
+    std::cerr<<"  poly_fetch qqq 2022-01-01 2025-01-10 data/equities --timespan minute --rth-only\n";
     return 1;
   }
   
@@ -93,8 +93,8 @@ int main(int argc,char**argv){
   std::string timespan = "day";
   int multiplier = 1;
   std::string symbols_csv;
-  // RTH filtering removed - keeping all trading hours data
   bool exclude_holidays=false;
+  bool rth_only=false;
   
   int start_idx = use_time_range ? 3 : 5;
   for (int i=start_idx;i<argc;i++) {
@@ -105,7 +105,7 @@ int main(int argc,char**argv){
     else if ((a=="--timespan" || a=="-t") && i+1<argc) { timespan = argv[++i]; }
     else if ((a=="--multiplier" || a=="-m") && i+1<argc) { multiplier = std::stoi(argv[++i]); }
     else if (a=="--symbols" && i+1<argc) { symbols_csv = argv[++i]; }
-    // RTH option removed
+    else if (a=="--rth-only") { rth_only=true; }
     else if (a=="--no-holidays") { exclude_holidays=true; }
   }
   
@@ -141,10 +141,10 @@ int main(int argc,char**argv){
     AggsQuery q; q.symbol=s; q.from=from; q.to=to; q.timespan=timespan; q.multiplier=multiplier; q.adjusted=true; q.sort="asc";
     auto bars=cli.get_aggs_all(q);
     std::string suffix;
-    // RTH suffix removed
+    if (rth_only) suffix += "_RTH";
     if (exclude_holidays) suffix += "_NH";
     std::string fname= outdir + "/" + s + suffix + ".csv";
-    cli.write_csv(fname,s,bars,exclude_holidays);
+    cli.write_csv(fname,s,bars,exclude_holidays,rth_only);
     std::cerr<<"Wrote "<<bars.size()<<" bars -> "<<fname<<"\n";
   }
 }

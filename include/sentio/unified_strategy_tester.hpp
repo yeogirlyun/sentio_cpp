@@ -55,6 +55,11 @@ public:
         std::string regime = "normal";
         bool market_hours_only = true;
         
+        // Dataset Information for Reporting
+        std::string dataset_source = "unknown";
+        std::string dataset_period = "unknown";
+        std::string test_period = "unknown";
+        
         // Robustness Testing
         bool stress_test = false;
         bool regime_switching = false;
@@ -77,6 +82,8 @@ public:
         int parallel_jobs = 0; // 0 = auto-detect
         bool quick_mode = false;
         bool comprehensive_mode = false;
+        bool holistic_mode = false;
+        bool disable_audit_logging = false;
         
         // Strategy Parameters
         std::string params_json = "{}";
@@ -126,6 +133,14 @@ public:
         bool ready_for_deployment;
         std::string recommended_capital_range;
         int suggested_monitoring_days;
+        
+        // Audit Information
+        std::string run_id;            // Run ID for audit verification
+        
+        // Dataset Information
+        std::string dataset_source = "unknown";
+        std::string dataset_period = "unknown";
+        std::string test_period = "unknown";
     };
     
     UnifiedStrategyTester();
@@ -161,6 +176,16 @@ public:
      * Get default historical data file for symbol
      */
     static std::string get_default_historical_file(const std::string& symbol);
+    
+    /**
+     * Get dataset period from data file
+     */
+    static std::string get_dataset_period(const std::string& file_path);
+    
+    /**
+     * Get test period from data file
+     */
+    static std::string get_test_period(const std::string& file_path, int continuation_minutes);
 
 private:
     // Simulation Engines
@@ -179,19 +204,25 @@ private:
      * Run historical pattern tests
      */
     std::vector<VirtualMarketEngine::VMSimulationResult> run_historical_tests(
-        const TestConfig& config, int num_simulations);
+        TestConfig& config, int num_simulations);
     
     /**
      * Run AI regime tests
      */
     std::vector<VirtualMarketEngine::VMSimulationResult> run_ai_regime_tests(
-        const TestConfig& config, int num_simulations);
+        TestConfig& config, int num_simulations);
     
     /**
      * Run hybrid tests (combination of all modes)
      */
     std::vector<VirtualMarketEngine::VMSimulationResult> run_hybrid_tests(
-        const TestConfig& config);
+        TestConfig& config);
+    
+    /**
+     * Run holistic tests (comprehensive multi-scenario testing)
+     */
+    std::vector<VirtualMarketEngine::VMSimulationResult> run_holistic_tests(
+        TestConfig& config);
     
     /**
      * Analyze simulation results for robustness metrics

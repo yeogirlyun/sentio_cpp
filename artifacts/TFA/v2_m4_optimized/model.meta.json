@@ -1,0 +1,30 @@
+{
+  "model_type": "TFA_MultiRegime",
+  "feature_count": 55,
+  "sequence_length": 48,
+  "d_model": 128,
+  "nhead": 8,
+  "num_layers": 3,
+  "training_bars": 1098785,
+  "training_time_sec": 6300.0,
+  "epochs_completed": 100,
+  "best_val_loss": 0.693,
+  "regimes_trained": [
+    "historic_real",
+    "normal_1",
+    "normal_2",
+    "normal_3",
+    "volatile_1",
+    "volatile_2",
+    "volatile_3",
+    "bear_1",
+    "bear_2",
+    "bear_3"
+  ],
+  "time_limit_hours": 6,
+  "time_limit_reached": false,
+  "early_stopped": false,
+  "schema_version": "2.0",
+  "saved_at": 1758266465,
+  "framework": "torchscript"
+}

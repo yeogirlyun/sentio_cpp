@@ -3,12 +3,16 @@
 #include "sentio/core.hpp"
 #include "sentio/base_strategy.hpp"
 #include "sentio/runner.hpp"
+#include "sentio/unified_metrics.hpp"
 #include <vector>
 #include <random>
 #include <memory>
 #include <chrono>
 
 namespace sentio {
+
+// **PROFIT MAXIMIZATION**: Generate theoretical leverage series for maximum capital deployment
+std::vector<Bar> generate_theoretical_leverage_series(const std::vector<Bar>& base_series, double leverage_factor);
 
 /**
  * Virtual Market Engine for Monte Carlo Strategy Testing
@@ -28,6 +32,7 @@ public:
     };
 
     struct VMSimulationResult {
+        // LEGACY: Old calculated metrics (for backward compatibility)
         double total_return;
         double final_capital;
         double sharpe_ratio;
@@ -36,6 +41,15 @@ public:
         int total_trades;
         double monthly_projected_return;
         double daily_trades;
+        
+        // NEW: Raw backtest output for unified metrics calculation
+        BacktestOutput raw_output;
+        
+        // NEW: Unified metrics report (calculated from raw_output)
+        UnifiedMetricsReport unified_metrics;
+        
+        // Audit Information
+        std::string run_id;            // Run ID for audit verification
     };
 
     struct VMTestConfig {
@@ -95,6 +109,24 @@ public:
                                                             int continuation_minutes,
                                                             int simulations,
                                                             const std::string& params_json = "");
+
+    /**
+     * Run single historical test on actual historical data (no simulations)
+     */
+    std::vector<VMSimulationResult> run_single_historical_test(const std::string& strategy_name,
+                                                              const std::string& symbol,
+                                                              const std::string& historical_data_file,
+                                                              int continuation_minutes,
+                                                              const std::string& params_json = "");
+
+    /**
+     * Run future QQQ regime test using pre-generated future data
+     */
+    std::vector<VMSimulationResult> run_future_qqq_regime_test(const std::string& strategy_name,
+                                                              const std::string& symbol,
+                                                              int simulations,
+                                                              const std::string& regime,
+                                                              const std::string& params_json = "");
 
     /**
      * Run single simulation with given market data

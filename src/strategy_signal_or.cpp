@@ -1,8 +1,14 @@
 #include "sentio/strategy_signal_or.hpp"
 #include "sentio/signal_utils.hpp"
-#include "sentio/router.hpp"
-#include "sentio/sizer.hpp"
-#include "sentio/allocation_manager.hpp"
+#include "sentio/detectors/rsi_detector.hpp"
+#include "sentio/detectors/bollinger_detector.hpp"
+#include "sentio/detectors/momentum_volume_detector.hpp"
+#include "sentio/detectors/ofi_proxy_detector.hpp"
+#include "sentio/detectors/opening_range_breakout_detector.hpp"
+#include "sentio/detectors/vwap_reversion_detector.hpp"
+// REMOVED: router.hpp - AllocationManager handles routing
+// REMOVED: sizer.hpp - handled by runner
+// REMOVED: allocation_manager.hpp - handled by runner
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -17,16 +23,18 @@ SignalOrStrategy::SignalOrStrategy(const SignalOrCfg& cfg)
     cfg_.or_config.min_conf = 0.01;       // Lower threshold to capture weak signals
     cfg_.or_config.conflict_soften = 0.2; // Less softening to preserve strong signals
     
-    // **MATHEMATICAL ALLOCATION MANAGER**: Initialize with Signal OR tuned parameters
-    AllocationConfig alloc_config;
-    alloc_config.entry_threshold_1x = cfg_.long_threshold - 0.05;  // Slightly lower for 1x
-    alloc_config.entry_threshold_3x = cfg_.long_threshold + 0.15;  // Higher for 3x leverage
-    alloc_config.partial_exit_threshold = 0.5 - (cfg_.long_threshold - 0.5) * 0.5; // Dynamic
-    alloc_config.full_exit_threshold = 0.5 - (cfg_.long_threshold - 0.5) * 0.8;    // More aggressive
-    alloc_config.min_signal_change = cfg_.min_signal_strength;     // Align with strategy config
+    // **REMOVED**: AllocationManager is handled by runner, not strategy
+    // Strategy only provides probability signals
     
-    allocation_manager_ = std::make_unique<AllocationManager>(alloc_config);
-    
+    // Initialize integrated detectors
+    detectors_.emplace_back(std::make_unique<detectors::RsiDetector>());
+    detectors_.emplace_back(std::make_unique<detectors::BollingerDetector>());
+    detectors_.emplace_back(std::make_unique<detectors::MomentumVolumeDetector>());
+    detectors_.emplace_back(std::make_unique<detectors::OFIProxyDetector>());
+    detectors_.emplace_back(std::make_unique<detectors::OpeningRangeBreakoutDetector>());
+    detectors_.emplace_back(std::make_unique<detectors::VwapReversionDetector>());
+    for (const auto& d : detectors_) max_warmup_ = std::max(max_warmup_, d->warmup_period());
+
     apply_params();
 }
 
@@ -37,16 +45,15 @@ double SignalOrStrategy::calculate_probability(const std::vector<Bar>& bars, int
     }
     
     warmup_bars_++;
-    
-    // Evaluate simple rules and apply Signal-OR mixing
-    auto rule_outputs = evaluate_simple_rules(bars, current_index);
-    
-    if (rule_outputs.empty()) {
-        return 0.5; // Neutral if no rules active
+
+    // If not enough bars for detectors, neutral
+    if (current_index < max_warmup_) {
+        return 0.5;
     }
-    
-    // Apply Signal-OR mixing
-    double probability = mix_signal_or(rule_outputs, cfg_.or_config);
+
+    // Run detectors and aggregate majority
+    auto ctx = run_and_aggregate(bars, current_index);
+    double probability = ctx.final_probability;
     
     // **FIXED**: Update signal diagnostics counter
     diag_.emitted++;
@@ -54,92 +61,33 @@ double SignalOrStrategy::calculate_probability(const std::vector<Bar>& bars, int
     return probability;
 }
 
-std::vector<SignalOrStrategy::AllocationDecision> SignalOrStrategy::get_allocation_decisions(
-    const std::vector<Bar>& bars, 
-    int current_index,
-    const std::string& base_symbol,
-    const std::string& bull3x_symbol,
-    const std::string& bear3x_symbol) {
-    
-    std::vector<AllocationDecision> decisions;
-    
-    if (current_index < 0 || current_index >= static_cast<int>(bars.size())) {
-        return decisions; // Empty if invalid index
+SignalOrStrategy::AuditContext SignalOrStrategy::run_and_aggregate(const std::vector<Bar>& bars, int idx) {
+    AuditContext ctx;
+    int total_votes = 0;
+    for (const auto& d : detectors_) {
+        auto res = d->score(bars, idx);
+        ctx.detector_probs[std::string(res.name)] = res.probability;
+        if (res.direction == 1) { ctx.long_votes++; total_votes++; }
+        else if (res.direction == -1) { ctx.short_votes++; total_votes++; }
     }
-    
-    double probability = calculate_probability(bars, current_index);
-    
-    // **STATE-AWARE TRANSITION ALGORITHM**
-    // Determine target position based on signal strength
-    std::string target_instrument = "";
-    double target_weight = 0.0;
-    std::string reason = "";
-    
-    if (probability > 0.7) {
-        // Strong buy: 100% TQQQ (3x leveraged long)
-        target_instrument = bull3x_symbol;
-        target_weight = 1.0;
-        reason = "Signal OR strong buy: 100% TQQQ (3x leverage)";
-        
-    } else if (probability > cfg_.long_threshold) {
-        // Moderate buy: 100% QQQ (1x long)
-        target_instrument = base_symbol;
-        target_weight = 1.0;
-        reason = "Signal OR moderate buy: 100% QQQ";
-        
-    } else if (probability < 0.3) {
-        // Strong sell: 100% SQQQ (3x leveraged short)
-        target_instrument = bear3x_symbol;
-        target_weight = 1.0;
-        reason = "Signal OR strong sell: 100% SQQQ (3x inverse)";
-        
-    } else if (probability < cfg_.short_threshold) {
-        // Weak sell: 100% PSQ (1x inverse)
-        target_instrument = "PSQ";
-        target_weight = 1.0;
-        reason = "Signal OR weak sell: 100% PSQ (1x inverse)";
-        
+    if (total_votes == 0) { ctx.final_probability = 0.5; return ctx; }
+    double long_ratio = static_cast<double>(ctx.long_votes) / total_votes;
+    if (ctx.long_votes > ctx.short_votes) {
+        ctx.final_probability = 0.5 + (long_ratio * 0.5);
+        if (long_ratio > 0.8) ctx.final_probability = std::min(0.95, ctx.final_probability + 0.1);
+    } else if (ctx.short_votes > ctx.long_votes) {
+        double short_ratio = 1.0 - long_ratio;
+        ctx.final_probability = 0.5 - (short_ratio * 0.5);
+        if (short_ratio > 0.8) ctx.final_probability = std::max(0.05, ctx.final_probability - 0.1);
     } else {
-        // Neutral: Stay in cash
-        target_instrument = "CASH";
-        target_weight = 0.0;
-        reason = "Signal OR neutral: Stay in cash";
+        ctx.final_probability = 0.5;
     }
-    
-    // **TEMPORARY SIMPLE ALLOCATION**: Return target if different from last bar
-    bool different_bar = (current_index != last_decision_bar_);
-    
-    if (different_bar && target_instrument != "CASH") {
-        // Return only the target allocation - runner will handle atomic rebalancing
-        decisions.push_back({target_instrument, target_weight, probability, reason});
-        last_decision_bar_ = current_index;
-    }
-    // If target is CASH or same bar, return empty decisions (no action needed)
-    
-    return decisions;
+    return ctx;
 }
 
-RouterCfg SignalOrStrategy::get_router_config() const {
-    RouterCfg cfg;
-    
-    // **PROFIT MAXIMIZATION**: Configure router for maximum leverage and 100% capital deployment
-    cfg.min_signal_strength = 0.01;    // Lower threshold to capture more signals
-    cfg.signal_multiplier = 1.0;       // No scaling
-    cfg.max_position_pct = 1.0;        // 100% position size (profit maximization)
-    cfg.require_rth = true;
-    
-    // Instrument configuration
-    cfg.base_symbol = "QQQ";
-    cfg.bull3x = "TQQQ";
-    cfg.bear3x = "SQQQ";
-    // Note: PSQ will be handled via SHORT QQQ for moderate sell signals
-    
-    cfg.min_shares = 1.0;
-    cfg.lot_size = 1.0;
-    cfg.ire_min_conf_strong_short = 0.85;
-    
-    return cfg;
-}
+// REMOVED: get_allocation_decisions - AllocationManager handles all instrument decisions
+
+// REMOVED: get_router_config - AllocationManager handles routing
 
 // REMOVED: get_sizer_config() - No artificial limits allowed for profit maximization
 // Sizer will use profit-maximizing defaults: 100% capital deployment, maximum leverage

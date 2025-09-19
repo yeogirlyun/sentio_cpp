@@ -1,7 +1,6 @@
 #include "sentio/feature_feeder.hpp"
-// TFB strategy removed - focusing on TFA only
 #include "sentio/strategy_tfa.hpp"
-#include "sentio/strategy_kochi_ppo.hpp"
+// REMOVED: strategy_kochi_ppo.hpp - strategy removed
 #include "sentio/feature_builder.hpp"
 #include "sentio/feature_engineering/kochi_features.hpp"
 #include "sentio/feature_utils.hpp"
@@ -23,7 +22,6 @@ bool FeatureFeeder::use_cached_features_ = false;
 
 bool FeatureFeeder::is_ml_strategy(const std::string& strategy_name) {
     return strategy_name == "TFA" || strategy_name == "tfa" ||
-           strategy_name == "hybrid_ppo" ||
            strategy_name == "kochi_ppo";
 }
 
@@ -202,11 +200,6 @@ std::vector<double> FeatureFeeder::extract_features_from_bars_with_index(const s
         std::vector<double> features;
         if (use_cached_features_ && feature_cache_ && feature_cache_->has_features(current_index)) {
             features = feature_cache_->get_features(current_index);
-            static int cache_calls = 0;
-            cache_calls++;
-            if (cache_calls <= 5) {
-                std::cout << "[DEBUG] After cache get_features: " << features.size() << " features" << std::endl;
-            }
         } else {
             // Calculate features using full bar history up to current_index
             features = data.calculator->calculate_all_features(bars, current_index);
@@ -215,35 +208,12 @@ std::vector<double> FeatureFeeder::extract_features_from_bars_with_index(const s
         // Normalize features (skip normalization for cached features as they're pre-processed)
         bool used_cache = (use_cached_features_ && feature_cache_ && feature_cache_->has_features(current_index));
         if (data.normalizer && !features.empty() && !used_cache) {
-            size_t before_norm = features.size();
             features = data.normalizer->normalize_features(features);
-            static int norm_calls = 0;
-            norm_calls++;
-            if (norm_calls <= 5) {
-                std::cout << "[DEBUG] After normalize: " << before_norm << " -> " << features.size() << " features" << std::endl;
-            }
-        } else if (used_cache) {
-            static int cache_skip_calls = 0;
-            cache_skip_calls++;
-            if (cache_skip_calls <= 5) {
-                std::cout << "[DEBUG] Skipping normalization for cached features: " << features.size() << " features" << std::endl;
-            }
         }
         
         // Validate features (bypass validation for cached features as they're pre-validated)
-        if (used_cache) {
-            static int cache_bypass_calls = 0;
-            cache_bypass_calls++;
-            if (cache_bypass_calls <= 5) {
-                std::cout << "[DEBUG] Bypassing validation for cached features: " << features.size() << " features" << std::endl;
-            }
-        } else {
+        if (!used_cache) {
             bool valid = validate_features(features, strategy_name);
-            static int val_calls = 0;
-            val_calls++;
-            if (val_calls <= 5) {
-                std::cout << "[DEBUG] Validation result: " << (valid ? "PASS" : "FAIL") << " for " << features.size() << " features" << std::endl;
-            }
             if (!valid) {
                 return {};
             }
@@ -276,56 +246,18 @@ void FeatureFeeder::feed_features_to_strategy(BaseStrategy* strategy, const std:
         // Extract features using full bar history (required for technical indicators)
         auto features = extract_features_from_bars_with_index(bars, current_index, strategy_name);
         
-        static int feature_extract_calls = 0;
-        feature_extract_calls++;
-        
-        if (feature_extract_calls % 1000 == 0 || feature_extract_calls <= 10) {
-            std::cout << "[DIAG] FeatureFeeder extract: call=" << feature_extract_calls 
-                      << " features.size()=" << features.size() 
-                      << " current_index=" << current_index << std::endl;
-        }
-        
         if (features.empty()) {
-            if (feature_extract_calls % 1000 == 0 || feature_extract_calls <= 10) {
-                std::cout << "[DIAG] FeatureFeeder: Features EMPTY at call=" << feature_extract_calls << std::endl;
-            }
             return;
         }
         
         // Cast to specific strategy type and feed features
-        static int strategy_check_calls = 0;
-        strategy_check_calls++;
-        
-        if (strategy_check_calls % 1000 == 0 || strategy_check_calls <= 10) {
-            std::cout << "[DIAG] FeatureFeeder strategy check: call=" << strategy_check_calls 
-                      << " strategy_name='" << strategy_name << "'" << std::endl;
-        }
-        
         if (strategy_name == "TFA" || strategy_name == "tfa") {
             auto* tfa = dynamic_cast<TFAStrategy*>(strategy);
             if (tfa) {
-                static int tfa_feed_calls = 0;
-                tfa_feed_calls++;
-                
-                if (tfa_feed_calls % 1000 == 0 || tfa_feed_calls <= 10) {
-                    std::cout << "[DIAG] FeatureFeeder TFA: call=" << tfa_feed_calls 
-                              << " features.size()=" << features.size() << std::endl;
-                }
-                
                 tfa->set_raw_features(features);
-            } else {
-                static int cast_fail = 0;
-                cast_fail++;
-                if (cast_fail <= 10) {
-                    std::cout << "[DIAG] FeatureFeeder: TFA cast failed! call=" << cast_fail << std::endl;
-                }
             }
-        } else if (strategy_name == "kochi_ppo") {
-            auto* kp = dynamic_cast<KochiPPOStrategy*>(strategy);
-            if (kp) {
-                kp->set_raw_features(features);
-            }
-        }
+        } 
+        // REMOVED: kochi_ppo strategy support - strategy removed
         
         // Cache features
         cache_features(strategy_name, features);

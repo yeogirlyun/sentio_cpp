@@ -124,3 +124,22 @@ inline StrategySignal apply_confidence_floor(const StrategySignal& sig, double c
 }
 
 } // namespace sentio::signal_utils
+
+// Detector interfaces for Signal OR integrated rule-based detectors
+namespace sentio::detectors {
+
+struct DetectorResult {
+    double probability = 0.5;
+    int direction = 0; // -1 short, 0 neutral, +1 long
+    std::string_view name;
+};
+
+class IDetector {
+public:
+    virtual ~IDetector() = default;
+    virtual std::string_view name() const = 0;
+    virtual DetectorResult score(const std::vector<Bar>& bars, int idx) = 0;
+    virtual int warmup_period() const = 0;
+};
+
+} // namespace sentio::detectors

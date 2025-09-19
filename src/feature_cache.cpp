@@ -68,8 +68,6 @@ bool FeatureCache::load_from_csv(const std::string& feature_file_path) {
         
         // Debug output for first few bars
         if (lines_processed < 3) {
-            std::cout << "[DEBUG] Bar " << bar_index << ": loaded " << features.size() 
-                      << " features (expected " << feature_names_.size() << ")" << std::endl;
         }
         
         // Store features
@@ -98,8 +96,6 @@ std::vector<double> FeatureCache::get_features(int bar_index) const {
         static int get_calls = 0;
         get_calls++;
         if (get_calls <= 5) {
-            std::cout << "[DEBUG] FeatureCache::get_features(" << bar_index 
-                      << ") returning " << it->second.size() << " features" << std::endl;
         }
         return it->second;
     }

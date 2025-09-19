@@ -1,0 +1,1293 @@
+Analysis of sampling sentio_cli (pid 5510) every 1 millisecond
+Process:         sentio_cli [5510]
+Path:            /Users/USER/*/sentio_cli
+Load Address:    0x104660000
+Identifier:      sentio_cli
+Version:         0
+Code Type:       ARM64
+Platform:        macOS
+Parent Process:  zsh [5505]
+Target Type:     live task
+
+Date/Time:       2025-09-18 11:54:35.790 +0900
+Launch Time:     2025-09-18 11:54:35.747 +0900
+OS Version:      macOS 15.6.1 (24G90)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+----
+
+Call graph:
+    136 Thread_40925727   DispatchQueue_1: com.apple.main-thread  (serial)
+      85 start  (in dyld) + 6076  [0x199796b98]
+      + 76 main  (in sentio_cli) + 31388  [0x1046863e0]
+      + ! 73 sentio::run_canonical_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&, sentio::TradingBlockConfig const&)  (in sentio_cli) + 6476  [0x1046aafc4]
+      + ! : 15 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 21412  [0x1046a3edc]
+      + ! : | 15 audit::AuditDBRecorder::event_route(long long, std::basic_string<char> const&, std::basic_string<char> const&, double)  (in sentio_cli) + 660  [0x1046dcd60]
+      + ! : |   7 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2488  [0x1046e08f8]
+      + ! : |   + 4 sqlite3_step  (in libsqlite3.dylib) + 2188  [0x1a12a16e8]
+      + ! : |   + ! 4 sqlite3WalDefaultHook  (in libsqlite3.dylib) + 80  [0x1a12c4b5c]
+      + ! : |   + !   4 sqlite3_wal_checkpoint_v2  (in libsqlite3.dylib) + 708  [0x1a12fefb4]
+      + ! : |   + !     4 sqlite3BtreeCheckpoint  (in libsqlite3.dylib) + 364  [0x1a1397c94]
+      + ! : |   + !       3 sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4100  [0x1a12d8760]
+      + ! : |   + !       : 3 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + ! : |   + !       :   3 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |   + !       :     3 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |   + !       1 sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4932  [0x1a12d8aa0]
+      + ! : |   + !         1 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + ! : |   + !           1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |   + !             1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |   + 3 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : |   +   3 sqlite3VdbeExec  (in libsqlite3.dylib) + 44384  [0x1a12ac844]
+      + ! : |   +     2 sqlite3VdbeHalt  (in libsqlite3.dylib) + 1368  [0x1a1289094]
+      + ! : |   +     : 2 vdbeCommit  (in libsqlite3.dylib) + 1240  [0x1a12b2ed8]
+      + ! : |   +     :   2 sqlite3BtreeCommitPhaseOne  (in libsqlite3.dylib) + 160  [0x1a12b3440]
+      + ! : |   +     :     1 sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 380  [0x1a12c3fb0]
+      + ! : |   +     :     | 1 pagerWalFrames  (in libsqlite3.dylib) + 2304  [0x1a131dea8]
+      + ! : |   +     :     |   1 walIndexAppend  (in libsqlite3.dylib) + 280  [0x1a128d3d8]
+      + ! : |   +     :     1 sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 584  [0x1a12c407c]
+      + ! : |   +     :       1 sqlite3PcacheCleanAll  (in libsqlite3.dylib) + 72  [0x1a131f600]
+      + ! : |   +     1 sqlite3VdbeHalt  (in libsqlite3.dylib) + 300  [0x1a1288c68]
+      + ! : |   +       1 sqlite3VdbeFreeCursorNN  (in libsqlite3.dylib) + 664  [0x1a1325998]
+      + ! : |   +         1 btreeReleaseAllCursorPages  (in libsqlite3.dylib) + 188  [0x1a1322b00]
+      + ! : |   +           1 sqlite3PcacheRelease  (in libsqlite3.dylib) + 36  [0x1a131bfc8]
+      + ! : |   2 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 116  [0x1046dffb4]
+      + ! : |   + 2 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : |   +   1 sqlite3VdbeExec  (in libsqlite3.dylib) + 11540  [0x1a12a47f8]
+      + ! : |   +   ! 1 btreeBeginTrans  (in libsqlite3.dylib) + 740  [0x1a1320600]
+      + ! : |   +   !   1 sqlite3PagerSharedLock  (in libsqlite3.dylib) + 480  [0x1a1289790]
+      + ! : |   +   !     1 walTryBeginRead  (in libsqlite3.dylib) + 880  [0x1a128ab90]
+      + ! : |   +   !       1 unixShmLock  (in libsqlite3.dylib) + 692  [0x1a128cf10]
+      + ! : |   +   !         1 unixShmSystemLock  (in libsqlite3.dylib) + 72  [0x1a1319b98]
+      + ! : |   +   !           1 osSetPosixAdvisoryLock  (in libsqlite3.dylib) + 228  [0x1a1314c9c]
+      + ! : |   +   !             1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |   +   !               1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |   +   1 sqlite3VdbeExec  (in libsqlite3.dylib) + 38168  [0x1a12aaffc]
+      + ! : |   +     1 sqlite3VdbeFinishMoveto  (in libsqlite3.dylib) + 48  [0x1a132927c]
+      + ! : |   +       1 sqlite3BtreeTableMoveto  (in libsqlite3.dylib) + 128  [0x1a132a638]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 72  [0x1046dff88]
+      + ! : |   + 1 sqlite3LockAndPrepare  (in libsqlite3.dylib) + 224  [0x1a1279aec]
+      + ! : |   +   1 sqlite3Prepare  (in libsqlite3.dylib) + 504  [0x1a1279e70]
+      + ! : |   +     1 sqlite3RunParser  (in libsqlite3.dylib) + 920  [0x1a127aa00]
+      + ! : |   +       1 yy_reduce  (in libsqlite3.dylib) + 4424  [0x1a127ccb0]
+      + ! : |   +         1 sqlite3Select  (in libsqlite3.dylib) + 572  [0x1a128f264]
+      + ! : |   +           1 sqlite3GenerateColumnNames  (in libsqlite3.dylib) + 1084  [0x1a13534a8]
+      + ! : |   +             1 sqlite3VdbeMemSetStr  (in libsqlite3.dylib) + 892  [0x1a1274410]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 348  [0x1046e009c]
+      + ! : |   + 1 sqlite3_finalize  (in libsqlite3.dylib) + 76  [0x1a12887dc]
+      + ! : |   +   1 sqlite3VdbeReset  (in libsqlite3.dylib) + 464  [0x1a1288a48]
+      + ! : |   +     1 sqlite3_db_release_memory  (in libsqlite3.dylib) + 204  [0x1a12fc520]
+      + ! : |   +       1 purgeableCacheShrink  (in libsqlite3.dylib) + 116  [0x1a1396634]
+      + ! : |   +         1 mach_vm_purgable_control  (in libsystem_kernel.dylib) + 40  [0x199af94d0]
+      + ! : |   +           1 _kernelrpc_mach_vm_purgable_control_trap  (in libsystem_kernel.dylib) + 8  [0x199af5a9c]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 1768  [0x1046e0628]
+      + ! : |   + 1 audit::sha256_hex(void const*, unsigned long)  (in sentio_cli) + 1292  [0x1046e138c]
+      + ! : |   +   1 std::basic_ostream<char>::operator<<(unsigned int)  (in libc++.1.dylib) + 336  [0x199a706f0]
+      + ! : |   +     1 std::num_put<char, std::ostreambuf_iterator<char>>::__do_put_integral[abi:ne190102]<unsigned long>(std::ostreambuf_iterator<char>, std::ios_base&, char, unsigned long, char const*) const  (in libc++.1.dylib) + 284  [0x199a85db8]
+      + ! : |   +       1 std::__pad_and_output[abi:ne190102]<char>(std::ostreambuf_iterator<char>, char const*, char const*, char const*, std::ios_base&, char)  (in libc++.1.dylib) + 320  [0x199a868f8]
+      + ! : |   +         1 std::basic_streambuf<char>::xsputn(char const*, long)  (in libc++.1.dylib) + 176  [0x199a6bb84]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2016  [0x1046e0720]
+      + ! : |   + 1 audit::sha256_hex(void const*, unsigned long)  (in sentio_cli) + 1348  [0x1046e13c4]
+      + ! : |   +   1 std::basic_ostream<char>::operator<<(unsigned int)  (in libc++.1.dylib) + 336  [0x199a706f0]
+      + ! : |   +     1 std::num_put<char, std::ostreambuf_iterator<char>>::__do_put_integral[abi:ne190102]<unsigned long>(std::ostreambuf_iterator<char>, std::ios_base&, char, unsigned long, char const*) const  (in libc++.1.dylib) + 120  [0x199a85d14]
+      + ! : |   +       1 snprintf_l  (in libsystem_c.dylib) + 32  [0x1999d3e90]
+      + ! : |   +         1 _vsnprintf  (in libsystem_c.dylib) + 212  [0x1999f5384]
+      + ! : |   +           1 __vfprintf  (in libsystem_c.dylib) + 6892  [0x1999cb554]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2060  [0x1046e074c]
+      + ! : |   + 1 sqlite3LockAndPrepare  (in libsqlite3.dylib) + 224  [0x1a1279aec]
+      + ! : |   +   1 sqlite3Prepare  (in libsqlite3.dylib) + 504  [0x1a1279e70]
+      + ! : |   +     1 sqlite3RunParser  (in libsqlite3.dylib) + 920  [0x1a127aa00]
+      + ! : |   +       1 yy_reduce  (in libsqlite3.dylib) + 2912  [0x1a127c6c8]
+      + ! : |   +         1 sqlite3Insert  (in libsqlite3.dylib) + 6112  [0x1a12b9c70]
+      + ! : |   +           1 sqlite3GenerateConstraintChecks  (in libsqlite3.dylib) + 9108  [0x1a12bc480]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2504  [0x1046e0908]
+      + ! : |     1 sqlite3_finalize  (in libsqlite3.dylib) + 76  [0x1a12887dc]
+      + ! : |       1 sqlite3VdbeReset  (in libsqlite3.dylib) + 464  [0x1a1288a48]
+      + ! : |         1 sqlite3_db_release_memory  (in libsqlite3.dylib) + 204  [0x1a12fc520]
+      + ! : |           1 purgeableCacheShrink  (in libsqlite3.dylib) + 116  [0x1a1396634]
+      + ! : |             1 mach_vm_purgable_control  (in libsystem_kernel.dylib) + 40  [0x199af94d0]
+      + ! : |               1 _kernelrpc_mach_vm_purgable_control_trap  (in libsystem_kernel.dylib) + 8  [0x199af5a9c]
+      + ! : 13 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 8236  [0x1046a0b64]
+      + ! : | 13 audit::AuditDBRecorder::event_bar(long long, std::basic_string<char> const&, double, double, double, double, double)  (in sentio_cli) + 992  [0x1046dbeb8]
+      + ! : |   6 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2488  [0x1046e08f8]
+      + ! : |   + 4 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : |   + ! 3 sqlite3VdbeExec  (in libsqlite3.dylib) + 44384  [0x1a12ac844]
+      + ! : |   + ! : 3 sqlite3VdbeHalt  (in libsqlite3.dylib) + 1368  [0x1a1289094]
+      + ! : |   + ! :   3 vdbeCommit  (in libsqlite3.dylib) + 1240  [0x1a12b2ed8]
+      + ! : |   + ! :     3 sqlite3BtreeCommitPhaseOne  (in libsqlite3.dylib) + 160  [0x1a12b3440]
+      + ! : |   + ! :       3 sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 380  [0x1a12c3fb0]
+      + ! : |   + ! :         2 pagerWalFrames  (in libsqlite3.dylib) + 868  [0x1a131d90c]
+      + ! : |   + ! :         | 1 unixWrite  (in libsqlite3.dylib) + 176  [0x1a12c42cc]
+      + ! : |   + ! :         | + 1 seekAndWrite  (in libsqlite3.dylib) + 496  [0x1a1314ae4]
+      + ! : |   + ! :         | +   1 guarded_pwrite_np  (in libsystem_kernel.dylib) + 8  [0x199af9480]
+      + ! : |   + ! :         | 1 walWriteOneFrame  (in libsqlite3.dylib) + 108  [0x1a131e3fc]
+      + ! : |   + ! :         |   1 walEncodeFrame  (in libsqlite3.dylib) + 204  [0x1a12c41f8]
+      + ! : |   + ! :         |     1 walChecksumBytes  (in libsqlite3.dylib) + 288  [0x1a131e1a8]
+      + ! : |   + ! :         1 pagerWalFrames  (in libsqlite3.dylib) + 1392  [0x1a131db18]
+      + ! : |   + ! :           1 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + ! : |   + ! :             1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |   + ! :               1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |   + ! 1 sqlite3VdbeExec  (in libsqlite3.dylib) + 18688  [0x1a12a63e4]
+      + ! : |   + !   1 btreeLast  (in libsqlite3.dylib) + 92  [0x1a132ee78]
+      + ! : |   + !     1 moveToChild  (in libsqlite3.dylib) + 132  [0x1a12ad7a8]
+      + ! : |   + !       1 getAndInitPage  (in libsqlite3.dylib) + 116  [0x1a132dfe0]
+      + ! : |   + !         1 getPageNormal  (in libsqlite3.dylib) + 72  [0x1a131f020]
+      + ! : |   + !           1 purgeableCacheFetch  (in libsqlite3.dylib) + 108  [0x1a128d928]
+      + ! : |   + !             1 purgeableCachePagePin  (in libsqlite3.dylib) + 176  [0x1a1396f04]
+      + ! : |   + !               1 purgeableCacheRetainChunk  (in libsqlite3.dylib) + 208  [0x1a128e018]
+      + ! : |   + !                 1 mach_vm_purgable_control  (in libsystem_kernel.dylib) + 40  [0x199af94d0]
+      + ! : |   + !                   1 _kernelrpc_mach_vm_purgable_control_trap  (in libsystem_kernel.dylib) + 4  [0x199af5a98]
+      + ! : |   + 2 sqlite3_step  (in libsqlite3.dylib) + 2188  [0x1a12a16e8]
+      + ! : |   +   2 sqlite3WalDefaultHook  (in libsqlite3.dylib) + 80  [0x1a12c4b5c]
+      + ! : |   +     2 sqlite3_wal_checkpoint_v2  (in libsqlite3.dylib) + 708  [0x1a12fefb4]
+      + ! : |   +       2 sqlite3BtreeCheckpoint  (in libsqlite3.dylib) + 364  [0x1a1397c94]
+      + ! : |   +         1 sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4100  [0x1a12d8760]
+      + ! : |   +         : 1 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + ! : |   +         :   1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |   +         :     1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |   +         1 sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4932  [0x1a12d8aa0]
+      + ! : |   +           1 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + ! : |   +             1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |   +               1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |   2 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 116  [0x1046dffb4]
+      + ! : |   + 2 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : |   +   1 sqlite3VdbeExec  (in libsqlite3.dylib) + 11540  [0x1a12a47f8]
+      + ! : |   +   ! 1 btreeBeginTrans  (in libsqlite3.dylib) + 740  [0x1a1320600]
+      + ! : |   +   !   1 sqlite3PagerSharedLock  (in libsqlite3.dylib) + 480  [0x1a1289790]
+      + ! : |   +   !     1 walTryBeginRead  (in libsqlite3.dylib) + 684  [0x1a128aacc]
+      + ! : |   +   !       1 walIndexReadHdr  (in libsqlite3.dylib) + 172  [0x1a128b35c]
+      + ! : |   +   !         1 walIndexTryHdr  (in libsqlite3.dylib) + 140  [0x1a128d094]
+      + ! : |   +   !           1 unixShmBarrier  (in libsqlite3.dylib) + 4  [0x1a128d2bc]
+      + ! : |   +   1 sqlite3VdbeExec  (in libsqlite3.dylib) + 32048  [0x1a12a9814]
+      + ! : |   +     1 allocateCursor  (in libsqlite3.dylib) + 168  [0x1a12ad1d4]
+      + ! : |   +       1 sqlite3DbMallocRawNN  (in libsqlite3.dylib) + 132  [0x1a1312ff8]
+      + ! : |   2 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2016  [0x1046e0720]
+      + ! : |   + 1 audit::sha256_hex(void const*, unsigned long)  (in sentio_cli) + 1348  [0x1046e13c4]
+      + ! : |   + ! 1 std::basic_ostream<char>::operator<<(unsigned int)  (in libc++.1.dylib) + 336  [0x199a706f0]
+      + ! : |   + !   1 std::num_put<char, std::ostreambuf_iterator<char>>::__do_put_integral[abi:ne190102]<unsigned long>(std::ostreambuf_iterator<char>, std::ios_base&, char, unsigned long, char const*) const  (in libc++.1.dylib) + 284  [0x199a85db8]
+      + ! : |   + !     1 std::__pad_and_output[abi:ne190102]<char>(std::ostreambuf_iterator<char>, char const*, char const*, char const*, std::ios_base&, char)  (in libc++.1.dylib) + 320  [0x199a868f8]
+      + ! : |   + !       1 std::basic_streambuf<char>::xsputn(char const*, long)  (in libc++.1.dylib) + 160  [0x199a6bb74]
+      + ! : |   + !         1 std::basic_stringbuf<char>::overflow(int)  (in libc++.1.dylib) + 116  [0x199a79f8c]
+      + ! : |   + !           1 std::basic_string<char>::push_back(char)  (in libc++.1.dylib) + 108  [0x199a60728]
+      + ! : |   + !             1 std::basic_string<char>::__grow_by(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long)  (in libc++.1.dylib) + 184  [0x199a60658]
+      + ! : |   + !               1 _platform_memmove  (in libsystem_platform.dylib) + 420  [0x199b71464]
+      + ! : |   + 1 audit::sha256_hex(void const*, unsigned long)  (in sentio_cli) + 656  [0x1046e1110]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 72  [0x1046dff88]
+      + ! : |   + 1 sqlite3LockAndPrepare  (in libsqlite3.dylib) + 224  [0x1a1279aec]
+      + ! : |   +   1 sqlite3Prepare  (in libsqlite3.dylib) + 504  [0x1a1279e70]
+      + ! : |   +     1 sqlite3RunParser  (in libsqlite3.dylib) + 920  [0x1a127aa00]
+      + ! : |   +       1 yy_reduce  (in libsqlite3.dylib) + 4424  [0x1a127ccb0]
+      + ! : |   +         1 sqlite3Select  (in libsqlite3.dylib) + 572  [0x1a128f264]
+      + ! : |   +           1 sqlite3GenerateColumnNames  (in libsqlite3.dylib) + 1084  [0x1a13534a8]
+      + ! : |   +             1 sqlite3VdbeMemSetStr  (in libsqlite3.dylib) + 872  [0x1a12743fc]
+      + ! : |   +               1 _platform_memmove  (in libsystem_platform.dylib) + 452  [0x199b71484]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 644  [0x1046e01c4]
+      + ! : |   + 1 std::basic_ostream<char>::operator<<(long long)  (in libc++.1.dylib) + 336  [0x199a70d20]
+      + ! : |   +   1 std::num_put<char, std::ostreambuf_iterator<char>>::__do_put_integral[abi:ne190102]<long long>(std::ostreambuf_iterator<char>, std::ios_base&, char, long long, char const*) const  (in libc++.1.dylib) + 120  [0x199a85b8c]
+      + ! : |   +     1 snprintf_l  (in libsystem_c.dylib) + 32  [0x1999d3e90]
+      + ! : |   +       1 _vsnprintf  (in libsystem_c.dylib) + 148  [0x1999f5344]
+      + ! : |   1 std::locale::locale()  (in libc++.1.dylib) + 72  [0x199a963f0]
+      + ! : 13 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 23196  [0x1046a45d4]
+      + ! : | 13 audit::AuditDBRecorder::event_signal_ex(long long, std::basic_string<char> const&, sentio::SigType, double, std::basic_string<char> const&)  (in sentio_cli) + 964  [0x1046dc9b8]
+      + ! : |   10 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2488  [0x1046e08f8]
+      + ! : |   + 9 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : |   + ! 6 sqlite3VdbeExec  (in libsqlite3.dylib) + 44384  [0x1a12ac844]
+      + ! : |   + ! : 6 sqlite3VdbeHalt  (in libsqlite3.dylib) + 1368  [0x1a1289094]
+      + ! : |   + ! :   6 vdbeCommit  (in libsqlite3.dylib) + 1240  [0x1a12b2ed8]
+      + ! : |   + ! :     6 sqlite3BtreeCommitPhaseOne  (in libsqlite3.dylib) + 160  [0x1a12b3440]
+      + ! : |   + ! :       6 sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 380  [0x1a12c3fb0]
+      + ! : |   + ! :         4 pagerWalFrames  (in libsqlite3.dylib) + 1392  [0x1a131db18]
+      + ! : |   + ! :         | 4 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + ! : |   + ! :         |   4 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |   + ! :         |     4 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |   + ! :         2 pagerWalFrames  (in libsqlite3.dylib) + 868  [0x1a131d90c]
+      + ! : |   + ! :           2 unixWrite  (in libsqlite3.dylib) + 176  [0x1a12c42cc]
+      + ! : |   + ! :             2 seekAndWrite  (in libsqlite3.dylib) + 496  [0x1a1314ae4]
+      + ! : |   + ! :               2 guarded_pwrite_np  (in libsystem_kernel.dylib) + 8  [0x199af9480]
+      + ! : |   + ! 1 sqlite3VdbeExec  (in libsqlite3.dylib) + 11540  [0x1a12a47f8]
+      + ! : |   + ! : 1 btreeBeginTrans  (in libsqlite3.dylib) + 740  [0x1a1320600]
+      + ! : |   + ! :   1 sqlite3PagerSharedLock  (in libsqlite3.dylib) + 480  [0x1a1289790]
+      + ! : |   + ! :     1 walTryBeginRead  (in libsqlite3.dylib) + 2440  [0x1a128b1a8]
+      + ! : |   + ! :       1 unixShmLock  (in libsqlite3.dylib) + 928  [0x1a128cffc]
+      + ! : |   + ! :         1 unixShmSystemLock  (in libsqlite3.dylib) + 72  [0x1a1319b98]
+      + ! : |   + ! :           1 osSetPosixAdvisoryLock  (in libsqlite3.dylib) + 228  [0x1a1314c9c]
+      + ! : |   + ! :             1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |   + ! :               1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |   + ! 1 sqlite3VdbeExec  (in libsqlite3.dylib) + 17204  [0x1a12a5e18]
+      + ! : |   + ! : 1 sqlite3BtreeInsert  (in libsqlite3.dylib) + 644  [0x1a12c2a00]
+      + ! : |   + ! :   1 sqlite3BtreeIndexMoveto  (in libsqlite3.dylib) + 780  [0x1a132abc4]
+      + ! : |   + ! :     1 vdbeRecordCompareString  (in libsqlite3.dylib) + 188  [0x1a132f130]
+      + ! : |   + ! 1 sqlite3VdbeExec  (in libsqlite3.dylib) + 18688  [0x1a12a63e4]
+      + ! : |   + !   1 btreeLast  (in libsqlite3.dylib) + 92  [0x1a132ee78]
+      + ! : |   + !     1 moveToChild  (in libsqlite3.dylib) + 132  [0x1a12ad7a8]
+      + ! : |   + !       1 getAndInitPage  (in libsqlite3.dylib) + 116  [0x1a132dfe0]
+      + ! : |   + !         1 getPageNormal  (in libsqlite3.dylib) + 72  [0x1a131f020]
+      + ! : |   + !           1 purgeableCacheFetch  (in libsqlite3.dylib) + 108  [0x1a128d928]
+      + ! : |   + !             1 purgeableCachePagePin  (in libsqlite3.dylib) + 176  [0x1a1396f04]
+      + ! : |   + !               1 purgeableCacheRetainChunk  (in libsqlite3.dylib) + 208  [0x1a128e018]
+      + ! : |   + !                 1 mach_vm_purgable_control  (in libsystem_kernel.dylib) + 40  [0x199af94d0]
+      + ! : |   + !                   1 _kernelrpc_mach_vm_purgable_control_trap  (in libsystem_kernel.dylib) + 8  [0x199af5a9c]
+      + ! : |   + 1 sqlite3_step  (in libsqlite3.dylib) + 2188  [0x1a12a16e8]
+      + ! : |   +   1 sqlite3WalDefaultHook  (in libsqlite3.dylib) + 80  [0x1a12c4b5c]
+      + ! : |   +     1 sqlite3_wal_checkpoint_v2  (in libsqlite3.dylib) + 708  [0x1a12fefb4]
+      + ! : |   +       1 sqlite3BtreeCheckpoint  (in libsqlite3.dylib) + 364  [0x1a1397c94]
+      + ! : |   +         1 sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4744  [0x1a12d89e4]
+      + ! : |   +           1 unixWrite  (in libsqlite3.dylib) + 176  [0x1a12c42cc]
+      + ! : |   +             1 seekAndWrite  (in libsqlite3.dylib) + 496  [0x1a1314ae4]
+      + ! : |   +               1 guarded_pwrite_np  (in libsystem_kernel.dylib) + 8  [0x199af9480]
+      + ! : |   2 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 116  [0x1046dffb4]
+      + ! : |   + 2 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : |   +   1 sqlite3VdbeExec  (in libsqlite3.dylib) + 3100  [0x1a12a2700]
+      + ! : |   +   ! 1 sqlite3BtreeIndexMoveto  (in libsqlite3.dylib) + 1052  [0x1a132acd4]
+      + ! : |   +   !   1 getAndInitPage  (in libsqlite3.dylib) + 116  [0x1a132dfe0]
+      + ! : |   +   !     1 getPageNormal  (in libsqlite3.dylib) + 72  [0x1a131f020]
+      + ! : |   +   !       1 purgeableCacheFetch  (in libsqlite3.dylib) + 108  [0x1a128d928]
+      + ! : |   +   !         1 purgeableCachePagePin  (in libsqlite3.dylib) + 176  [0x1a1396f04]
+      + ! : |   +   !           1 purgeableCacheRetainChunk  (in libsqlite3.dylib) + 208  [0x1a128e018]
+      + ! : |   +   !             1 mach_vm_purgable_control  (in libsystem_kernel.dylib) + 40  [0x199af94d0]
+      + ! : |   +   !               1 _kernelrpc_mach_vm_purgable_control_trap  (in libsystem_kernel.dylib) + 8  [0x199af5a9c]
+      + ! : |   +   1 sqlite3VdbeExec  (in libsqlite3.dylib) + 38168  [0x1a12aaffc]
+      + ! : |   +     1 sqlite3VdbeFinishMoveto  (in libsqlite3.dylib) + 48  [0x1a132927c]
+      + ! : |   +       1 sqlite3BtreeTableMoveto  (in libsqlite3.dylib) + 536  [0x1a132a7d0]
+      + ! : |   +         1 moveToChild  (in libsqlite3.dylib) + 132  [0x1a12ad7a8]
+      + ! : |   +           1 getAndInitPage  (in libsqlite3.dylib) + 116  [0x1a132dfe0]
+      + ! : |   +             1 getPageNormal  (in libsqlite3.dylib) + 72  [0x1a131f020]
+      + ! : |   +               1 purgeableCacheFetch  (in libsqlite3.dylib) + 108  [0x1a128d928]
+      + ! : |   +                 1 purgeableCachePagePin  (in libsqlite3.dylib) + 176  [0x1a1396f04]
+      + ! : |   +                   1 purgeableCacheRetainChunk  (in libsqlite3.dylib) + 208  [0x1a128e018]
+      + ! : |   +                     1 mach_vm_purgable_control  (in libsystem_kernel.dylib) + 40  [0x199af94d0]
+      + ! : |   +                       1 _kernelrpc_mach_vm_purgable_control_trap  (in libsystem_kernel.dylib) + 8  [0x199af5a9c]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2016  [0x1046e0720]
+      + ! : |     1 audit::sha256_hex(void const*, unsigned long)  (in sentio_cli) + 1208  [0x1046e1338]
+      + ! : |       1 std::basic_ostream<char>::operator<<(unsigned int)  (in libc++.1.dylib) + 336  [0x199a706f0]
+      + ! : |         1 std::num_put<char, std::ostreambuf_iterator<char>>::__do_put_integral[abi:ne190102]<unsigned long>(std::ostreambuf_iterator<char>, std::ios_base&, char, unsigned long, char const*) const  (in libc++.1.dylib) + 120  [0x199a85d14]
+      + ! : |           1 snprintf_l  (in libsystem_c.dylib) + 32  [0x1999d3e90]
+      + ! : |             1 _vsnprintf  (in libsystem_c.dylib) + 180  [0x1999f5364]
+      + ! : 10 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 29808  [0x1046a5fa8]
+      + ! : | 10 audit::AuditDBRecorder::event_signal_drop(long long, std::basic_string<char> const&, std::basic_string<char> const&, DropReason, std::basic_string<char> const&, std::basic_string<char> const&)  (in sentio_cli) + 1144  [0x1046dfd58]
+      + ! : |   6 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2488  [0x1046e08f8]
+      + ! : |   + 4 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : |   + ! 2 sqlite3VdbeExec  (in libsqlite3.dylib) + 44384  [0x1a12ac844]
+      + ! : |   + ! : 2 sqlite3VdbeHalt  (in libsqlite3.dylib) + 1368  [0x1a1289094]
+      + ! : |   + ! :   1 vdbeCommit  (in libsqlite3.dylib) + 1240  [0x1a12b2ed8]
+      + ! : |   + ! :   | 1 sqlite3BtreeCommitPhaseOne  (in libsqlite3.dylib) + 160  [0x1a12b3440]
+      + ! : |   + ! :   |   1 sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 380  [0x1a12c3fb0]
+      + ! : |   + ! :   |     1 pagerWalFrames  (in libsqlite3.dylib) + 868  [0x1a131d90c]
+      + ! : |   + ! :   |       1 walWriteOneFrame  (in libsqlite3.dylib) + 108  [0x1a131e3fc]
+      + ! : |   + ! :   |         1 walEncodeFrame  (in libsqlite3.dylib) + 204  [0x1a12c41f8]
+      + ! : |   + ! :   |           1 walChecksumBytes  (in libsqlite3.dylib) + 264  [0x1a131e190]
+      + ! : |   + ! :   1 vdbeCommit  (in libsqlite3.dylib) + 1316  [0x1a12b2f24]
+      + ! : |   + ! :     1 sqlite3BtreeCommitPhaseTwo  (in libsqlite3.dylib) + 444  [0x1a12b3970]
+      + ! : |   + ! :       1 pager_unlock  (in libsqlite3.dylib) + 152  [0x1a12b422c]
+      + ! : |   + ! :         1 unixShmLock  (in libsqlite3.dylib) + 572  [0x1a128ce98]
+      + ! : |   + ! :           1 osSetPosixAdvisoryLock  (in libsqlite3.dylib) + 228  [0x1a1314c9c]
+      + ! : |   + ! :             1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |   + ! :               1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |   + ! 1 sqlite3VdbeExec  (in libsqlite3.dylib) + 14500  [0x1a12a5388]
+      + ! : |   + ! : 1 sqlite3BtreeIndexMoveto  (in libsqlite3.dylib) + 780  [0x1a132abc4]
+      + ! : |   + ! :   1 vdbeRecordCompareString  (in libsqlite3.dylib) + 288  [0x1a132f194]
+      + ! : |   + ! :     1 _platform_memcmp  (in libsystem_platform.dylib) + 208  [0x199b6ef60]
+      + ! : |   + ! 1 sqlite3VdbeExec  (in libsqlite3.dylib) + 17204  [0x1a12a5e18]
+      + ! : |   + !   1 sqlite3BtreeInsert  (in libsqlite3.dylib) + 2728  [0x1a12c3224]
+      + ! : |   + !     1 balance  (in libsqlite3.dylib) + 1492  [0x1a12c0650]
+      + ! : |   + !       1 getAndInitPage  (in libsqlite3.dylib) + 116  [0x1a132dfe0]
+      + ! : |   + !         1 getPageNormal  (in libsqlite3.dylib) + 628  [0x1a131f24c]
+      + ! : |   + !           1 readDbPage  (in libsqlite3.dylib) + 196  [0x1a128e2f0]
+      + ! : |   + !             1 unixRead  (in libsqlite3.dylib) + 212  [0x1a1277aa0]
+      + ! : |   + !               1 seekAndRead  (in libsqlite3.dylib) + 92  [0x1a131479c]
+      + ! : |   + !                 1 pread  (in libsystem_kernel.dylib) + 8  [0x199af7510]
+      + ! : |   + 2 sqlite3_step  (in libsqlite3.dylib) + 2188  [0x1a12a16e8]
+      + ! : |   +   2 sqlite3WalDefaultHook  (in libsqlite3.dylib) + 80  [0x1a12c4b5c]
+      + ! : |   +     2 sqlite3_wal_checkpoint_v2  (in libsqlite3.dylib) + 708  [0x1a12fefb4]
+      + ! : |   +       2 sqlite3BtreeCheckpoint  (in libsqlite3.dylib) + 364  [0x1a1397c94]
+      + ! : |   +         2 sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4100  [0x1a12d8760]
+      + ! : |   +           2 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + ! : |   +             2 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |   +               2 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |   2 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2060  [0x1046e074c]
+      + ! : |   + 2 sqlite3LockAndPrepare  (in libsqlite3.dylib) + 224  [0x1a1279aec]
+      + ! : |   +   2 sqlite3Prepare  (in libsqlite3.dylib) + 504  [0x1a1279e70]
+      + ! : |   +     2 sqlite3RunParser  (in libsqlite3.dylib) + 920  [0x1a127aa00]
+      + ! : |   +       2 yy_reduce  (in libsqlite3.dylib) + 2912  [0x1a127c6c8]
+      + ! : |   +         1 sqlite3Insert  (in libsqlite3.dylib) + 4048  [0x1a12b9460]
+      + ! : |   +         ! 1 sqlite3OpenTableAndIndices  (in libsqlite3.dylib) + 508  [0x1a12ba020]
+      + ! : |   +         !   1 sqlite3KeyInfoOfIndex  (in libsqlite3.dylib) + 208  [0x1a13444d0]
+      + ! : |   +         1 sqlite3Insert  (in libsqlite3.dylib) + 1996  [0x1a12b8c5c]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 1768  [0x1046e0628]
+      + ! : |   + 1 audit::sha256_hex(void const*, unsigned long)  (in sentio_cli) + 844  [0x1046e11cc]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2584  [0x1046e0958]
+      + ! : |     1 free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+      + ! : |       1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 1012  [0x19993bf10]
+      + ! : |         1 tiny_free_list_remove_ptr  (in libsystem_malloc.dylib) + 64  [0x19993c5d0]
+      + ! : 5 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 27736  [0x1046a5790]
+      + ! : | 4 sentio::execute_target_position(std::basic_string<char> const&, double, sentio::Portfolio&, sentio::SymbolTable const&, sentio::Pricebook const&, sentio::AdvancedSizer const&, sentio::RunnerCfg const&, std::vector<std::vector<sentio::Bar>> const&, sentio::Bar const&, std::basic_string<char> const&, sentio::IAuditRecorder&, bool, int&)  (in sentio_cli) + 1072  [0x1046a9350]
+      + ! : | + 4 audit::AuditDBRecorder::event_fill_ex(long long, std::basic_string<char> const&, double, double, double, sentio::Side, double, double, double, std::basic_string<char> const&)  (in sentio_cli) + 1212  [0x1046de1a4]
+      + ! : | +   2 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2488  [0x1046e08f8]
+      + ! : | +   ! 1 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : | +   ! : 1 sqlite3VdbeExec  (in libsqlite3.dylib) + 44384  [0x1a12ac844]
+      + ! : | +   ! :   1 sqlite3VdbeHalt  (in libsqlite3.dylib) + 1368  [0x1a1289094]
+      + ! : | +   ! :     1 vdbeCommit  (in libsqlite3.dylib) + 1240  [0x1a12b2ed8]
+      + ! : | +   ! :       1 sqlite3BtreeCommitPhaseOne  (in libsqlite3.dylib) + 160  [0x1a12b3440]
+      + ! : | +   ! :         1 sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 380  [0x1a12c3fb0]
+      + ! : | +   ! :           1 pagerWalFrames  (in libsqlite3.dylib) + 868  [0x1a131d90c]
+      + ! : | +   ! :             1 unixWrite  (in libsqlite3.dylib) + 176  [0x1a12c42cc]
+      + ! : | +   ! :               1 seekAndWrite  (in libsqlite3.dylib) + 496  [0x1a1314ae4]
+      + ! : | +   ! :                 1 guarded_pwrite_np  (in libsystem_kernel.dylib) + 8  [0x199af9480]
+      + ! : | +   ! 1 sqlite3_step  (in libsqlite3.dylib) + 2188  [0x1a12a16e8]
+      + ! : | +   !   1 sqlite3WalDefaultHook  (in libsqlite3.dylib) + 80  [0x1a12c4b5c]
+      + ! : | +   !     1 sqlite3_wal_checkpoint_v2  (in libsqlite3.dylib) + 708  [0x1a12fefb4]
+      + ! : | +   !       1 sqlite3BtreeCheckpoint  (in libsqlite3.dylib) + 364  [0x1a1397c94]
+      + ! : | +   !         1 sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4100  [0x1a12d8760]
+      + ! : | +   !           1 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + ! : | +   !             1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : | +   !               1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : | +   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 72  [0x1046dff88]
+      + ! : | +   ! 1 sqlite3LockAndPrepare  (in libsqlite3.dylib) + 224  [0x1a1279aec]
+      + ! : | +   !   1 sqlite3Prepare  (in libsqlite3.dylib) + 504  [0x1a1279e70]
+      + ! : | +   !     1 sqlite3RunParser  (in libsqlite3.dylib) + 920  [0x1a127aa00]
+      + ! : | +   !       1 yy_reduce  (in libsqlite3.dylib) + 4424  [0x1a127ccb0]
+      + ! : | +   !         1 sqlite3Select  (in libsqlite3.dylib) + 15892  [0x1a1292e3c]
+      + ! : | +   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 348  [0x1046e009c]
+      + ! : | +     1 sqlite3_finalize  (in libsqlite3.dylib) + 76  [0x1a12887dc]
+      + ! : | +       1 sqlite3VdbeReset  (in libsqlite3.dylib) + 52  [0x1a12888ac]
+      + ! : | +         1 sqlite3VdbeHalt  (in libsqlite3.dylib) + 1368  [0x1a1289094]
+      + ! : | +           1 vdbeCommit  (in libsqlite3.dylib) + 1316  [0x1a12b2f24]
+      + ! : | +             1 sqlite3BtreeCommitPhaseTwo  (in libsqlite3.dylib) + 180  [0x1a12b3868]
+      + ! : | +               1 pager_unlock  (in libsqlite3.dylib) + 152  [0x1a12b422c]
+      + ! : | +                 1 unixShmLock  (in libsqlite3.dylib) + 572  [0x1a128ce98]
+      + ! : | +                   1 osSetPosixAdvisoryLock  (in libsqlite3.dylib) + 228  [0x1a1314c9c]
+      + ! : | +                     1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : | +                       1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : | 1 sentio::execute_target_position(std::basic_string<char> const&, double, sentio::Portfolio&, sentio::SymbolTable const&, sentio::Pricebook const&, sentio::AdvancedSizer const&, sentio::RunnerCfg const&, std::vector<std::vector<sentio::Bar>> const&, sentio::Bar const&, std::basic_string<char> const&, sentio::IAuditRecorder&, bool, int&)  (in sentio_cli) + 576  [0x1046a9160]
+      + ! : |   1 audit::AuditDBRecorder::event_order_ex(long long, std::basic_string<char> const&, sentio::Side, double, double, std::basic_string<char> const&)  (in sentio_cli) + 748  [0x1046dd860]
+      + ! : |     1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 348  [0x1046e009c]
+      + ! : |       1 sqlite3_finalize  (in libsqlite3.dylib) + 76  [0x1a12887dc]
+      + ! : |         1 sqlite3VdbeReset  (in libsqlite3.dylib) + 464  [0x1a1288a48]
+      + ! : |           1 sqlite3_db_release_memory  (in libsqlite3.dylib) + 204  [0x1a12fc520]
+      + ! : |             1 purgeableCacheShrink  (in libsqlite3.dylib) + 116  [0x1a1396634]
+      + ! : |               1 mach_vm_purgable_control  (in libsystem_kernel.dylib) + 40  [0x199af94d0]
+      + ! : |                 1 _kernelrpc_mach_vm_purgable_control_trap  (in libsystem_kernel.dylib) + 8  [0x199af5a9c]
+      + ! : 5 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 27872  [0x1046a5818]
+      + ! : | 5 audit::AuditDBRecorder::event_signal_drop(long long, std::basic_string<char> const&, std::basic_string<char> const&, DropReason, std::basic_string<char> const&, std::basic_string<char> const&)  (in sentio_cli) + 1144  [0x1046dfd58]
+      + ! : |   5 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2488  [0x1046e08f8]
+      + ! : |     3 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : |     + 3 sqlite3VdbeExec  (in libsqlite3.dylib) + 44384  [0x1a12ac844]
+      + ! : |     +   3 sqlite3VdbeHalt  (in libsqlite3.dylib) + 1368  [0x1a1289094]
+      + ! : |     +     2 vdbeCommit  (in libsqlite3.dylib) + 1240  [0x1a12b2ed8]
+      + ! : |     +     ! 2 sqlite3BtreeCommitPhaseOne  (in libsqlite3.dylib) + 160  [0x1a12b3440]
+      + ! : |     +     !   1 sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 380  [0x1a12c3fb0]
+      + ! : |     +     !   : 1 pagerWalFrames  (in libsqlite3.dylib) + 868  [0x1a131d90c]
+      + ! : |     +     !   :   1 unixWrite  (in libsqlite3.dylib) + 176  [0x1a12c42cc]
+      + ! : |     +     !   :     1 seekAndWrite  (in libsqlite3.dylib) + 496  [0x1a1314ae4]
+      + ! : |     +     !   :       1 guarded_pwrite_np  (in libsystem_kernel.dylib) + 8  [0x199af9480]
+      + ! : |     +     !   1 sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 584  [0x1a12c407c]
+      + ! : |     +     !     1 sqlite3PcacheCleanAll  (in libsqlite3.dylib) + 196  [0x1a131f67c]
+      + ! : |     +     !       1 purgeableCacheUnpin  (in libsqlite3.dylib) + 192  [0x1a12b0570]
+      + ! : |     +     1 vdbeCommit  (in libsqlite3.dylib) + 1316  [0x1a12b2f24]
+      + ! : |     +       1 sqlite3BtreeCommitPhaseTwo  (in libsqlite3.dylib) + 216  [0x1a12b388c]
+      + ! : |     +         1 pager_end_transaction  (in libsqlite3.dylib) + 788  [0x1a12b3e84]
+      + ! : |     +           1 unixShmLock  (in libsqlite3.dylib) + 572  [0x1a128ce98]
+      + ! : |     +             1 osSetPosixAdvisoryLock  (in libsqlite3.dylib) + 228  [0x1a1314c9c]
+      + ! : |     +               1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |     +                 1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |     2 sqlite3_step  (in libsqlite3.dylib) + 2188  [0x1a12a16e8]
+      + ! : |       2 sqlite3WalDefaultHook  (in libsqlite3.dylib) + 80  [0x1a12c4b5c]
+      + ! : |         2 sqlite3_wal_checkpoint_v2  (in libsqlite3.dylib) + 708  [0x1a12fefb4]
+      + ! : |           2 sqlite3BtreeCheckpoint  (in libsqlite3.dylib) + 364  [0x1a1397c94]
+      + ! : |             1 sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4100  [0x1a12d8760]
+      + ! : |             ! 1 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + ! : |             !   1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |             !     1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : |             1 sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4932  [0x1a12d8aa0]
+      + ! : |               1 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + ! : |                 1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + ! : |                   1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + ! : 3 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 10604  [0x1046a14a4]
+      + ! : | 3 sentio::SignalOrStrategy::calculate_probability(std::vector<sentio::Bar> const&, int)  (in sentio_cli) + 228  [0x1046b8f9c]
+      + ! : |   2 sentio::detectors::BollingerDetector::score(std::vector<sentio::Bar> const&, int)  (in sentio_cli) + 536  [0x1046bda08]
+      + ! : |   + 1 std::__introsort<std::_ClassicAlgPolicy, std::ranges::less, double*, false>(double*, double*, std::ranges::less, std::iterator_traits<double*>::difference_type, bool)  (in libc++.1.dylib) + 388  [0x199a4e4bc]
+      + ! : |   + ! 1 std::__introsort<std::_ClassicAlgPolicy, std::ranges::less, double*, false>(double*, double*, std::ranges::less, std::iterator_traits<double*>::difference_type, bool)  (in libc++.1.dylib) + 388  [0x199a4e4bc]
+      + ! : |   + !   1 std::__introsort<std::_ClassicAlgPolicy, std::ranges::less, double*, false>(double*, double*, std::ranges::less, std::iterator_traits<double*>::difference_type, bool)  (in libc++.1.dylib) + 388  [0x199a4e4bc]
+      + ! : |   + !     1 std::__introsort<std::_ClassicAlgPolicy, std::ranges::less, double*, false>(double*, double*, std::ranges::less, std::iterator_traits<double*>::difference_type, bool)  (in libc++.1.dylib) + 388  [0x199a4e4bc]
+      + ! : |   + !       1 std::__introsort<std::_ClassicAlgPolicy, std::ranges::less, double*, false>(double*, double*, std::ranges::less, std::iterator_traits<double*>::difference_type, bool)  (in libc++.1.dylib) + 624  [0x199a4e5a8]
+      + ! : |   + 1 std::__introsort<std::_ClassicAlgPolicy, std::ranges::less, double*, false>(double*, double*, std::ranges::less, std::iterator_traits<double*>::difference_type, bool)  (in libc++.1.dylib) + 740  [0x199a4e61c]
+      + ! : |   1 sentio::detectors::OpeningRangeBreakoutDetector::score(std::vector<sentio::Bar> const&, int)  (in sentio_cli) + 676  [0x1046bbecc]
+      + ! : 1 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 7480  [0x1046a0870]
+      + ! : | 1 audit::AuditDBRecorder::event_order_ex(long long, std::basic_string<char> const&, sentio::Side, double, double, std::basic_string<char> const&)  (in sentio_cli) + 748  [0x1046dd860]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2488  [0x1046e08f8]
+      + ! : |     1 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : |       1 sqlite3VdbeExec  (in libsqlite3.dylib) + 44384  [0x1a12ac844]
+      + ! : |         1 sqlite3VdbeHalt  (in libsqlite3.dylib) + 1368  [0x1a1289094]
+      + ! : |           1 vdbeCommit  (in libsqlite3.dylib) + 1240  [0x1a12b2ed8]
+      + ! : |             1 sqlite3BtreeCommitPhaseOne  (in libsqlite3.dylib) + 160  [0x1a12b3440]
+      + ! : |               1 sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 380  [0x1a12c3fb0]
+      + ! : |                 1 pagerWalFrames  (in libsqlite3.dylib) + 868  [0x1a131d90c]
+      + ! : |                   1 unixWrite  (in libsqlite3.dylib) + 176  [0x1a12c42cc]
+      + ! : |                     1 seekAndWrite  (in libsqlite3.dylib) + 496  [0x1a1314ae4]
+      + ! : |                       1 guarded_pwrite_np  (in libsystem_kernel.dylib) + 8  [0x199af9480]
+      + ! : 1 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 7772  [0x1046a0994]
+      + ! : | 1 audit::AuditDBRecorder::event_fill_ex(long long, std::basic_string<char> const&, double, double, double, sentio::Side, double, double, double, std::basic_string<char> const&)  (in sentio_cli) + 1212  [0x1046de1a4]
+      + ! : |   1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2488  [0x1046e08f8]
+      + ! : |     1 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + ! : |       1 sqlite3VdbeExec  (in libsqlite3.dylib) + 18688  [0x1a12a63e4]
+      + ! : |         1 btreeLast  (in libsqlite3.dylib) + 92  [0x1a132ee78]
+      + ! : |           1 moveToChild  (in libsqlite3.dylib) + 132  [0x1a12ad7a8]
+      + ! : |             1 getAndInitPage  (in libsqlite3.dylib) + 116  [0x1a132dfe0]
+      + ! : |               1 getPageNormal  (in libsqlite3.dylib) + 72  [0x1a131f020]
+      + ! : |                 1 purgeableCacheFetch  (in libsqlite3.dylib) + 108  [0x1a128d928]
+      + ! : |                   1 purgeableCachePagePin  (in libsqlite3.dylib) + 176  [0x1a1396f04]
+      + ! : |                     1 purgeableCacheRetainChunk  (in libsqlite3.dylib) + 208  [0x1a128e018]
+      + ! : |                       1 mach_vm_purgable_control  (in libsystem_kernel.dylib) + 40  [0x199af94d0]
+      + ! : |                         1 _kernelrpc_mach_vm_purgable_control_trap  (in libsystem_kernel.dylib) + 4  [0x199af5a98]
+      + ! : 1 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 11028  [0x1046a164c]
+      + ! : | 1 std::basic_ostream<char>::operator<<(double)  (in libc++.1.dylib) + 340  [0x199a7135c]
+      + ! : |   1 std::num_put<char, std::ostreambuf_iterator<char>>::__do_put_floating_point[abi:ne190102]<double>(std::ostreambuf_iterator<char>, std::ios_base&, char, double, char const*) const  (in libc++.1.dylib) + 144  [0x199a8603c]
+      + ! : |     1 snprintf_l  (in libsystem_c.dylib) + 32  [0x1999d3e90]
+      + ! : |       1 _vsnprintf  (in libsystem_c.dylib) + 212  [0x1999f5384]
+      + ! : |         1 __vfprintf  (in libsystem_c.dylib) + 1168  [0x1999c9ef8]
+      + ! : 1 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 12420  [0x1046a1bbc]
+      + ! : | 1 std::basic_string<char>::__assign_external(char const*, unsigned long)  (in sentio_cli) + 224  [0x104662c58]
+      + ! : |   1 _platform_memmove  (in libsystem_platform.dylib) + 444  [0x199b7147c]
+      + ! : 1 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 19624  [0x1046a37e0]
+      + ! : | 1 std::basic_ostream<char>::flush()  (in libc++.1.dylib) + 156  [0x199a6c1b0]
+      + ! : |   1 std::__stdoutbuf<char>::sync()  (in libc++.1.dylib) + 172  [0x199a7e084]
+      + ! : |     1 DYLD-STUB$$fflush  (in libc++.1.dylib) + 12  [0x199aaf434]
+      + ! : 1 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 20648  [0x1046a3be0]
+      + ! : | 1 std::basic_ostream<char>::flush()  (in libc++.1.dylib) + 156  [0x199a6c1b0]
+      + ! : |   1 std::__stdoutbuf<char>::sync()  (in libc++.1.dylib) + 172  [0x199a7e084]
+      + ! : |     1 fflush  (in libsystem_c.dylib) + 124  [0x1999d7c0c]
+      + ! : |       1 __sflush  (in libsystem_c.dylib) + 232  [0x1999d7d6c]
+      + ! : |         1 _swrite  (in libsystem_c.dylib) + 108  [0x1999d9ccc]
+      + ! : |           1 __swrite  (in libsystem_c.dylib) + 24  [0x1999f8d78]
+      + ! : |             1 __write_nocancel  (in libsystem_kernel.dylib) + 8  [0x199af9aa4]
+      + ! : 1 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 21852  [0x1046a4094]
+      + ! : | 1 std::basic_ostream<char>::flush()  (in libc++.1.dylib) + 156  [0x199a6c1b0]
+      + ! : |   1 std::__stdoutbuf<char>::sync()  (in libc++.1.dylib) + 172  [0x199a7e084]
+      + ! : |     1 fflush  (in libsystem_c.dylib) + 124  [0x1999d7c0c]
+      + ! : |       1 __sflush  (in libsystem_c.dylib) + 232  [0x1999d7d6c]
+      + ! : |         1 _swrite  (in libsystem_c.dylib) + 108  [0x1999d9ccc]
+      + ! : |           1 __swrite  (in libsystem_c.dylib) + 24  [0x1999f8d78]
+      + ! : |             1 __write_nocancel  (in libsystem_kernel.dylib) + 8  [0x199af9aa4]
+      + ! : 1 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 23700  [0x1046a47cc]
+      + ! : | 1 std::basic_ostream<char>::flush()  (in libc++.1.dylib) + 156  [0x199a6c1b0]
+      + ! : |   1 std::__stdoutbuf<char>::sync()  (in libc++.1.dylib) + 172  [0x199a7e084]
+      + ! : |     1 fflush  (in libsystem_c.dylib) + 124  [0x1999d7c0c]
+      + ! : |       1 __sflush  (in libsystem_c.dylib) + 232  [0x1999d7d6c]
+      + ! : |         1 _swrite  (in libsystem_c.dylib) + 108  [0x1999d9ccc]
+      + ! : |           1 __swrite  (in libsystem_c.dylib) + 24  [0x1999f8d78]
+      + ! : |             1 __write_nocancel  (in libsystem_kernel.dylib) + 8  [0x199af9aa4]
+      + ! : 1 sentio::run_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&)  (in sentio_cli) + 31116  [0x1046a64c4]
+      + ! :   1 audit::AuditDBRecorder::event_snapshot(long long, sentio::AccountState const&)  (in sentio_cli) + 564  [0x1046de6c0]
+      + ! :     1 audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2016  [0x1046e0720]
+      + ! :       1 audit::sha256_hex(void const*, unsigned long)  (in sentio_cli) + 1236  [0x1046e1354]
+      + ! :         1 std::basic_ostream<char>::operator<<(unsigned int)  (in libc++.1.dylib) + 336  [0x199a706f0]
+      + ! :           1 std::num_put<char, std::ostreambuf_iterator<char>>::__do_put_integral[abi:ne190102]<unsigned long>(std::ostreambuf_iterator<char>, std::ios_base&, char, unsigned long, char const*) const  (in libc++.1.dylib) + 120  [0x199a85d14]
+      + ! :             1 snprintf_l  (in libsystem_c.dylib) + 32  [0x1999d3e90]
+      + ! :               1 _vsnprintf  (in libsystem_c.dylib) + 212  [0x1999f5384]
+      + ! :                 1 __vfprintf  (in libsystem_c.dylib) + 116  [0x1999c9adc]
+      + ! 3 sentio::run_canonical_backtest(sentio::IAuditRecorder&, sentio::SymbolTable const&, std::vector<std::vector<sentio::Bar>> const&, int, sentio::RunnerCfg const&, sentio::DatasetMetadata const&, sentio::TradingBlockConfig const&)  (in sentio_cli) + 1912  [0x1046a9df0]
+      + !   2 audit::AuditDBRecorder::event_run_start(long long, std::basic_string<char> const&)  (in sentio_cli) + 7788  [0x1046db384]
+      + !   | 2 sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+      + !   |   2 sqlite3VdbeExec  (in libsqlite3.dylib) + 44384  [0x1a12ac844]
+      + !   |     2 sqlite3VdbeHalt  (in libsqlite3.dylib) + 1368  [0x1a1289094]
+      + !   |       2 vdbeCommit  (in libsqlite3.dylib) + 1240  [0x1a12b2ed8]
+      + !   |         2 sqlite3BtreeCommitPhaseOne  (in libsqlite3.dylib) + 160  [0x1a12b3440]
+      + !   |           2 sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 380  [0x1a12c3fb0]
+      + !   |             2 pagerWalFrames  (in libsqlite3.dylib) + 1392  [0x1a131db18]
+      + !   |               2 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + !   |                 2 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + !   |                   2 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + !   1 audit::AuditDBRecorder::event_run_start(long long, std::basic_string<char> const&)  (in sentio_cli) + 7836  [0x1046db3b4]
+      + !     1 sqlite3LockAndPrepare  (in libsqlite3.dylib) + 224  [0x1a1279aec]
+      + !       1 sqlite3Prepare  (in libsqlite3.dylib) + 504  [0x1a1279e70]
+      + !         1 sqlite3RunParser  (in libsqlite3.dylib) + 920  [0x1a127aa00]
+      + !           1 yy_reduce  (in libsqlite3.dylib) + 2912  [0x1a127c6c8]
+      + !             1 sqlite3Insert  (in libsqlite3.dylib) + 2920  [0x1a12b8ff8]
+      + 4 main  (in sentio_cli) + 29424  [0x104685c34]
+      + ! 1 sentio::load_csv(std::basic_string<char> const&, std::vector<sentio::Bar>&)  (in sentio_cli) + 3692  [0x10467629c]
+      + ! : 1 __fread  (in libsystem_c.dylib) + 656  [0x1999d3e6c]
+      + ! 1 sentio::load_csv(std::basic_string<char> const&, std::vector<sentio::Bar>&)  (in sentio_cli) + 3712  [0x1046762b0]
+      + ! : 1 fread  (in libsystem_c.dylib) + 160  [0x1999dc6f8]
+      + ! :   1 funlockfile  (in libsystem_c.dylib) + 40  [0x1999d7e1c]
+      + ! :     1 _pthread_mutex_firstfit_unlock_slow  (in libsystem_pthread.dylib) + 96  [0x199b32a78]
+      + ! 1 sentio::load_csv(std::basic_string<char> const&, std::vector<sentio::Bar>&)  (in sentio_cli) + 3772  [0x1046762ec]
+      + ! : 1 fread  (in libsystem_c.dylib) + 128  [0x1999dc6d8]
+      + ! :   1 pthread_mutex_lock  (in libsystem_pthread.dylib) + 180  [0x199b3240c]
+      + ! 1 sentio::load_csv(std::basic_string<char> const&, std::vector<sentio::Bar>&)  (in sentio_cli) + 3792  [0x104676300]
+      + !   1 fread  (in libsystem_c.dylib) + 128  [0x1999dc6d8]
+      + !     1 flockfile  (in libsystem_c.dylib) + 40  [0x1999d7c70]
+      + !       1 _pthread_mutex_lock_init_slow  (in libsystem_pthread.dylib) + 100  [0x199b324c4]
+      + 2 main  (in sentio_cli) + 30996  [0x104686258]
+      + ! 2 std::__unique_if<audit::AuditDBRecorder>::__unique_single std::make_unique[abi:ne190102]<audit::AuditDBRecorder, std::basic_string<char>&, std::basic_string<char>&, char const (&) [35]>(std::basic_string<char>&, std::basic_string<char>&, char const (&) [35])  (in sentio_cli) + 284  [0x1046886d4]
+      + !   1 openDatabase  (in libsqlite3.dylib) + 92  [0x1a12719f8]
+      + !   : 1 sqlite3_initialize  (in libsqlite3.dylib) + 916  [0x1a1272af0]
+      + !   :   1 sqlite3OsInit  (in libsqlite3.dylib) + 200  [0x1a12fbf08]
+      + !   :     1 sqlite3_os_init  (in libsqlite3.dylib) + 456  [0x1a12eda94]
+      + !   :       1 confstr  (in libsystem_c.dylib) + 560  [0x1999cdd88]
+      + !   :         1 _dirhelper_internal  (in libsystem_coreservices.dylib) + 160  [0x1a786fa08]
+      + !   :           1 _dirhelper_userdir  (in libsystem_coreservices.dylib) + 252  [0x1a7870b84]
+      + !   :             1 __user_local_dirname  (in libsystem_coreservices.dylib) + 96  [0x1a786dd80]
+      + !   :               1 mbr_uid_to_uuid  (in libsystem_info.dylib) + 40  [0x199b76e08]
+      + !   :                 1 mbr_identifier_to_uuid  (in libsystem_info.dylib) + 56  [0x199b76e4c]
+      + !   :                   1 mbr_identifier_translate  (in libsystem_info.dylib) + 636  [0x199b77174]
+      + !   :                     1 _os_activity_create_addr  (in libsystem_trace.dylib) + 1252  [0x19987ca40]
+      + !   :                       1 _dispatch_once_callout  (in libdispatch.dylib) + 32  [0x199982a28]
+      + !   :                         1 _dispatch_client_callout  (in libdispatch.dylib) + 16  [0x19999985c]
+      + !   :                           1 _os_trace_init_slow  (in libsystem_trace.dylib) + 112  [0x19987cc24]
+      + !   :                             1 xpc_bundle_get_info_dictionary  (in libxpc.dylib) + 24  [0x199839940]
+      + !   :                               1 _xpc_bundle_resolve  (in libxpc.dylib) + 124  [0x199862eb8]
+      + !   :                                 1 _dispatch_once_callout  (in libdispatch.dylib) + 32  [0x199982a28]
+      + !   :                                   1 _dispatch_client_callout  (in libdispatch.dylib) + 16  [0x19999985c]
+      + !   :                                     1 ___xpc_bundle_resolve_block_invoke  (in libxpc.dylib) + 68  [0x1998354f0]
+      + !   :                                       1 _xpc_bundle_resolve_sync  (in libxpc.dylib) + 412  [0x1998631ec]
+      + !   :                                         1 _xpc_bundle_variant_create_subpath  (in libxpc.dylib) + 424  [0x1998605b4]
+      + !   :                                           1 _xpc_asprintf  (in libxpc.dylib) + 52  [0x199835bec]
+      + !   :                                             1 _vasprintf  (in libsystem_c.dylib) + 296  [0x1999f54e4]
+      + !   :                                               1 __vfprintf  (in libsystem_c.dylib) + 2276  [0x1999ca34c]
+      + !   1 openDatabase  (in libsqlite3.dylib) + 2480  [0x1a127234c]
+      + !     1 <deduplicated_symbol>  (in libsqlite3.dylib) + 32  [0x1a140edac]
+      + !       1 _dispatch_once_callout  (in libdispatch.dylib) + 32  [0x199982a28]
+      + !         1 _dispatch_client_callout  (in libdispatch.dylib) + 16  [0x19999985c]
+      + !           1 __sqlite3GetLog_block_invoke  (in libsqlite3.dylib) + 44  [0x1a131348c]
+      + !             1 os_log_create  (in libsystem_trace.dylib) + 816  [0x19987ed80]
+      + !               1 _os_log_preferences_refresh  (in libsystem_trace.dylib) + 168  [0x19987ef8c]
+      + !                 1 _os_log_preference_load_cache  (in libsystem_trace.dylib) + 104  [0x19988fd34]
+      + !                   1 firehose_buffer_get_logging_prefs  (in libdispatch.dylib) + 60  [0x1999a83a4]
+      + !                     1 firehose_send_get_logging_prefs  (in libdispatch.dylib) + 120  [0x1999b370c]
+      + !                       1 mach_msg  (in libsystem_kernel.dylib) + 24  [0x199af5fa8]
+      + !                         1 mach_msg_overwrite  (in libsystem_kernel.dylib) + 484  [0x199afe764]
+      + !                           1 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x199b083a0]
+      + !                             1 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x199af5c34]
+      + 1 main  (in sentio_cli) + 29668  [0x104685d28]
+      + ! 1 sentio::generate_theoretical_leverage_series(std::vector<sentio::Bar> const&, double)  (in sentio_cli) + 372  [0x1046cdb24]
+      + 1 main  (in sentio_cli) + 31488  [0x104686444]
+      + ! 1 audit::AuditDBRecorder::~AuditDBRecorder()  (in sentio_cli) + 76  [0x1046d94c0]
+      + !   1 sqlite3Close  (in libsqlite3.dylib) + 980  [0x1a12fd714]
+      + !     1 sqlite3LeaveMutexAndCloseZombie  (in libsqlite3.dylib) + 228  [0x1a12f0f10]
+      + !       1 sqlite3BtreeClose  (in libsqlite3.dylib) + 372  [0x1a12ca724]
+      + !         1 sqlite3PagerClose  (in libsqlite3.dylib) + 336  [0x1a12cad8c]
+      + !           1 sqlite3WalClose  (in libsqlite3.dylib) + 200  [0x1a12cb080]
+      + !             1 sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4100  [0x1a12d8760]
+      + !               1 unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+      + !                 1 fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+      + !                   1 __fcntl  (in libsystem_kernel.dylib) + 8  [0x199af6784]
+      + 1 main  (in sentio_cli) + 31576  [0x10468649c]
+      +   1 std::vector<std::vector<sentio::Bar>>::~vector[abi:ne190102]()  (in sentio_cli) + 116  [0x104688bf8]
+      37 start  (in dyld) + 6124  [0x199796bc8]
+      + 37 dyld4::LibSystemHelpersWrapper::exit(int) const  (in dyld) + 172  [0x199796cac]
+      +   37 dyld4::LibSystemHelpers::exit(int) const  (in libdyld.dylib) + 20  [0x199b41dc8]
+      +     37 exit  (in libsystem_c.dylib) + 44  [0x1999ef704]
+      +       37 __cxa_finalize_ranges  (in libsystem_c.dylib) + 480  [0x1999ef944]
+      +         35 torch::Library::~Library()  (in libtorch_cpu.dylib) + 36  [0x10ef97970]
+      +         ! 35 std::vector<c10::RegistrationHandleRAII>::__destroy_vector::operator()[abi:ne190102]()  (in libtorch_cpu.dylib) + 56  [0x10ef979d8]
+      +         !   34 c10::RegistrationHandleRAII::~RegistrationHandleRAII()  (in libtorch_cpu.dylib) + 36  [0x10ef97a34]
+      +         !   : 27 std::__function::__func<c10::Dispatcher::registerImpl(c10::OperatorName, std::optional<c10::DispatchKey>, c10::KernelFunction, std::optional<c10::impl::CppSignature>, std::unique_ptr<c10::FunctionSchema>, std::basic_string<char>)::$_0, void ()>::operator()()  (in libtorch_cpu.dylib) + 72  [0x10f187a38]
+      +         !   : | 22 c10::Dispatcher::deregisterImpl_(c10::OperatorHandle const&, c10::OperatorName const&, std::optional<c10::DispatchKey>, std::__list_iterator<c10::impl::AnnotatedKernel, void*>)  (in libtorch_cpu.dylib) + 48  [0x10f187ba8]
+      +         !   : | + 18 c10::impl::OperatorEntry::deregisterKernel_(c10::Dispatcher const&, std::optional<c10::DispatchKey>, std::__list_iterator<c10::impl::AnnotatedKernel, void*>)  (in libtorch_cpu.dylib) + 188  [0x10f18dc5c]
+      +         !   : | + ! 18 c10::impl::OperatorEntry::updateDispatchTable_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 196  [0x10f18c418]
+      +         !   : | + !   12 c10::impl::OperatorEntry::updateDispatchTableEntry_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 80  [0x1125c4b74]
+      +         !   : | + !   : 6 c10::impl::OperatorEntry::computeDispatchTableEntryWithDebug(c10::Dispatcher const&, c10::DispatchKey) const  (in libtorch_cpu.dylib) + 212  [0x10f18def8]
+      +         !   : | + !   : | 5 c10::impl::OperatorEntry::hasKernelForAnyDispatchKey(c10::DispatchKeySet) const  (in libtorch_cpu.dylib) + 92,96,...  [0x10f18e0e0,0x10f18e0e4,...]
+      +         !   : | + !   : | 1 c10::impl::OperatorEntry::hasKernelForAnyDispatchKey(c10::DispatchKeySet) const  (in libtorch_cpu.dylib) + 48  [0x10f18e0b4]
+      +         !   : | + !   : |   1 ska::detailv3::sherwood_v3_table<std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>, c10::DispatchKey, ska::detailv3::KeyOrValueHasher<c10::DispatchKey, std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>>, ska::detailv3::KeyOrValueEquality<c10::DispatchKey, std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>>>::find(c10::DispatchKey const&)  (in libtorch_cpu.dylib) + 112  [0x10f18dd9c]
+      +         !   : | + !   : 2 c10::impl::OperatorEntry::computeDispatchTableEntryWithDebug(c10::Dispatcher const&, c10::DispatchKey) const  (in libtorch_cpu.dylib) + 44  [0x10f18de50]
+      +         !   : | + !   : | 1 c10::impl::OperatorEntry::getKernelForDispatchKey(c10::DispatchKey) const  (in libtorch_cpu.dylib) + 40  [0x10f18e5c4]
+      +         !   : | + !   : | + 1 ska::detailv3::sherwood_v3_table<std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>, c10::DispatchKey, ska::detailv3::KeyOrValueHasher<c10::DispatchKey, std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>>, ska::detailv3::KeyOrValueEquality<c10::DispatchKey, std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>>>::find(c10::DispatchKey const&)  (in libtorch_cpu.dylib) + 52  [0x10f18dd60]
+      +         !   : | + !   : | 1 c10::impl::OperatorEntry::getKernelForDispatchKey(c10::DispatchKey) const  (in libtorch_cpu.dylib) + 68  [0x10f18e5e0]
+      +         !   : | + !   : 1 c10::impl::OperatorEntry::computeDispatchTableEntryWithDebug(c10::Dispatcher const&, c10::DispatchKey) const  (in libtorch_cpu.dylib) + 80  [0x10f18de74]
+      +         !   : | + !   : | 1 c10::runtimeDispatchKeySetHas(c10::DispatchKey, c10::DispatchKey)  (in libc10.dylib) + 4  [0x104975b38]
+      +         !   : | + !   : 1 c10::impl::OperatorEntry::computeDispatchTableEntryWithDebug(c10::Dispatcher const&, c10::DispatchKey) const  (in libtorch_cpu.dylib) + 148  [0x10f18deb8]
+      +         !   : | + !   : | 1 c10::impl::OperatorEntry::getKernelForDispatchKey(c10::DispatchKey) const  (in libtorch_cpu.dylib) + 40  [0x10f18e5c4]
+      +         !   : | + !   : |   1 ska::detailv3::sherwood_v3_table<std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>, c10::DispatchKey, ska::detailv3::KeyOrValueHasher<c10::DispatchKey, std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>>, ska::detailv3::KeyOrValueEquality<c10::DispatchKey, std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>>>::find(c10::DispatchKey const&)  (in libtorch_cpu.dylib) + 88  [0x10f18dd84]
+      +         !   : | + !   : 1 c10::impl::OperatorEntry::computeDispatchTableEntryWithDebug(c10::Dispatcher const&, c10::DispatchKey) const  (in libtorch_cpu.dylib) + 284  [0x10f18df40]
+      +         !   : | + !   : | 1 c10::impl::OperatorEntry::hasKernelForDispatchKey(c10::DispatchKey) const  (in libtorch_cpu.dylib) + 32  [0x10f18e164]
+      +         !   : | + !   : 1 c10::impl::OperatorEntry::computeDispatchTableEntryWithDebug(c10::Dispatcher const&, c10::DispatchKey) const  (in libtorch_cpu.dylib) + 464  [0x10f18dff4]
+      +         !   : | + !   :   1 c10::runtimeDispatchKeySetHas(c10::DispatchKey, c10::DispatchKey)  (in libc10.dylib) + 4  [0x104975b38]
+      +         !   : | + !   3 c10::impl::OperatorEntry::updateDispatchTableEntry_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 140  [0x1125c4bb0]
+      +         !   : | + !   : 1 c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<at::Tensor& (c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&, at::Tensor&), &at::functionalization::add_out_out(c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&, at::Tensor&)>, at::Tensor&, c10::guts::typelist::typelist<c10::DispatchKeySet, at::Tensor const&, at::Tensor const&, c10::Scalar const&, at::Tensor&>>::~WrapFunctionIntoFunctor_()  (in libtorch_cpu.dylib) + 0  [0x11018400c]
+      +         !   : | + !   : 1 c10::impl::detail::WrapFunctionIntoFunctor_<c10::CompileTimeFunctionPointer<void (c10::DispatchKeySet, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, at::Tensor const&, double, double, double, double, bool, bool, std::optional<at::Tensor> const&, std::optional<at::Tensor> const&, c10::ArrayRef<at::Tensor>), &torch::autograd::VariableType::(anonymous namespace)::_fused_adamw_out_tensor_lr_out(c10::DispatchKeySet, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, at::Tensor const&, double, double, double, double, bool, bool, std::optional<at::Tensor> const&, std::optional<at::Tensor> const&, c10::ArrayRef<at::Tensor>)>, void, c10::guts::typelist::typelist<c10::DispatchKeySet, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, c10::ArrayRef<at::Tensor>, at::Tensor const&, double, double, double, double, bool, bool, std::optional<at::Tensor> const&, std::optional<at::Tensor> const&, c10::ArrayRef<at::Tensor>>>::~WrapFunctionIntoFunctor_()  (in libtorch_cpu.dylib) + 0  [0x11137ff40]
+      +         !   : | + !   : 1 free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+      +         !   : | + !   :   1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 868  [0x19993be80]
+      +         !   : | + !   2 c10::impl::OperatorEntry::updateDispatchTableEntry_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 40  [0x1125c4b4c]
+      +         !   : | + !   1 c10::impl::OperatorEntry::computeDispatchTableEntryWithDebug(c10::Dispatcher const&, c10::DispatchKey) const  (in libtorch_cpu.dylib) + 188  [0x10f18dee0]
+      +         !   : | + 2 c10::impl::OperatorEntry::deregisterKernel_(c10::Dispatcher const&, std::optional<c10::DispatchKey>, std::__list_iterator<c10::impl::AnnotatedKernel, void*>)  (in libtorch_cpu.dylib) + 144  [0x10f18dc30]
+      +         !   : | + ! 1 std::__destroy_at[abi:ne190102]<c10::impl::AnnotatedKernel, 0>(c10::impl::AnnotatedKernel*)  (in libtorch_cpu.dylib) + 32  [0x10f181c38]
+      +         !   : | + ! : 1 free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+      +         !   : | + ! :   1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 1012  [0x19993bf10]
+      +         !   : | + ! :     1 tiny_free_list_remove_ptr  (in libsystem_malloc.dylib) + 64  [0x19993c5d0]
+      +         !   : | + ! 1 std::__destroy_at[abi:ne190102]<c10::impl::AnnotatedKernel, 0>(c10::impl::AnnotatedKernel*)  (in libtorch_cpu.dylib) + 52  [0x10f181c4c]
+      +         !   : | + !   1 std::default_delete<c10::FunctionSchema>::operator()[abi:ne190102](c10::FunctionSchema*) const  (in libtorch_cpu.dylib) + 56  [0x10ef95844]
+      +         !   : | + !     1 free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+      +         !   : | + !       1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 28  [0x19993bb38]
+      +         !   : | + 1 c10::impl::OperatorEntry::deregisterKernel_(c10::Dispatcher const&, std::optional<c10::DispatchKey>, std::__list_iterator<c10::impl::AnnotatedKernel, void*>)  (in libtorch_cpu.dylib) + 72  [0x10f18dbe8]
+      +         !   : | + ! 1 ska::detailv3::sherwood_v3_table<std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>, c10::DispatchKey, ska::detailv3::KeyOrValueHasher<c10::DispatchKey, std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>>, ska::detailv3::KeyOrValueEquality<c10::DispatchKey, std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>>>::find(c10::DispatchKey const&)  (in libtorch_cpu.dylib) + 68  [0x10f18dd70]
+      +         !   : | + 1 c10::impl::OperatorEntry::deregisterKernel_(c10::Dispatcher const&, std::optional<c10::DispatchKey>, std::__list_iterator<c10::impl::AnnotatedKernel, void*>)  (in libtorch_cpu.dylib) + 152  [0x10f18dc38]
+      +         !   : | +   1 free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+      +         !   : | +     1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 792  [0x19993be34]
+      +         !   : | +       1 tiny_free_list_remove_ptr  (in libsystem_malloc.dylib) + 176  [0x19993c640]
+      +         !   : | 3 c10::Dispatcher::cleanup(c10::OperatorHandle const&, c10::OperatorName const&)  (in libtorch_cpu.dylib) + 76  [0x10f186360]
+      +         !   : | + 2 c10::impl::OperatorEntry::~OperatorEntry()  (in libtorch_cpu.dylib) + 108  [0x10f181a70]
+      +         !   : | + ! 2 ska::detailv3::sherwood_v3_table<std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>, c10::DispatchKey, ska::detailv3::KeyOrValueHasher<c10::DispatchKey, std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>>, ska::detailv3::KeyOrValueEquality<c10::DispatchKey, std::pair<c10::DispatchKey, std::list<c10::impl::AnnotatedKernel>>>>::~sherwood_v3_table()  (in libtorch_cpu.dylib) + 28  [0x10f181b20]
+      +         !   : | + !   1 free_small  (in libsystem_malloc.dylib) + 816  [0x19993a754]
+      +         !   : | + !   : 1 small_free_list_add_ptr  (in libsystem_malloc.dylib) + 468  [0x19993c95c]
+      +         !   : | + !   1 free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+      +         !   : | + !     1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 1012  [0x19993bf10]
+      +         !   : | + !       1 tiny_free_list_remove_ptr  (in libsystem_malloc.dylib) + 340  [0x19993c6e4]
+      +         !   : | + 1 c10::impl::OperatorEntry::~OperatorEntry()  (in libtorch_cpu.dylib) + 96  [0x10f181a64]
+      +         !   : | +   1 free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+      +         !   : | +     1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 684  [0x19993bdc8]
+      +         !   : | +       1 tiny_madvise_free_range_no_lock  (in libsystem_malloc.dylib) + 584  [0x19996dd8c]
+      +         !   : | +         1 mvm_madvise_free_plat  (in libsystem_malloc.dylib) + 108  [0x199952f48]
+      +         !   : | +           1 <deduplicated_symbol>  (in libsystem_malloc.dylib) + 16  [0x199952ec0]
+      +         !   : | +             1 madvise  (in libsystem_kernel.dylib) + 8  [0x199af8870]
+      +         !   : | 1 c10::Dispatcher::cleanup(c10::OperatorHandle const&, c10::OperatorName const&)  (in libtorch_cpu.dylib) + 84  [0x10f186368]
+      +         !   : | + 1 free_small  (in libsystem_malloc.dylib) + 1044  [0x19993a838]
+      +         !   : | +   1 small_madvise_free_range_no_lock  (in libsystem_malloc.dylib) + 464  [0x199952050]
+      +         !   : | +     1 mvm_madvise_free_plat  (in libsystem_malloc.dylib) + 108  [0x199952f48]
+      +         !   : | +       1 <deduplicated_symbol>  (in libsystem_malloc.dylib) + 16  [0x199952ec0]
+      +         !   : | +         1 madvise  (in libsystem_kernel.dylib) + 8  [0x199af8870]
+      +         !   : | 1 c10::Dispatcher::deregisterImpl_(c10::OperatorHandle const&, c10::OperatorName const&, std::optional<c10::DispatchKey>, std::__list_iterator<c10::impl::AnnotatedKernel, void*>)  (in libtorch_cpu.dylib) + 216  [0x10f187c50]
+      +         !   : |   1 _platform_memcmp  (in libsystem_platform.dylib) + 148  [0x199b6ef24]
+      +         !   : 5 std::__function::__func<c10::Dispatcher::registerFallback(c10::DispatchKey, c10::KernelFunction, std::basic_string<char>)::$_0, void ()>::operator()()  (in libtorch_cpu.dylib) + 60  [0x10f1889f8]
+      +         !   : | 4 c10::Dispatcher::deregisterFallback_(c10::DispatchKey)  (in libtorch_cpu.dylib) + 208  [0x10f188b38]
+      +         !   : | + 2 c10::impl::OperatorEntry::updateDispatchTable_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 196  [0x10f18c418]
+      +         !   : | + ! 1 c10::impl::OperatorEntry::updateDispatchTableEntry_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 80  [0x1125c4b74]
+      +         !   : | + ! : 1 c10::impl::OperatorEntry::computeDispatchTableEntryWithDebug(c10::Dispatcher const&, c10::DispatchKey) const  (in libtorch_cpu.dylib) + 588  [0x10f18e070]
+      +         !   : | + ! :   1 c10::impl::OperatorEntry::missingKernel() const  (in libtorch_cpu.dylib) + 0  [0x10f189cc0]
+      +         !   : | + ! 1 c10::impl::OperatorEntry::updateDispatchTableEntry_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 188  [0x1125c4be0]
+      +         !   : | + !   1 c10::DispatchKeyExtractor::setOperatorHasFallthroughForKey(c10::DispatchKey, bool)  (in libtorch_cpu.dylib) + 88  [0x10f18091c]
+      +         !   : | + !     1 c10::DispatchKeySet::DispatchKeySet(c10::DispatchKey)  (in libtorch_cpu.dylib) + 140  [0x10efedf40]
+      +         !   : | + !       1 c10::toBackendComponent(c10::DispatchKey)  (in libtorch_cpu.dylib) + 56  [0x10efedfa4]
+      +         !   : | + 1 c10::impl::OperatorEntry::updateDispatchTable_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 180  [0x10f18c408]
+      +         !   : | + ! 1 c10::DispatchKeySet::iterator::operator*() const  (in libtorch_cpu.dylib) + 72  [0x10f18a128]
+      +         !   : | + !   1 c10::toRuntimePerBackendFunctionalityKey(c10::DispatchKey, c10::BackendComponent)  (in libtorch_cpu.dylib) + 68  [0x10ef96c40]
+      +         !   : | + 1 c10::impl::OperatorEntry::updateDispatchTable_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 20  [0x10f18c368]
+      +         !   : | 1 c10::impl::OperatorEntry::updateDispatchTable_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 316  [0x10f18c490]
+      +         !   : 2 std::__function::__func<c10::Dispatcher::registerDef(c10::FunctionSchema, std::basic_string<char>, std::vector<at::Tag>)::$_0, void ()>::operator()()  (in libtorch_cpu.dylib) + 64  [0x10f186080]
+      +         !   :   2 c10::Dispatcher::deregisterDef_(c10::OperatorHandle const&, c10::OperatorName const&)  (in libtorch_cpu.dylib) + 304  [0x10f1862e8]
+      +         !   :     2 c10::impl::OperatorEntry::deregisterSchema()  (in libtorch_cpu.dylib) + 32  [0x10f18b570]
+      +         !   :       2 std::__optional_destruct_base<c10::impl::AnnotatedSchema, false>::reset[abi:ne190102]()  (in libtorch_cpu.dylib) + 80  [0x10f18b5d4]
+      +         !   :         2 std::vector<c10::Argument>::__destroy_vector::operator()[abi:ne190102]()  (in libtorch_cpu.dylib) + 56  [0x10ef958b4]
+      +         !   :           1 c10::Argument::~Argument()  (in libtorch_cpu.dylib) + 32  [0x10ef9590c]
+      +         !   :           + 1 std::default_delete<c10::AliasInfo>::operator()[abi:ne190102](c10::AliasInfo*) const  (in libtorch_cpu.dylib) + 56  [0x10ef9598c]
+      +         !   :           +   1 <deduplicated_symbol>  (in libtorch_cpu.dylib) + 56  [0x10ef95a68]
+      +         !   :           +     1 free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+      +         !   :           +       1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 1212  [0x19993bfd8]
+      +         !   :           +         1 tiny_free_detach_region  (in libsystem_malloc.dylib) + 304  [0x199942940]
+      +         !   :           +           1 tiny_free_list_remove_ptr  (in libsystem_malloc.dylib) + 156  [0x19993c62c]
+      +         !   :           1 c10::Argument::~Argument()  (in libtorch_cpu.dylib) + 72  [0x10ef95934]
+      +         !   :             1 <deduplicated_symbol>  (in libtorch_cpu.dylib) + 36  [0x10ef93b18]
+      +         !   1 c10::RegistrationHandleRAII::~RegistrationHandleRAII()  (in libtorch_cpu.dylib) + 76  [0x10ef97a5c]
+      +         !     1 free_tiny  (in libsystem_malloc.dylib) + 136  [0x19993b858]
+      +         !       1 _platform_memset  (in libsystem_platform.dylib) + 160  [0x199b71090]
+      +         1 c10::InternedStrings::~InternedStrings()  (in libtorch_cpu.dylib) + 52  [0x10f19dab8]
+      +         ! 1 <deduplicated_symbol>  (in libtorch_cpu.dylib) + 24  [0x10f17d578]
+      +         !   1 <deduplicated_symbol>  (in libtorch_cpu.dylib) + 48  [0x10f17d5c8]
+      +         !     1 free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+      +         !       1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 1012  [0x19993bf10]
+      +         !         1 tiny_free_list_remove_ptr  (in libsystem_malloc.dylib) + 164  [0x19993c634]
+      +         1 torch::Library::~Library()  (in libtorch_cpu.dylib) + 0  [0x10ef9794c]
+      14 start  (in dyld) + 6000  [0x199796b4c]
+        14 dyld4::start(dyld4::KernelArgs*, void*, void*)::$_0::operator()() const  (in dyld) + 236  [0x1997971d8]
+          13 dyld4::prepare(dyld4::APIs&, mach_o::Header const*)  (in dyld) + 3092  [0x199797e00]
+          ! 13 dyld4::APIs::runAllInitializersForMain()  (in dyld) + 392  [0x1997d4a20]
+          !   13 dyld4::Loader::runInitializersBottomUpPlusUpwardLinks(dyld4::RuntimeState&) const  (in dyld) + 716  [0x1997b377c]
+          !     13 dyld4::Loader::runInitializersBottomUpPlusUpwardLinks(dyld4::RuntimeState&) const::$_0::operator()() const  (in dyld) + 180  [0x1997b7bf0]
+          !       13 dyld4::Loader::runInitializersBottomUp(dyld4::RuntimeState&, dyld3::Array<dyld4::Loader const*>&, dyld3::Array<dyld4::Loader const*>&) const  (in dyld) + 212  [0x1997b3400]
+          !         13 dyld4::Loader::runInitializersBottomUp(dyld4::RuntimeState&, dyld3::Array<dyld4::Loader const*>&, dyld3::Array<dyld4::Loader const*>&) const  (in dyld) + 212  [0x1997b3400]
+          !           13 dyld4::Loader::runInitializersBottomUp(dyld4::RuntimeState&, dyld3::Array<dyld4::Loader const*>&, dyld3::Array<dyld4::Loader const*>&) const  (in dyld) + 308  [0x1997b3460]
+          !             13 dyld4::JustInTimeLoader::runInitializers(dyld4::RuntimeState&) const  (in dyld) + 36  [0x1997ba670]
+          !               13 dyld4::Loader::findAndRunAllInitializers(dyld4::RuntimeState&) const  (in dyld) + 176  [0x1997b2cb4]
+          !                 13 dyld3::MachOAnalyzer::forEachInitializer(Diagnostics&, dyld3::MachOAnalyzer::VMAddrConverter const&, void (unsigned int) block_pointer, void const*) const  (in dyld) + 516  [0x1997ef36c]
+          !                   13 mach_o::Header::forEachSection(void (mach_o::Header::SectionInfo const&, bool&) block_pointer) const  (in dyld) + 124  [0x19980da98]
+          !                     13 mach_o::Header::forEachLoadCommand(void (load_command const*, bool&) block_pointer) const  (in dyld) + 208  [0x19980c358]
+          !                       13 invocation function for block in mach_o::Header::forEachSection(void (mach_o::Header::SectionInfo const&, bool&) block_pointer) const  (in dyld) + 240  [0x19980f5cc]
+          !                         13 invocation function for block in dyld3::MachOAnalyzer::forEachInitializer(Diagnostics&, dyld3::MachOAnalyzer::VMAddrConverter const&, void (unsigned int) block_pointer, void const*) const  (in dyld) + 324  [0x1997ef89c]
+          !                           13 invocation function for block in dyld4::Loader::findAndRunAllInitializers(dyld4::RuntimeState&) const  (in dyld) + 444  [0x1997b2efc]
+          !                             2 _GLOBAL__sub_I_ADInplaceOrViewType_0.cpp  (in libtorch_cpu.dylib) + 68  [0x1117a6700]
+          !                             : 2 torch::detail::TorchLibraryInit::TorchLibraryInit(torch::Library::Kind, void (*)(torch::Library&), char const*, std::optional<c10::DispatchKey>, char const*, unsigned int)  (in libtorch_cpu.dylib) + 112  [0x10ef97904]
+          !                             :   1 torch::(anonymous namespace)::TORCH_LIBRARY_IMPL_init_aten_ADInplaceOrView_2(torch::Library&)  (in libtorch_cpu.dylib) + 11180  [0x11174ee1c]
+          !                             :   | 1 torch::Library::_impl(char const*, torch::CppFunction&&, torch::_RegisterOrVerify) &  (in libtorch_cpu.dylib) + 72  [0x10f1b1e9c]
+          !                             :   |   1 torch::Library::_parseNameForLib(char const*) const  (in libtorch_cpu.dylib) + 48  [0x10f1b16f8]
+          !                             :   |     1 torch::jit::parseName(std::basic_string<char> const&)  (in libtorch_cpu.dylib) + 48  [0x10f1d87d4]
+          !                             :   |       1 torch::jit::parseSchemaOrName(std::basic_string<char> const&, bool)  (in libtorch_cpu.dylib) + 2384  [0x10f1d2614]
+          !                             :   |         1 torch::jit::Source::~Source()  (in libtorch_cpu.dylib) + 104  [0x10f1d1380]
+          !                             :   |           1 _szone_free  (in libsystem_malloc.dylib) + 20  [0x19994f08c]
+          !                             :   1 torch::(anonymous namespace)::TORCH_LIBRARY_IMPL_init_aten_ADInplaceOrView_2(torch::Library&)  (in libtorch_cpu.dylib) + 55468  [0x111759b1c]
+          !                             :     1 torch::Library::_impl(char const*, torch::CppFunction&&, torch::_RegisterOrVerify) &  (in libtorch_cpu.dylib) + 432  [0x10f1b2004]
+          !                             :       1 c10::Dispatcher::registerImpl(c10::OperatorName, std::optional<c10::DispatchKey>, c10::KernelFunction, std::optional<c10::impl::CppSignature>, std::unique_ptr<c10::FunctionSchema>, std::basic_string<char>)  (in libtorch_cpu.dylib) + 192  [0x10f187618]
+          !                             :         1 c10::impl::OperatorEntry::registerKernel(c10::Dispatcher const&, std::optional<c10::DispatchKey>, c10::KernelFunction, std::optional<c10::impl::CppSignature>, std::unique_ptr<c10::FunctionSchema>, std::basic_string<char>)  (in libtorch_cpu.dylib) + 280  [0x10f18b720]
+          !                             :           1 c10::impl::(anonymous namespace)::checkSchema(c10::OperatorName const&, c10::FunctionSchema const&, std::basic_string<char> const&, c10::KernelFunction const&, c10::FunctionSchema const&, std::basic_string<char> const&)  (in libtorch_cpu.dylib) + 68  [0x10f18ab98]
+          !                             :             1 c10::FunctionSchema::cloneWithRealTypes(bool) const  (in libtorch_cpu.dylib) + 596  [0x10f197848]
+          !                             :               1 c10::Argument::cloneWithType(c10::Type::SingletonOrSharedTypePtr<c10::Type> const&) const  (in libtorch_cpu.dylib) + 112  [0x10f197bec]
+          !                             :                 1 std::__optional_destruct_base<c10::AliasInfo, false>::__optional_destruct_base[abi:ne190102]<c10::AliasInfo&>(std::in_place_t, c10::AliasInfo&)  (in libtorch_cpu.dylib) + 36  [0x10f197e9c]
+          !                             :                   1 std::unordered_set<c10::Symbol>::unordered_set(std::unordered_set<c10::Symbol> const&)  (in libtorch_cpu.dylib) + 68  [0x10f15e8bc]
+          !                             :                     1 std::__hash_table<c10::Symbol>::__emplace_unique_key_args<c10::Symbol, c10::Symbol const&>(c10::Symbol const&, c10::Symbol const&)  (in libtorch_cpu.dylib) + 208  [0x10f15e9bc]
+          !                             :                       1 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x199af13e0]
+          !                             :                         1 szone_malloc_should_clear  (in libsystem_malloc.dylib) + 280  [0x199937cac]
+          !                             2 _GLOBAL__sub_I_ADInplaceOrViewType_1.cpp  (in libtorch_cpu.dylib) + 68  [0x11180640c]
+          !                             : 2 torch::detail::TorchLibraryInit::TorchLibraryInit(torch::Library::Kind, void (*)(torch::Library&), char const*, std::optional<c10::DispatchKey>, char const*, unsigned int)  (in libtorch_cpu.dylib) + 112  [0x10ef97904]
+          !                             :   1 torch::(anonymous namespace)::TORCH_LIBRARY_IMPL_init_aten_ADInplaceOrView_2(torch::Library&)  (in libtorch_cpu.dylib) + 31156  [0x1117ae0d4]
+          !                             :   | 1 torch::Library::_impl(char const*, torch::CppFunction&&, torch::_RegisterOrVerify) &  (in libtorch_cpu.dylib) + 432  [0x10f1b2004]
+          !                             :   |   1 c10::Dispatcher::registerImpl(c10::OperatorName, std::optional<c10::DispatchKey>, c10::KernelFunction, std::optional<c10::impl::CppSignature>, std::unique_ptr<c10::FunctionSchema>, std::basic_string<char>)  (in libtorch_cpu.dylib) + 192  [0x10f187618]
+          !                             :   |     1 c10::impl::OperatorEntry::registerKernel(c10::Dispatcher const&, std::optional<c10::DispatchKey>, c10::KernelFunction, std::optional<c10::impl::CppSignature>, std::unique_ptr<c10::FunctionSchema>, std::basic_string<char>)  (in libtorch_cpu.dylib) + 280  [0x10f18b720]
+          !                             :   |       1 c10::impl::(anonymous namespace)::checkSchema(c10::OperatorName const&, c10::FunctionSchema const&, std::basic_string<char> const&, c10::KernelFunction const&, c10::FunctionSchema const&, std::basic_string<char> const&)  (in libtorch_cpu.dylib) + 216  [0x10f18ac2c]
+          !                             :   |         1 std::vector<c10::Argument>::__destroy_vector::operator()[abi:ne190102]()  (in libtorch_cpu.dylib) + 56  [0x10ef958b4]
+          !                             :   |           1 <deduplicated_symbol>  (in libtorch_cpu.dylib) + 72  [0x10ef93b3c]
+          !                             :   1 torch::(anonymous namespace)::TORCH_LIBRARY_IMPL_init_aten_ADInplaceOrView_2(torch::Library&)  (in libtorch_cpu.dylib) + 69484  [0x1117b768c]
+          !                             :     1 torch::Library::_impl(char const*, torch::CppFunction&&, torch::_RegisterOrVerify) &  (in libtorch_cpu.dylib) + 432  [0x10f1b2004]
+          !                             :       1 c10::Dispatcher::registerImpl(c10::OperatorName, std::optional<c10::DispatchKey>, c10::KernelFunction, std::optional<c10::impl::CppSignature>, std::unique_ptr<c10::FunctionSchema>, std::basic_string<char>)  (in libtorch_cpu.dylib) + 192  [0x10f187618]
+          !                             :         1 c10::impl::OperatorEntry::registerKernel(c10::Dispatcher const&, std::optional<c10::DispatchKey>, c10::KernelFunction, std::optional<c10::impl::CppSignature>, std::unique_ptr<c10::FunctionSchema>, std::basic_string<char>)  (in libtorch_cpu.dylib) + 280  [0x10f18b720]
+          !                             :           1 c10::impl::(anonymous namespace)::checkSchema(c10::OperatorName const&, c10::FunctionSchema const&, std::basic_string<char> const&, c10::KernelFunction const&, c10::FunctionSchema const&, std::basic_string<char> const&)  (in libtorch_cpu.dylib) + 68  [0x10f18ab98]
+          !                             :             1 c10::FunctionSchema::cloneWithRealTypes(bool) const  (in libtorch_cpu.dylib) + 596  [0x10f197848]
+          !                             :               1 c10::Argument::cloneWithType(c10::Type::SingletonOrSharedTypePtr<c10::Type> const&) const  (in libtorch_cpu.dylib) + 156  [0x10f197c18]
+          !                             :                 1 c10::Argument::Argument(std::basic_string<char>, c10::Type::SingletonOrSharedTypePtr<c10::Type> const&, std::optional<int>, std::optional<c10::IValue>, bool, std::optional<c10::AliasInfo>)  (in libtorch_cpu.dylib) + 276  [0x10f197da0]
+          !                             :                   1 c10::Argument::Argument(std::basic_string<char>, c10::Type::SingletonOrSharedTypePtr<c10::Type>, c10::Type::SingletonOrSharedTypePtr<c10::Type>, std::optional<int>, std::optional<c10::IValue>, bool, std::optional<c10::AliasInfo>)  (in libtorch_cpu.dylib) + 236  [0x10f180468]
+          !                             :                     1 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x199af13e0]
+          !                             :                       1 szone_malloc_should_clear  (in libsystem_malloc.dylib) + 84  [0x199937be8]
+          !                             :                         1 tiny_malloc_from_free_list  (in libsystem_malloc.dylib) + 1876  [0x199939c78]
+          !                             2 _GLOBAL__sub_I_MPSFallback.mm  (in libtorch_cpu.dylib) + 76  [0x11222d408]
+          !                             : 2 torch::detail::TorchLibraryInit::TorchLibraryInit(torch::Library::Kind, void (*)(torch::Library&), char const*, std::optional<c10::DispatchKey>, char const*, unsigned int)  (in libtorch_cpu.dylib) + 112  [0x10ef97904]
+          !                             :   2 at::TORCH_LIBRARY_IMPL_init___MPS_2(torch::Library&)  (in libtorch_cpu.dylib) + 120  [0x11222c22c]
+          !                             :     2 torch::Library::fallback<torch::CppFunction>(torch::CppFunction&&) &  (in libtorch_cpu.dylib) + 88  [0x10ef95724]
+          !                             :       2 torch::Library::_fallback(torch::CppFunction&&) &  (in libtorch_cpu.dylib) + 1108  [0x10f1b2ad8]
+          !                             :         2 c10::Dispatcher::registerFallback(c10::DispatchKey, c10::KernelFunction, std::basic_string<char>)  (in libtorch_cpu.dylib) + 372  [0x10f188568]
+          !                             :           1 c10::impl::OperatorEntry::updateDispatchTable_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 196  [0x10f18c418]
+          !                             :           | 1 c10::impl::OperatorEntry::updateDispatchTableEntry_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 80  [0x1125c4b74]
+          !                             :           |   1 c10::impl::OperatorEntry::computeDispatchTableEntryWithDebug(c10::Dispatcher const&, c10::DispatchKey) const  (in libtorch_cpu.dylib) + 80  [0x10f18de74]
+          !                             :           |     1 c10::runtimeDispatchKeySetHas(c10::DispatchKey, c10::DispatchKey)  (in libc10.dylib) + 104  [0x104975b9c]
+          !                             :           |       1 c10::DispatchKeySet::DispatchKeySet(c10::DispatchKey)  (in libc10.dylib) + 116  [0x104976404]
+          !                             :           1 c10::impl::OperatorEntry::updateDispatchTable_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 392  [0x10f18c4dc]
+          !                             :             1 c10::impl::OperatorEntry::updateDispatchTableEntry_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 80  [0x1125c4b74]
+          !                             :               1 c10::impl::OperatorEntry::computeDispatchTableEntryWithDebug(c10::Dispatcher const&, c10::DispatchKey) const  (in libtorch_cpu.dylib) + 80  [0x10f18de74]
+          !                             :                 1 c10::runtimeDispatchKeySetHas(c10::DispatchKey, c10::DispatchKey)  (in libc10.dylib) + 104  [0x104975b9c]
+          !                             :                   1 c10::DispatchKeySet::DispatchKeySet(c10::DispatchKey)  (in libc10.dylib) + 160  [0x104976430]
+          !                             2 _GLOBAL__sub_I_TraceType_4.cpp  (in libtorch_cpu.dylib) + 68  [0x11174c250]
+          !                             : 2 torch::detail::TorchLibraryInit::TorchLibraryInit(torch::Library::Kind, void (*)(torch::Library&), char const*, std::optional<c10::DispatchKey>, char const*, unsigned int)  (in libtorch_cpu.dylib) + 112  [0x10ef97904]
+          !                             :   1 torch::(anonymous namespace)::TORCH_LIBRARY_IMPL_init_aten_Tracer_2(torch::Library&)  (in libtorch_cpu.dylib) + 5060  [0x1116c1028]
+          !                             :   | 1 torch::Library::_impl(char const*, torch::CppFunction&&, torch::_RegisterOrVerify) &  (in libtorch_cpu.dylib) + 72  [0x10f1b1e9c]
+          !                             :   |   1 torch::Library::_parseNameForLib(char const*) const  (in libtorch_cpu.dylib) + 48  [0x10f1b16f8]
+          !                             :   |     1 torch::jit::parseName(std::basic_string<char> const&)  (in libtorch_cpu.dylib) + 48  [0x10f1d87d4]
+          !                             :   |       1 torch::jit::parseSchemaOrName(std::basic_string<char> const&, bool)  (in libtorch_cpu.dylib) + 392  [0x10f1d1e4c]
+          !                             :   |         1 std::allocate_shared[abi:ne190102]<torch::jit::Source, std::basic_string_view<char>, std::nullopt_t const&, int, std::nullptr_t, torch::jit::Source::CopiesString, 0>(std::allocator<torch::jit::Source> const&, std::basic_string_view<char>&&, std::nullopt_t const&, int&&, std::nullptr_t&&, torch::jit::Source::CopiesString&&)  (in libtorch_cpu.dylib) + 84  [0x10f1d293c]
+          !                             :   |           1 std::__shared_ptr_emplace<torch::jit::Source>::__shared_ptr_emplace[abi:ne190102]<std::basic_string_view<char>, std::nullopt_t const&, int, std::nullptr_t, torch::jit::Source::CopiesString, 0>(std::allocator<torch::jit::Source>, std::basic_string_view<char>&&, std::nullopt_t const&, int&&, std::nullptr_t&&, torch::jit::Source::CopiesString&&)  (in libtorch_cpu.dylib) + 72  [0x10f1d29b8]
+          !                             :   |             1 std::allocator<torch::jit::Source>::construct[abi:ne190102]<torch::jit::Source, std::basic_string_view<char>, std::nullopt_t const&, int, std::nullptr_t, torch::jit::Source::CopiesString>(torch::jit::Source*, std::basic_string_view<char>&&, std::nullopt_t const&, int&&, std::nullptr_t&&, torch::jit::Source::CopiesString&&)  (in libtorch_cpu.dylib) + 56  [0x10f1d2a18]
+          !                             :   |               1 torch::jit::Source::Source(std::basic_string_view<char>, std::optional<std::basic_string<char>>, unsigned long, std::shared_ptr<torch::jit::SourceRangeUnpickler>, torch::jit::Source::CopiesString)  (in libtorch_cpu.dylib) + 144  [0x10f1d0d40]
+          !                             :   |                 1 torch::jit::Source::calc_line_start_offsets()  (in libtorch_cpu.dylib) + 220  [0x10f1d10b8]
+          !                             :   |                   1 torch::jit::StringCordView::find(std::basic_string<char> const&, unsigned long) const  (in libtorch_cpu.dylib) + 276  [0x10f1e3fb0]
+          !                             :   |                     1 decltype(auto) std::__variant_detail::__visitation::__base::__dispatcher<0ul, 0ul>::__dispatch[abi:ne190102]<std::__variant_detail::__visitation::__variant::__value_visitor<std::__convert_to_bool<std::not_equal_to<void>>>&&, std::__variant_detail::__base<(std::__variant_detail::_Trait)0, torch::jit::StringCordView::Iterator::FastRepr, torch::jit::StringCordView::IteratorImpl> const&, std::__variant_detail::__base<(std::__variant_detail::_Trait)0, torch::jit::StringCordView::Iterator::FastRepr, torch::jit::StringCordView::IteratorImpl> const&>(std::__variant_detail::__visitation::__variant::__value_visitor<std::__convert_to_bool<std::not_equal_to<void>>>&&, std::__variant_detail::__base<(std::__variant_detail::_Trait)0, torch::jit::StringCordView::Iterator::FastRepr, torch::jit::StringCordView::IteratorImpl> const&, std::__variant_detail::__base<(std::__variant_detail::_Trait)0, torch::jit::StringCordView::Iterator::FastRepr, torch::jit::StringCordView::IteratorImpl> const&)  (in libtorch_cpu.dylib) + 4  [0x10f1e419c]
+          !                             :   1 torch::(anonymous namespace)::TORCH_LIBRARY_IMPL_init_aten_Tracer_2(torch::Library&)  (in libtorch_cpu.dylib) + 45972  [0x1116caff8]
+          !                             :     1 torch::Library::_impl(char const*, torch::CppFunction&&, torch::_RegisterOrVerify) &  (in libtorch_cpu.dylib) + 432  [0x10f1b2004]
+          !                             :       1 c10::Dispatcher::registerImpl(c10::OperatorName, std::optional<c10::DispatchKey>, c10::KernelFunction, std::optional<c10::impl::CppSignature>, std::unique_ptr<c10::FunctionSchema>, std::basic_string<char>)  (in libtorch_cpu.dylib) + 192  [0x10f187618]
+          !                             :         1 c10::impl::OperatorEntry::registerKernel(c10::Dispatcher const&, std::optional<c10::DispatchKey>, c10::KernelFunction, std::optional<c10::impl::CppSignature>, std::unique_ptr<c10::FunctionSchema>, std::basic_string<char>)  (in libtorch_cpu.dylib) + 280  [0x10f18b720]
+          !                             :           1 c10::impl::(anonymous namespace)::checkSchema(c10::OperatorName const&, c10::FunctionSchema const&, std::basic_string<char> const&, c10::KernelFunction const&, c10::FunctionSchema const&, std::basic_string<char> const&)  (in libtorch_cpu.dylib) + 84  [0x10f18aba8]
+          !                             :             1 c10::FunctionSchema::cloneWithRealTypes(bool) const  (in libtorch_cpu.dylib) + 364  [0x10f197760]
+          !                             :               1 c10::Argument::cloneWithType(c10::Type::SingletonOrSharedTypePtr<c10::Type> const&) const  (in libtorch_cpu.dylib) + 156  [0x10f197c18]
+          !                             :                 1 c10::Argument::Argument(std::basic_string<char>, c10::Type::SingletonOrSharedTypePtr<c10::Type>, c10::Type::SingletonOrSharedTypePtr<c10::Type>, std::optional<int>, std::optional<c10::IValue>, bool, std::optional<c10::AliasInfo>)  (in libtorch_cpu.dylib) + 336  [0x10f1804cc]
+          !                             1 _GLOBAL__sub_I_TraceTypeManual.cpp  (in libtorch_cpu.dylib) + 160  [0x11202c680]
+          !                             : 1 torch::detail::TorchLibraryInit::TorchLibraryInit(torch::Library::Kind, void (*)(torch::Library&), char const*, std::optional<c10::DispatchKey>, char const*, unsigned int)  (in libtorch_cpu.dylib) + 112  [0x10ef97904]
+          !                             :   1 torch::jit::TORCH_LIBRARY_IMPL_init___Tracer_2(torch::Library&)  (in libtorch_cpu.dylib) + 64  [0x11202add0]
+          !                             :     1 torch::Library::fallback<torch::CppFunction>(torch::CppFunction&&) &  (in libtorch_cpu.dylib) + 88  [0x10ef95724]
+          !                             :       1 torch::Library::_fallback(torch::CppFunction&&) &  (in libtorch_cpu.dylib) + 1108  [0x10f1b2ad8]
+          !                             :         1 c10::Dispatcher::registerFallback(c10::DispatchKey, c10::KernelFunction, std::basic_string<char>)  (in libtorch_cpu.dylib) + 372  [0x10f188568]
+          !                             :           1 c10::impl::OperatorEntry::updateDispatchTable_(c10::Dispatcher const&, c10::DispatchKey)  (in libtorch_cpu.dylib) + 216  [0x10f18c42c]
+          !                             1 _GLOBAL__sub_I_TraceType_3.cpp  (in libtorch_cpu.dylib) + 68  [0x1116bfc44]
+          !                             : 1 torch::detail::TorchLibraryInit::TorchLibraryInit(torch::Library::Kind, void (*)(torch::Library&), char const*, std::optional<c10::DispatchKey>, char const*, unsigned int)  (in libtorch_cpu.dylib) + 112  [0x10ef97904]
+          !                             :   1 torch::(anonymous namespace)::TORCH_LIBRARY_IMPL_init_aten_Tracer_2(torch::Library&)  (in libtorch_cpu.dylib) + 39164  [0x11162ddb8]
+          !                             :     1 torch::Library::_impl(char const*, torch::CppFunction&&, torch::_RegisterOrVerify) &  (in libtorch_cpu.dylib) + 72  [0x10f1b1e9c]
+          !                             :       1 torch::Library::_parseNameForLib(char const*) const  (in libtorch_cpu.dylib) + 48  [0x10f1b16f8]
+          !                             :         1 torch::jit::parseName(std::basic_string<char> const&)  (in libtorch_cpu.dylib) + 48  [0x10f1d87d4]
+          !                             :           1 torch::jit::parseSchemaOrName(std::basic_string<char> const&, bool)  (in libtorch_cpu.dylib) + 2344  [0x10f1d25ec]
+          !                             :             1 free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+          !                             :               1 tiny_free_no_lock  (in libsystem_malloc.dylib) + 708  [0x19993bde0]
+          !                             1 _GLOBAL__sub_I_codegen.cpp  (in libtorch_cpu.dylib) + 28  [0x111d27eb0]
+          !                             : 1 torch::jit::tensorexpr::ExtCallMemoryReuse::makeExtCallFuncNameMap()  (in libtorch_cpu.dylib) + 68  [0x111d212a8]
+          !                             :   1 std::pair<std::basic_string<char> const, std::basic_string<char>>::pair[abi:ne190102]<char const (&) [29], char const (&) [33], 0>(char const (&) [29], char const (&) [33])  (in libtorch_cpu.dylib) + 24  [0x111d214e8]
+          !                             :     1 std::basic_string<char>::basic_string[abi:ne190102]<0>(char const*)  (in libtorch_cpu.dylib) + 36  [0x10ef93990]
+          !                             :       1 _platform_strlen  (in libsystem_platform.dylib) + 64  [0x199b6ea80]
+          !                             1 _GLOBAL__sub_I_register_prim_ops.cpp  (in libtorch_cpu.dylib) + 260  [0x111f73360]
+          !                             : 1 torch::jit::registerOperator(torch::jit::Operator&&)  (in libtorch_cpu.dylib) + 48  [0x111beb308]
+          !                             :   1 torch::jit::Operator::schema() const  (in libtorch_cpu.dylib) + 60  [0x111a475b4]
+          !                             :     1 torch::jit::Operator::schema() const::'lambda'(torch::jit::Operator::JitOnlyOperator const&)::operator()(torch::jit::Operator::JitOnlyOperator const&) const  (in libtorch_cpu.dylib) + 48  [0x111a47604]
+          !                             :       1 torch::jit::parseSchema(std::basic_string<char> const&, bool)  (in libtorch_cpu.dylib) + 44  [0x10f1d86c4]
+          !                             :         1 torch::jit::parseSchemaOrName(std::basic_string<char> const&, bool)  (in libtorch_cpu.dylib) + 1460  [0x10f1d2278]
+          !                             :           1 torch::jit::(anonymous namespace)::SchemaParser::parseList(int, int, int, c10::function_ref<void ()>)  (in libtorch_cpu.dylib) + 184  [0x10f1d4730]
+          !                             :             1 c10::function_ref<void ()>::callback_fn<torch::jit::(anonymous namespace)::SchemaParser::parseDeclaration()::'lambda'()>(long)  (in libtorch_cpu.dylib) + 136  [0x10f1d548c]
+          !                             :               1 torch::jit::(anonymous namespace)::SchemaParser::parseArgument(unsigned long, bool, bool)  (in libtorch_cpu.dylib) + 60  [0x10f1d481c]
+          !                             :                 1 torch::jit::SchemaTypeParser::parseFakeAndRealType()  (in libtorch_cpu.dylib) + 2264  [0x10f1e1a9c]
+          !                             :                   1 torch::jit::Lexer::next()  (in libtorch_cpu.dylib) + 204  [0x10f1d5828]
+          !                             :                     1 <deduplicated_symbol>  (in libtorch_cpu.dylib) + 16  [0x10ef93b04]
+          !                             1 _GLOBAL__sub_I_register_special_ops.cpp  (in libtorch_cpu.dylib) + 3560  [0x111f85a60]
+          !                               1 torch::jit::registerOperator(torch::jit::Operator&&)  (in libtorch_cpu.dylib) + 48  [0x111beb308]
+          !                                 1 torch::jit::Operator::schema() const  (in libtorch_cpu.dylib) + 60  [0x111a475b4]
+          !                                   1 torch::jit::Operator::schema() const::'lambda'(torch::jit::Operator::JitOnlyOperator const&)::operator()(torch::jit::Operator::JitOnlyOperator const&) const  (in libtorch_cpu.dylib) + 48  [0x111a47604]
+          !                                     1 torch::jit::parseSchema(std::basic_string<char> const&, bool)  (in libtorch_cpu.dylib) + 44  [0x10f1d86c4]
+          !                                       1 torch::jit::parseSchemaOrName(std::basic_string<char> const&, bool)  (in libtorch_cpu.dylib) + 1740  [0x10f1d2390]
+          !                                         1 torch::jit::(anonymous namespace)::SchemaParser::parseArgument(unsigned long, bool, bool)  (in libtorch_cpu.dylib) + 60  [0x10f1d481c]
+          !                                           1 torch::jit::SchemaTypeParser::parseFakeAndRealType()  (in libtorch_cpu.dylib) + 1096  [0x10f1e160c]
+          !                                             1 torch::jit::Lexer::next()  (in libtorch_cpu.dylib) + 240  [0x10f1d584c]
+          !                                               1 torch::jit::Lexer::lex()  (in libtorch_cpu.dylib) + 44  [0x10f1d2fb8]
+          !                                                 1 torch::jit::Lexer::lexRaw(bool)  (in libtorch_cpu.dylib) + 240  [0x10f1d2d74]
+          !                                                   1 torch::jit::SharedParserData::match(torch::jit::StringCordView::Iterator, bool, bool, int*, torch::jit::StringCordView::Iterator*, torch::jit::StringCordView::Iterator*)  (in libtorch_cpu.dylib) + 84  [0x10f1d33d4]
+          !                                                     1 torch::jit::StringCordView::Iterator::has_next() const  (in libtorch_cpu.dylib) + 0  [0x10f1d3adc]
+          1 dyld4::prepare(dyld4::APIs&, mach_o::Header const*)  (in dyld) + 3168  [0x199797e4c]
+            1 dyld4::ExternallyViewableState::setDyldState(unsigned char)  (in dyld) + 120  [0x1997dad0c]
+              1 dyld4::ExternallyViewableState::generateAtlas(lsl::Allocator&)  (in dyld) + 376  [0x1997dafb8]
+                1 dyld4::ExternallyViewableState::atlasAddImage(PropertyList::Dictionary&, unsigned long long, char const*)  (in dyld) + 356  [0x1997dc470]
+                  1 mach_o::Header::forEachSegment(void (mach_o::Header::SegmentInfo const&, bool&) block_pointer) const  (in dyld) + 124  [0x19980f214]
+                    1 mach_o::Header::forEachLoadCommand(void (load_command const*, bool&) block_pointer) const  (in dyld) + 208  [0x19980c358]
+                      1 invocation function for block in mach_o::Header::forEachSegment(void (mach_o::Header::SegmentInfo const&, bool&) block_pointer) const  (in dyld) + 248  [0x19980f4b0]
+                        1 invocation function for block in dyld4::ExternallyViewableState::atlasAddImage(PropertyList::Dictionary&, unsigned long long, char const*)  (in dyld) + 168  [0x1997dd1c8]
+                          1 PropertyList::Dictionary::addObjectForKey<PropertyList::String, std::basic_string_view<char> const&>(std::basic_string_view<char>, std::basic_string_view<char> const&)  (in dyld) + 104  [0x1997dd2cc]
+                            1 <deduplicated_symbol>  (in dyld) + 80  [0x199798ac8]
+                              1 lsl::Allocator::aligned_alloc(unsigned long long, unsigned long long)  (in dyld) + 160  [0x1997c2d3c]
+                                1 lsl::Allocator::Pool::aligned_alloc(unsigned long long, unsigned long long)  (in dyld) + 188  [0x1997c2f80]
+                                  1 lsl::Allocator::AllocationMetadata::AllocationMetadata(lsl::Allocator::AllocationMetadata*, unsigned long long, unsigned long long, unsigned long long)  (in dyld) + 44  [0x1997c3514]
+
+Total number in stack (recursive counted multiple, when >=5):
+        17       __fcntl  (in libsystem_kernel.dylib) + 0  [0x199af677c]
+        17       fcntl  (in libsystem_kernel.dylib) + 88  [0x199af6750]
+        12       sqlite3_step  (in libsqlite3.dylib) + 932  [0x1a12a1200]
+        12       unixSync  (in libsqlite3.dylib) + 196  [0x1a12c4468]
+        10       free_tiny  (in libsystem_malloc.dylib) + 460  [0x19993b99c]
+        9       sqlite3VdbeHalt  (in libsqlite3.dylib) + 1368  [0x1a1289094]
+        8       _kernelrpc_mach_vm_purgable_control_trap  (in libsystem_kernel.dylib) + 0  [0x199af5a94]
+        8       audit::AuditDBRecorder::log_event(audit::Event const&)  (in sentio_cli) + 2488  [0x1046e08f8]
+        8       mach_vm_purgable_control  (in libsystem_kernel.dylib) + 40  [0x199af94d0]
+        8       sqlite3BtreeCommitPhaseOne  (in libsqlite3.dylib) + 160  [0x1a12b3440]
+        8       sqlite3PagerCommitPhaseOne  (in libsqlite3.dylib) + 380  [0x1a12c3fb0]
+        8       sqlite3VdbeExec  (in libsqlite3.dylib) + 44384  [0x1a12ac844]
+        8       vdbeCommit  (in libsqlite3.dylib) + 1240  [0x1a12b2ed8]
+        6       getAndInitPage  (in libsqlite3.dylib) + 116  [0x1a132dfe0]
+        6       guarded_pwrite_np  (in libsystem_kernel.dylib) + 0  [0x199af9478]
+        6       pagerWalFrames  (in libsqlite3.dylib) + 868  [0x1a131d90c]
+        6       seekAndWrite  (in libsqlite3.dylib) + 496  [0x1a1314ae4]
+        6       sqlite3BtreeCheckpoint  (in libsqlite3.dylib) + 364  [0x1a1397c94]
+        6       sqlite3LockAndPrepare  (in libsqlite3.dylib) + 224  [0x1a1279aec]
+        6       sqlite3Prepare  (in libsqlite3.dylib) + 504  [0x1a1279e70]
+        6       sqlite3RunParser  (in libsqlite3.dylib) + 920  [0x1a127aa00]
+        6       sqlite3WalCheckpoint  (in libsqlite3.dylib) + 4100  [0x1a12d8760]
+        6       sqlite3WalDefaultHook  (in libsqlite3.dylib) + 80  [0x1a12c4b5c]
+        6       sqlite3_step  (in libsqlite3.dylib) + 2188  [0x1a12a16e8]
+        6       sqlite3_wal_checkpoint_v2  (in libsqlite3.dylib) + 708  [0x1a12fefb4]
+        6       tiny_free_list_remove_ptr  (in libsystem_malloc.dylib) + 0  [0x19993c590]
+        6       torch::detail::TorchLibraryInit::TorchLibraryInit(torch::Library::Kind, void (*)(torch::Library&), char const*, std::optional<c10::DispatchKey>, char const*, unsigned int)  (in libtorch_cpu.dylib) + 112  [0x10ef97904]
+        6       unixWrite  (in libsqlite3.dylib) + 176  [0x1a12c42cc]
+        5       getPageNormal  (in libsqlite3.dylib) + 72  [0x1a131f020]
+        5       osSetPosixAdvisoryLock  (in libsqlite3.dylib) + 228  [0x1a1314c9c]
+        5       purgeableCacheFetch  (in libsqlite3.dylib) + 108  [0x1a128d928]
+        5       purgeableCachePagePin  (in libsqlite3.dylib) + 176  [0x1a1396f04]
+        5       purgeableCacheRetainChunk  (in libsqlite3.dylib) + 208  [0x1a128e018]
+        5       snprintf_l  (in libsystem_c.dylib) + 32  [0x1999d3e90]
+        5       std::basic_ostream<char>::operator<<(unsigned int)  (in libc++.1.dylib) + 336  [0x199a706f0]
+
+Sort by top of stack, same collapsed (when >= 5):
+        __fcntl  (in libsystem_kernel.dylib)        24
+        _kernelrpc_mach_vm_purgable_control_trap  (in libsystem_kernel.dylib)        8
+        guarded_pwrite_np  (in libsystem_kernel.dylib)        7
+        tiny_free_list_remove_ptr  (in libsystem_malloc.dylib)        6
+        c10::impl::OperatorEntry::hasKernelForAnyDispatchKey(c10::DispatchKeySet) const  (in libtorch_cpu.dylib)        5
+
+Binary Images:
+       0x104660000 -        0x1046f6f8f +sentio_cli (0) <44450135-5152-38BB-94A9-92B19015DB34> /Users/*/sentio_cli
+       0x104740000 -        0x1047422e7 +libabsl_log_internal_conditions.2508.0.0.dylib (0) <AC72E932-044B-3193-B0F1-04C90665D1BF> /opt/homebrew/*/libabsl_log_internal_conditions.2508.0.0.dylib
+       0x104758000 -        0x104766937 +libcctz.dylib (0) <24E76DBF-C6FA-3876-B22D-D2B4CA0DA722> /opt/homebrew/*/libcctz.dylib
+       0x104780000 -        0x104798877 +libtorch.dylib (0) <1F11FD77-25D1-3BA6-81B0-226D134DC919> /opt/homebrew/*/libtorch.dylib
+       0x1047a4000 -        0x1047b28c7 +libabsl_log_internal_check_op.2508.0.0.dylib (0) <17CF2ED8-6D84-3A84-906A-81215057A090> /opt/homebrew/*/libabsl_log_internal_check_op.2508.0.0.dylib
+       0x1047c0000 -        0x1047ccefb +libabsl_die_if_null.2508.0.0.dylib (0) <5488FC37-7FAA-3765-A689-A22E0ECFF213> /opt/homebrew/*/libabsl_die_if_null.2508.0.0.dylib
+       0x1047dc000 -        0x1047dcf24 +libabsl_log_internal_nullguard.2508.0.0.dylib (0) <5E81BE07-7322-38CC-A4A1-36E9C5018859> /opt/homebrew/*/libabsl_log_internal_nullguard.2508.0.0.dylib
+       0x1047e8000 -        0x1047ebfeb +libabsl_log_internal_structured_proto.2508.0.0.dylib (0) <A19DDFE9-1209-36CF-9FD3-ED9438BE1AFE> /opt/homebrew/*/libabsl_log_internal_structured_proto.2508.0.0.dylib
+       0x104800000 -        0x10480ff4f +libabsl_log_internal_message.2508.0.0.dylib (0) <21469D30-348B-3A26-A969-735861894FB4> /opt/homebrew/*/libabsl_log_internal_message.2508.0.0.dylib
+       0x104828000 -        0x10482e153 +libabsl_examine_stack.2508.0.0.dylib (0) <161A3E4E-4011-33DC-980E-F3398607E33E> /opt/homebrew/*/libabsl_examine_stack.2508.0.0.dylib
+       0x104840000 -        0x104845ac3 +libabsl_log_internal_format.2508.0.0.dylib (0) <78AA0A46-42DC-360C-AA61-B5FBD1FA5FAF> /opt/homebrew/*/libabsl_log_internal_format.2508.0.0.dylib
+       0x104854000 -        0x10485808b +libabsl_flags_private_handle_accessor.2508.0.0.dylib (0) <A414AD0D-A916-361F-ACBB-E9FF0E20E682> /opt/homebrew/*/libabsl_flags_private_handle_accessor.2508.0.0.dylib
+       0x104864000 -        0x10486600f +libabsl_random_internal_platform.2508.0.0.dylib (0) <9F5A83FA-1F7B-3A2B-B8FC-6406DB02CEDC> /opt/homebrew/*/libabsl_random_internal_platform.2508.0.0.dylib
+       0x104870000 -        0x10487b657 +libabsl_log_internal_log_sink_set.2508.0.0.dylib (0) <30BA419E-3D68-3559-8E38-C61A7952BB57> /opt/homebrew/*/libabsl_log_internal_log_sink_set.2508.0.0.dylib
+       0x10488c000 -        0x1048912bb +libabsl_log_sink.2508.0.0.dylib (0) <0C7CE7E8-0097-3564-B2C4-DF3753AF7CA1> /opt/homebrew/*/libabsl_log_sink.2508.0.0.dylib
+       0x1048a0000 -        0x1048a6957 +libabsl_log_entry.2508.0.0.dylib (0) <AA9522DC-331C-3901-AABD-4496C9D23695> /opt/homebrew/*/libabsl_log_entry.2508.0.0.dylib
+       0x1048b4000 -        0x1048b8043 +libabsl_log_internal_proto.2508.0.0.dylib (0) <3EB901EA-3402-36BF-8084-4D392A0943EC> /opt/homebrew/*/libabsl_log_internal_proto.2508.0.0.dylib
+       0x1048c8000 -        0x1048ce627 +libabsl_flags_marshalling.2508.0.0.dylib (0) <D82B5F03-8FC4-3C61-9064-49F1A202EAF1> /opt/homebrew/*/libabsl_flags_marshalling.2508.0.0.dylib
+       0x1048e0000 -        0x1048ea88b +libabsl_flags_config.2508.0.0.dylib (0) <C371B682-9551-3B90-8D57-B70E1D10B5F0> /opt/homebrew/*/libabsl_flags_config.2508.0.0.dylib
+       0x104960000 -        0x1049d8a1f +libc10.dylib (0) <066DD1CF-3300-3C8E-B66A-D12491C30AB5> /opt/homebrew/*/libc10.dylib
+       0x104a54000 -        0x104a60b17 +libabsl_flags_internal.2508.0.0.dylib (0) <FDFEB03F-4809-3F1B-883A-0BCE3DB1D8C5> /opt/homebrew/*/libabsl_flags_internal.2508.0.0.dylib
+       0x104a78000 -        0x104a8077b +libabsl_flags_program_name.2508.0.0.dylib (0) <69EDDD1F-CE8C-32D1-8F97-2579FE9F3AF7> /opt/homebrew/*/libabsl_flags_program_name.2508.0.0.dylib
+       0x104a9c000 -        0x104aade4b +libabsl_flags_reflection.2508.0.0.dylib (0) <29441262-5FAA-32B6-A122-2A7E3DAF7778> /opt/homebrew/*/libabsl_flags_reflection.2508.0.0.dylib
+       0x104ac4000 -        0x104ac7d6f +libabsl_flags_commandlineflag.2508.0.0.dylib (0) <E80DFA9C-310C-3F32-A16B-580720BFD398> /opt/homebrew/*/libabsl_flags_commandlineflag.2508.0.0.dylib
+       0x104ad4000 -        0x104ad509f +libabsl_flags_commandlineflag_internal.2508.0.0.dylib (0) <30E65E43-149D-381A-8522-031982BFBE2A> /opt/homebrew/*/libabsl_flags_commandlineflag_internal.2508.0.0.dylib
+       0x104ae4000 -        0x104ae7b3b +libabsl_log_internal_fnmatch.2508.0.0.dylib (0) <28CB229D-15E9-3FC3-8B66-9A6FC8460148> /opt/homebrew/*/libabsl_log_internal_fnmatch.2508.0.0.dylib
+       0x104afc000 -        0x104b058cb +libabsl_log_initialize.2508.0.0.dylib (0) <9ECB442E-D5FF-3883-9C3D-AD2FC5FBE56F> /opt/homebrew/*/libabsl_log_initialize.2508.0.0.dylib
+       0x104b14000 -        0x104b18cfb +libabsl_log_internal_globals.2508.0.0.dylib (0) <DE0FA34C-98D3-3043-A6BD-C90E409F0C1A> /opt/homebrew/*/libabsl_log_internal_globals.2508.0.0.dylib
+       0x104b2c000 -        0x104b365ab +libabsl_vlog_config_internal.2508.0.0.dylib (0) <B32CC29B-773C-3582-8C62-6129BE3CB41C> /opt/homebrew/*/libabsl_vlog_config_internal.2508.0.0.dylib
+       0x104b48000 -        0x104b51e3f +libabsl_log_globals.2508.0.0.dylib (0) <27889347-6216-3B76-B1A5-3F23AE4F53CF> /opt/homebrew/*/libabsl_log_globals.2508.0.0.dylib
+       0x104b64000 -        0x104b66453 +libabsl_random_internal_randen.2508.0.0.dylib (0) <8BEED95B-4F4A-3D9C-989A-FADBCFEF94C5> /opt/homebrew/*/libabsl_random_internal_randen.2508.0.0.dylib
+       0x104b78000 -        0x104b7a907 +libabsl_city.2508.0.0.dylib (0) <BB447669-27CC-3DCB-B466-F54A3B2AD824> /opt/homebrew/*/libabsl_city.2508.0.0.dylib
+       0x104b84000 -        0x104b92d9f +libabsl_raw_hash_set.2508.0.0.dylib (0) <158BE8EF-8D68-38D8-A9A3-198CB402522A> /opt/homebrew/*/libabsl_raw_hash_set.2508.0.0.dylib
+       0x104ba4000 -        0x104bace9f +libabsl_hashtablez_sampler.2508.0.0.dylib (0) <486CE385-705F-3602-B988-1DD351E0946D> /opt/homebrew/*/libabsl_hashtablez_sampler.2508.0.0.dylib
+       0x104bc0000 -        0x104bc49d3 +libabsl_random_distributions.2508.0.0.dylib (0) <B2788B83-E333-3307-911A-0614A263DDA6> /opt/homebrew/*/libabsl_random_distributions.2508.0.0.dylib
+       0x104bd4000 -        0x104bde5f3 +libabsl_random_seed_sequences.2508.0.0.dylib (0) <9A07C0F7-BE7E-371E-82FA-6555B507E470> /opt/homebrew/*/libabsl_random_seed_sequences.2508.0.0.dylib
+       0x104bec000 -        0x104bf6463 +libabsl_random_internal_entropy_pool.2508.0.0.dylib (0) <AE59AD81-92B9-3053-9B52-CB22939DC4F4> /opt/homebrew/*/libabsl_random_internal_entropy_pool.2508.0.0.dylib
+       0x104c08000 -        0x104c09d73 +libabsl_random_internal_randen_hwaes.2508.0.0.dylib (0) <7F581616-9183-372C-A9A5-5259282B47F1> /opt/homebrew/*/libabsl_random_internal_randen_hwaes.2508.0.0.dylib
+       0x104c1c000 -        0x104c1d7ff +libabsl_random_internal_randen_hwaes_impl.2508.0.0.dylib (0) <E052D982-2C69-3DE8-99DC-4DFFA0A34C53> /opt/homebrew/*/libabsl_random_internal_randen_hwaes_impl.2508.0.0.dylib
+       0x104c2c000 -        0x104c2e98b +libabsl_random_internal_randen_slow.2508.0.0.dylib (0) <FB284BBF-FDDE-3912-87DB-75E7BCBC487D> /opt/homebrew/*/libabsl_random_internal_randen_slow.2508.0.0.dylib
+       0x104c3c000 -        0x104c3fcb7 +libabsl_random_internal_seed_material.2508.0.0.dylib (0) <7F7BC674-93BB-393F-94A0-9F9F11330D50> /opt/homebrew/*/libabsl_random_internal_seed_material.2508.0.0.dylib
+       0x104c50000 -        0x104c51ad3 +libabsl_random_seed_gen_exception.2508.0.0.dylib (0) <81D7E31A-6FF9-3ED1-B86C-80EEB40DE8C8> /opt/homebrew/*/libabsl_random_seed_gen_exception.2508.0.0.dylib
+       0x104c60000 -        0x104c61dbf +libabsl_cordz_functions.2508.0.0.dylib (0) <38256426-310F-3F6B-9AFB-3FD67E1E668A> /opt/homebrew/*/libabsl_cordz_functions.2508.0.0.dylib
+       0x104c70000 -        0x104c70f8b +libabsl_leak_check.2508.0.0.dylib (0) <7D5726B3-65EA-33C7-A327-44D14F972709> /opt/homebrew/*/libabsl_leak_check.2508.0.0.dylib
+       0x104c7c000 -        0x104c89143 +libabsl_statusor.2508.0.0.dylib (0) <11398DBB-E76E-3102-8F79-B6AB367970D0> /opt/homebrew/*/libabsl_statusor.2508.0.0.dylib
+       0x104c98000 -        0x104ca3c7b +libabsl_cordz_info.2508.0.0.dylib (0) <2142A535-3856-34DC-BA95-02D0AD0B2604> /opt/homebrew/*/libabsl_cordz_info.2508.0.0.dylib
+       0x104cbc000 -        0x104ccb067 +libabsl_status.2508.0.0.dylib (0) <A00BFF64-0297-39BC-90D5-4536E063B160> /opt/homebrew/*/libabsl_status.2508.0.0.dylib
+       0x104ce0000 -        0x104ce425f +libabsl_hash.2508.0.0.dylib (0) <396CC863-1910-35DE-8179-C0563CBC8230> /opt/homebrew/*/libabsl_hash.2508.0.0.dylib
+       0x104cf4000 -        0x104cf5867 +libabsl_debugging_internal.2508.0.0.dylib (0) <104813F5-4311-3D22-81E2-B356240EE4FE> /opt/homebrew/*/libabsl_debugging_internal.2508.0.0.dylib
+       0x104d00000 -        0x104d0c5c3 +libabsl_cord_internal.2508.0.0.dylib (0) <586410A2-21EA-37DB-AD7D-07D452574325> /opt/homebrew/*/libabsl_cord_internal.2508.0.0.dylib
+       0x104d24000 -        0x104d26aa7 +libabsl_decode_rust_punycode.2508.0.0.dylib (0) <550E999A-C4B0-3A3C-BB2D-87CCA9602EDA> /opt/homebrew/*/libabsl_decode_rust_punycode.2508.0.0.dylib
+       0x104d34000 -        0x104eacd47 +libprotobuf.32.0.0.dylib (0) <F53E4040-EF0C-3551-B939-282D08C68622> /opt/homebrew/*/libprotobuf.32.0.0.dylib
+       0x105014000 -        0x10502916f +libabsl_cord.2508.0.0.dylib (0) <37F28D43-3288-3F5D-8A74-3B4FD9874C69> /opt/homebrew/*/libabsl_cord.2508.0.0.dylib
+       0x105040000 -        0x10504129f +libabsl_exponential_biased.2508.0.0.dylib (0) <92957C1C-DC8F-3EFC-9FA6-35CA32EEA864> /opt/homebrew/*/libabsl_exponential_biased.2508.0.0.dylib
+       0x105054000 -        0x1050565df +libabsl_crc_cpu_detect.2508.0.0.dylib (0) <DC3DB3B7-0161-3E6E-A33D-39FD85B7A3FD> /opt/homebrew/*/libabsl_crc_cpu_detect.2508.0.0.dylib
+       0x10506c000 -        0x105074a43 +libabsl_cordz_handle.2508.0.0.dylib (0) <532B18AB-E120-35A7-AD30-CA2FF6EF3FCE> /opt/homebrew/*/libabsl_cordz_handle.2508.0.0.dylib
+       0x105088000 -        0x10508e693 +libabsl_crc_cord_state.2508.0.0.dylib (0) <B58176F3-14D3-388A-862B-F89E5C9DE6BE> /opt/homebrew/*/libabsl_crc_cord_state.2508.0.0.dylib
+       0x1050a0000 -        0x1050a5b43 +libabsl_crc32c.2508.0.0.dylib (0) <5DFF5725-73CE-3867-935E-18C093C71E96> /opt/homebrew/*/libabsl_crc32c.2508.0.0.dylib
+       0x1050b8000 -        0x1050b96d3 +libabsl_strerror.2508.0.0.dylib (0) <D3597CF0-493E-3B9F-ABF8-12654E719E43> /opt/homebrew/*/libabsl_strerror.2508.0.0.dylib
+       0x1050cc000 -        0x1050cd03f +libabsl_utf8_for_code_point.2508.0.0.dylib (0) <6C0DA4B7-4017-3B31-A407-3B8EE02D95B6> /opt/homebrew/*/libabsl_utf8_for_code_point.2508.0.0.dylib
+       0x1050d8000 -        0x1050e4b17 +libabsl_crc_internal.2508.0.0.dylib (0) <936E20AD-7875-3EA3-AE63-1AC83473A49D> /opt/homebrew/*/libabsl_crc_internal.2508.0.0.dylib
+       0x1050fc000 -        0x1050ffe93 +libabsl_malloc_internal.2508.0.0.dylib (0) <4C9174EA-9A10-346C-9073-4DFF4C7B8E51> /opt/homebrew/*/libabsl_malloc_internal.2508.0.0.dylib
+       0x105110000 -        0x1051120ef +libabsl_tracing_internal.2508.0.0.dylib (0) <725D60E8-1EED-397C-952D-5030743E6D32> /opt/homebrew/*/libabsl_tracing_internal.2508.0.0.dylib
+       0x105120000 -        0x10512d09f +libabsl_str_format_internal.2508.0.0.dylib (0) <B6544763-D438-300F-8079-3658FCE6C736> /opt/homebrew/*/libabsl_str_format_internal.2508.0.0.dylib
+       0x105144000 -        0x105150bd3 +libabsl_synchronization.2508.0.0.dylib (0) <3F1EC0FC-F53B-3CE3-B07F-BC25A91B9FC4> /opt/homebrew/*/libabsl_synchronization.2508.0.0.dylib
+       0x105168000 -        0x10516bac7 +libabsl_stacktrace.2508.0.0.dylib (0) <7DD02F06-E62D-383C-B3FC-5E6B9D1689DB> /opt/homebrew/*/libabsl_stacktrace.2508.0.0.dylib
+       0x10517c000 -        0x1051818df +libabsl_symbolize.2508.0.0.dylib (0) <9DF565FE-3F6B-3DC0-947D-85CABBC807D8> /opt/homebrew/*/libabsl_symbolize.2508.0.0.dylib
+       0x105190000 -        0x105197f73 +libabsl_demangle_internal.2508.0.0.dylib (0) <C9DD1A8F-8AF1-30DD-8214-FA63E6F90302> /opt/homebrew/*/libabsl_demangle_internal.2508.0.0.dylib
+       0x1051a4000 -        0x1051a85d7 +libabsl_demangle_rust.2508.0.0.dylib (0) <165EE267-D61F-323A-8182-A643FF571ECF> /opt/homebrew/*/libabsl_demangle_rust.2508.0.0.dylib
+       0x1051b8000 -        0x1051bcd03 +libabsl_graphcycles_internal.2508.0.0.dylib (0) <09C47FC6-CC67-376A-A3C5-E52B8953018D> /opt/homebrew/*/libabsl_graphcycles_internal.2508.0.0.dylib
+       0x1051d0000 -        0x1051d503f +libabsl_kernel_timeout_internal.2508.0.0.dylib (0) <95028BE3-BEE5-3335-9DC3-A385E811BEF4> /opt/homebrew/*/libabsl_kernel_timeout_internal.2508.0.0.dylib
+       0x1051e4000 -        0x1051e6453 +libabsl_civil_time.2508.0.0.dylib (0) <035758D0-1851-353A-BAE9-CCF13C3EAB35> /opt/homebrew/*/libabsl_civil_time.2508.0.0.dylib
+       0x1051f4000 -        0x1051f64d8 +libabsl_string_view.2508.0.0.dylib (0) <005A7106-B999-365C-81E0-E66149D68CF9> /opt/homebrew/*/libabsl_string_view.2508.0.0.dylib
+       0x105200000 -        0x10520b317 +libabsl_time.2508.0.0.dylib (0) <C7F8E61D-B2C1-3FC3-BDA9-9E43DDBB1C7C> /opt/homebrew/*/libabsl_time.2508.0.0.dylib
+       0x10521c000 -        0x10521f91b +libabsl_int128.2508.0.0.dylib (0) <C14DBD9A-B829-336B-9CDC-B2EA2FC70D37> /opt/homebrew/*/libabsl_int128.2508.0.0.dylib
+       0x10522c000 -        0x10522ec47 +libabsl_strings_internal.2508.0.0.dylib (0) <A9B0A5BA-5728-322E-9077-1C8E9625F8E0> /opt/homebrew/*/libabsl_strings_internal.2508.0.0.dylib
+       0x105248000 -        0x105255f2f +libabsl_time_zone.2508.0.0.dylib (0) <4DF425FF-DDA4-3DDC-9648-0C246E594BC6> /opt/homebrew/*/libabsl_time_zone.2508.0.0.dylib
+       0x105274000 -        0x105286ebb +libabsl_strings.2508.0.0.dylib (0) <EAA57421-F8CD-32CD-B5C4-355CD5637CD9> /opt/homebrew/*/libabsl_strings.2508.0.0.dylib
+       0x10529c000 -        0x10529d393 +libabsl_spinlock_wait.2508.0.0.dylib (0) <BAE3FE38-8DE3-3B0B-B359-D29B9E77E038> /opt/homebrew/*/libabsl_spinlock_wait.2508.0.0.dylib
+       0x1052b0000 -        0x1052b27f7 +libabsl_base.2508.0.0.dylib (0) <71FEC93D-1297-3592-B2B4-D15B07084F9E> /opt/homebrew/*/libabsl_base.2508.0.0.dylib
+       0x1052c4000 -        0x1052c654b +libabsl_throw_delegate.2508.0.0.dylib (0) <65E978C2-7B9C-3A32-890A-64FDD99AF070> /opt/homebrew/*/libabsl_throw_delegate.2508.0.0.dylib
+       0x1052d4000 -        0x1052d584f +libabsl_log_severity.2508.0.0.dylib (0) <D608D978-9AA3-33BF-889E-368CE5247199> /opt/homebrew/*/libabsl_log_severity.2508.0.0.dylib
+       0x1052e8000 -        0x1052e9a7b +libabsl_raw_logging_internal.2508.0.0.dylib (0) <63FBEFA5-84FF-3887-A2DA-7F87A5AC217F> /opt/homebrew/*/libabsl_raw_logging_internal.2508.0.0.dylib
+       0x1052fc000 -        0x1052ff967 +libutf8_validity.32.0.0.dylib (0) <D32D0763-8D8E-3E6D-B22A-10824EEEC2CC> /opt/homebrew/*/libutf8_validity.32.0.0.dylib
+       0x105334000 -        0x105348097 +libgcc_s.1.1.dylib (0) <3B7DE231-C691-3111-8F50-876107AA7426> /opt/homebrew/*/libgcc_s.1.1.dylib
+       0x1053ac000 -        0x10542ffe3 +libsleef.3.9.0.dylib (0) <1B4B3262-F2CA-328C-B1EE-59F6C9A01A12> /opt/homebrew/*/libsleef.3.9.0.dylib
+       0x10545c000 -        0x10549bf47 +libgomp.1.dylib (0) <27A986F4-22E2-3752-9688-80C72229E3F3> /opt/homebrew/*/libgomp.1.dylib
+       0x105514000 -        0x105588c87 +libomp.dylib (0) <0AA5F253-D951-32EF-AFE9-6E5D396D1947> /opt/homebrew/*/libomp.dylib
+       0x1055d0000 -        0x10560ca27 +libquadmath.0.dylib (0) <6B53EA64-7603-31A4-AA04-C4F290971392> /opt/homebrew/*/libquadmath.0.dylib
+       0x1057e0000 -        0x105963a8f +libgfortran.5.dylib (0) <8B2F792B-2CC1-3513-9451-72805CBD1064> /opt/homebrew/*/libgfortran.5.dylib
+       0x1067d8000 -        0x107a691f7 +libopenblasp-r0.3.30.dylib (0) <A6C8D434-1389-336A-AA30-156B40C3F9C5> /opt/homebrew/*/libopenblasp-r0.3.30.dylib
+       0x10ef78000 -        0x114c063ab +libtorch_cpu.dylib (0) <097E4009-C67A-387C-95F9-3DAE1509FF60> /opt/homebrew/*/libtorch_cpu.dylib
+       0x19973c000 -        0x19978f893  libobjc.A.dylib (940.4) <8CA52E4D-F699-3D14-8061-EEA9D4366538> /usr/lib/libobjc.A.dylib
+       0x199790000 -        0x19982b577  dyld (1.0.0 - 1286.10) <3247E185-CED2-36FF-9E29-47A77C23E004> /usr/lib/dyld
+       0x19982c000 -        0x19982f168  libsystem_blocks.dylib (96) <BA8F0C40-B12D-3D8B-8396-FC3F8A733C27> /usr/lib/system/libsystem_blocks.dylib
+       0x199830000 -        0x19987a8ff  libxpc.dylib (2894.140.12) <1B8951EB-68DB-37BA-9581-240B796AA872> /usr/lib/system/libxpc.dylib
+       0x19987b000 -        0x1998967ff  libsystem_trace.dylib (1643.120.5) <AC8466B8-AF1D-3895-876B-228151F0DF1D> /usr/lib/system/libsystem_trace.dylib
+       0x199897000 -        0x1999353b7  libcorecrypto.dylib (1736.140.2) <7254F3F1-A46F-30B6-934A-511B730A8FC7> /usr/lib/system/libcorecrypto.dylib
+       0x199936000 -        0x19997d06f  libsystem_malloc.dylib (715.140.5) <85947F4E-385D-3B6D-9BF5-844EFE876D53> /usr/lib/system/libsystem_malloc.dylib
+       0x19997e000 -        0x1999c475f  libdispatch.dylib (1521.140.2) <24CE0D89-4114-30C2-A81A-3DB1F5931CFF> /usr/lib/system/libdispatch.dylib
+       0x1999c5000 -        0x1999c7d1b  libsystem_featureflags.dylib (97) <856DB4EF-8C67-3842-970C-6FA814B07749> /usr/lib/system/libsystem_featureflags.dylib
+       0x1999c8000 -        0x199a49243  libsystem_c.dylib (1698.140.3) <DFEA8794-80CE-37C3-8F6A-108AA1D0B1B0> /usr/lib/system/libsystem_c.dylib
+       0x199a4a000 -        0x199ad6ff7  libc++.1.dylib (1900.181) <643ED232-CE19-3F63-8015-0AEE768C002F> /usr/lib/libc++.1.dylib
+       0x199ad7000 -        0x199af4fff  libc++abi.dylib (1900.181) <776A4AFB-71EE-32AB-B2EE-E6FF80818654> /usr/lib/libc++abi.dylib
+       0x199af5000 -        0x199b30653  libsystem_kernel.dylib (11417.140.69) <6E4A96AD-04B8-3E8A-B91D-087E62306246> /usr/lib/system/libsystem_kernel.dylib
+       0x199b31000 -        0x199b3da47  libsystem_pthread.dylib (536) <D6494BA9-171E-39FC-B1AA-28ECF87975D1> /usr/lib/system/libsystem_pthread.dylib
+       0x199b3e000 -        0x199b6dba3  libdyld.dylib (1286.10) <01BCB3F7-AB89-30BD-87EE-91B291EADAE8> /usr/lib/system/libdyld.dylib
+       0x199b6e000 -        0x199b75e0b  libsystem_platform.dylib (349.140.6) <FD19A599-8750-31F9-924F-C2810C938371> /usr/lib/system/libsystem_platform.dylib
+       0x199b76000 -        0x199ba56f7  libsystem_info.dylib (597) <9720B57E-A0DF-3BDD-8149-0801054B5D00> /usr/lib/system/libsystem_info.dylib
+       0x199ba6000 -        0x19a0e4fff  com.apple.CoreFoundation (6.9 - 3603) <8D45BAEE-6CC0-3B89-93FD-EA1C8E15C6D7> /System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation
+       0x19a0e5000 -        0x19a3d713f  com.apple.LaunchServices (1141.1 - 1141.1) <1E58A116-8211-3368-8F5A-5DF00D6F8971> /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/LaunchServices
+       0x19a3d8000 -        0x19a55c57f  com.apple.gpusw.MetalTools (1.0 - 1) <E103DE28-45B8-3C05-AED8-E4074910C914> /System/Library/PrivateFrameworks/MetalTools.framework/Versions/A/MetalTools
+       0x19a55d000 -        0x19abf072f  libBLAS.dylib (1545) <5C972072-BCC3-3AA1-B54F-B535C56734FE> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib
+       0x19abf1000 -        0x19acfd2df  com.apple.Lexicon-framework (1.0 - 173.9) <30FE75B5-1104-3EA2-889F-7E11206A8D1A> /System/Library/PrivateFrameworks/Lexicon.framework/Versions/A/Lexicon
+       0x19acfe000 -        0x19adf9bd7  libSparse.dylib (127.120.9) <D4B61818-B40F-39D7-A2F4-837D2E2382A5> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libSparse.dylib
+       0x19adfa000 -        0x19ae8d87f  com.apple.SystemConfiguration (1.21 - 1.21) <22C01CFC-8196-38E7-B6D6-65AF1C8D5227> /System/Library/Frameworks/SystemConfiguration.framework/Versions/A/SystemConfiguration
+       0x19ae8e000 -        0x19aec2bb7  libCRFSuite.dylib (55) <E02C68C0-C106-3F70-A870-3037766722D2> /usr/lib/libCRFSuite.dylib
+       0x19b197000 -        0x19bf8059f  com.apple.Foundation (6.9 - 3603) <B9A92060-F21E-3ECF-9DED-94A65C68A6F4> /System/Library/Frameworks/Foundation.framework/Versions/C/Foundation
+       0x19c13c000 -        0x19c25c75f  com.apple.CoreDisplay (288 - 288) <AE76A642-22B6-31C9-9EBC-BE4E48DAA0D9> /System/Library/Frameworks/CoreDisplay.framework/Versions/A/CoreDisplay
+       0x19c25d000 -        0x19c61437f  com.apple.audio.AudioToolboxCore (1.0 - 1456.703) <3F69ED5D-9D77-3A65-B8A6-2F631B87A864> /System/Library/PrivateFrameworks/AudioToolboxCore.framework/Versions/A/AudioToolboxCore
+       0x19c615000 -        0x19c833c9f  com.apple.CoreText (844.6.0.4 - 844.6.0.4) <0C195180-47F8-31AC-A951-B00B3C5D4477> /System/Library/Frameworks/CoreText.framework/Versions/A/CoreText
+       0x19c834000 -        0x19cf6539f  com.apple.audio.CoreAudio (5.0 - 5.0) <52C7F0A2-F403-391B-9B0D-CE498EFF4D7E> /System/Library/Frameworks/CoreAudio.framework/Versions/A/CoreAudio
+       0x19cf66000 -        0x19d36f45f  com.apple.security (7.0 - 61439.140.12) <3F615FD7-8463-355F-84A0-6660A238FDBD> /System/Library/Frameworks/Security.framework/Versions/A/Security
+       0x19d370000 -        0x19d63bbeb  libicucore.A.dylib (76104.4) <5F93C461-2895-3D41-8459-560D35F81694> /usr/lib/libicucore.A.dylib
+       0x19d63c000 -        0x19d646387  libsystem_darwin.dylib (1698.140.3) <8E58BBDB-E560-3AB4-8A1D-849AB83CBFC5> /usr/lib/system/libsystem_darwin.dylib
+       0x19d647000 -        0x19d939cbf  com.apple.CoreServices.CarbonCore (1333 - 1333) <18084480-B19D-3142-ADBE-40F2AA328977> /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/CarbonCore.framework/Versions/A/CarbonCore
+       0x19d93a000 -        0x19d97984b  com.apple.CoreServicesInternal (505 - 505) <059EC98D-B718-3028-B844-6CB1590B2E2A> /System/Library/PrivateFrameworks/CoreServicesInternal.framework/Versions/A/CoreServicesInternal
+       0x19d97a000 -        0x19d9ba4df  com.apple.CSStore (1141.1 - 1141.1) <E5453CD6-3EFB-3F00-8E26-94A52D2C9898> /System/Library/PrivateFrameworks/CoreServicesStore.framework/Versions/A/CoreServicesStore
+       0x19d9bb000 -        0x19da9d33f  com.apple.framework.IOKit (2.0.2 - 100150.120.2) <1B056404-8B47-31A9-B1F3-ED0693EE9684> /System/Library/Frameworks/IOKit.framework/Versions/A/IOKit
+       0x19da9e000 -        0x19daaffeb  libsystem_notify.dylib (342) <6A411086-A1A2-349F-B9CA-348F9DCBB415> /usr/lib/system/libsystem_notify.dylib
+       0x19dab0000 -        0x19db0a9ff  libsandbox.1.dylib (2401.140.15) <8A6DC074-3777-3F8A-814D-87578F23BDEB> /usr/lib/libsandbox.1.dylib
+       0x19f14e000 -        0x19f163d1f  com.apple.UniformTypeIdentifiers (709 - 709) <8945E326-399B-3721-9A74-A51665F73A57> /System/Library/Frameworks/UniformTypeIdentifiers.framework/Versions/A/UniformTypeIdentifiers
+       0x19f605000 -        0x19f6d565f  libboringssl.dylib (486.140.6) <1BE1E0DF-67B5-3220-B66D-095F18E35495> /usr/lib/libboringssl.dylib
+       0x19f6d6000 -        0x19f6d63cf  libnetwork.dylib (4277.140.33) <E37CC7D2-5DC0-38DF-AE7E-5DB18C677544> /usr/lib/libnetwork.dylib
+       0x19f6d7000 -        0x19faa0a5f  com.apple.CFNetwork (1.0 - 3826.600.41) <45AD6442-531D-3E9A-967E-B3AA0D01F24F> /System/Library/Frameworks/CFNetwork.framework/Versions/A/CFNetwork
+       0x19faa1000 -        0x19fabbe8f  libsystem_networkextension.dylib (2063.140.6) <8183B684-71EB-3FB1-8378-EB830CADAE7D> /usr/lib/system/libsystem_networkextension.dylib
+       0x19fabc000 -        0x19fabd067  libenergytrace.dylib (23) <2487E659-CD52-3A6B-84D5-7811A4439F36> /usr/lib/libenergytrace.dylib
+       0x19fabe000 -        0x19fb37e5f  libMobileGestalt.dylib (1414.140.6) <234C5EB8-CAC8-3473-9B99-5AA439E7ACF7> /usr/lib/libMobileGestalt.dylib
+       0x19fb38000 -        0x19fb4ffdb  libsystem_asl.dylib (402) <FE29D1E8-D286-33F9-81CB-822E632D1571> /usr/lib/system/libsystem_asl.dylib
+       0x19fb50000 -        0x19fb72113  com.apple.TCC (1.0 - 1) <E5524421-C789-3387-9FDD-DFEA68E1BC95> /System/Library/PrivateFrameworks/TCC.framework/Versions/A/TCC
+       0x19fb73000 -        0x1a009905f  com.apple.SkyLight (1.600.0 - 891.7) <4E052846-80C2-38AF-85BF-1482E070A32B> /System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/SkyLight
+       0x1a009a000 -        0x1a07ca13f  com.apple.CoreGraphics (2.0 - 1889.6.3) <47E7F717-751C-344A-8EF9-3A1358F30C82> /System/Library/Frameworks/CoreGraphics.framework/Versions/A/CoreGraphics
+       0x1a07cb000 -        0x1a0980d97  com.apple.ColorSync (4.13.0 - 3777.4.1) <1B6741D3-11C2-3515-B06B-A76812B15722> /System/Library/Frameworks/ColorSync.framework/Versions/A/ColorSync
+       0x1a0dfb000 -        0x1a1255e3f  com.apple.CoreData (120 - 1448.1) <57715E60-EA5F-3CEF-9D42-304DAC8554EE> /System/Library/Frameworks/CoreData.framework/Versions/A/CoreData
+       0x1a1256000 -        0x1a12700ff  com.apple.ProtocolBuffer (1 - 303.26.4.18.1) <271D62A0-451E-31E3-8945-FDF99C31D2BA> /System/Library/PrivateFrameworks/ProtocolBuffer.framework/Versions/A/ProtocolBuffer
+       0x1a1271000 -        0x1a1425c67  libsqlite3.dylib (360.3) <5F82B5CA-C186-361E-AEB3-38B2FE056EDE> /usr/lib/libsqlite3.dylib
+       0x1a14c2000 -        0x1a15a6a7f  com.apple.BaseBoard (694.5.5 - 694.5.5) <95B09ECC-6E62-3545-BA9B-5E99838C3432> /System/Library/PrivateFrameworks/BaseBoard.framework/Versions/A/BaseBoard
+       0x1a15a7000 -        0x1a160f1ff  com.apple.RunningBoardServices (1.0 - 961.100.17) <11D50C81-655E-3347-95C9-F860406D4DEC> /System/Library/PrivateFrameworks/RunningBoardServices.framework/Versions/A/RunningBoardServices
+       0x1a1610000 -        0x1a1683787  com.apple.AE (944 - 944) <C410F3F4-79C0-3066-92BD-3B8AB89ADE37> /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/AE.framework/Versions/A/AE
+       0x1a1684000 -        0x1a1694247  libdns_services.dylib (2600.140.3) <4CBFDD3C-8E13-341A-8800-996AC749DA1D> /usr/lib/libdns_services.dylib
+       0x1a1695000 -        0x1a169d3a7  libsystem_symptoms.dylib (2022.140.4) <AABA26A2-74BC-3219-BAA3-ACC8D81D8589> /usr/lib/system/libsystem_symptoms.dylib
+       0x1a169e000 -        0x1a2746cdf  com.apple.Network (1.0 - 4277.140.33) <D8C3869A-81C8-3DFB-B2D1-9C24E87075C0> /System/Library/Frameworks/Network.framework/Versions/A/Network
+       0x1a2747000 -        0x1a27772ff  com.apple.analyticsd (1.0 - 1) <6A01B49E-F0AE-3467-97DE-DB27D3082903> /System/Library/PrivateFrameworks/CoreAnalytics.framework/Versions/A/CoreAnalytics
+       0x1a2778000 -        0x1a27798d3  libDiagnosticMessagesClient.dylib (113) <C01F158F-1CF1-38B8-94B2-243FE62D82DF> /usr/lib/libDiagnosticMessagesClient.dylib
+       0x1a277a000 -        0x1a27daeff  com.apple.spotlight.metadata.utilities (1.0 - 2333.57.1) <40AA2EE8-3059-3AAF-82E2-FC466C8BBAFF> /System/Library/PrivateFrameworks/MetadataUtilities.framework/Versions/A/MetadataUtilities
+       0x1a27db000 -        0x1a28651df  com.apple.Metadata (15.6 - 2333.57.1) <3CC474C7-EFFA-3C6C-BB2B-9F9CA08C6B61> /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Metadata
+       0x1a2866000 -        0x1a286e95b  com.apple.DiskArbitration (2.7 - 2.7) <936806C4-7267-3C10-BC06-42EAFB593A11> /System/Library/Frameworks/DiskArbitration.framework/Versions/A/DiskArbitration
+       0x1a286f000 -        0x1a2c7e633  com.apple.vImage (8.1 - 611.140.2) <E00EB66B-7890-31C3-A594-F8F36F608BEE> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vImage.framework/Versions/A/vImage
+       0x1a2c7f000 -        0x1a3052c7f  com.apple.QuartzCore (1.11 - 1156.18) <31921699-8990-3ACE-8D83-16E7BE814C6F> /System/Library/Frameworks/QuartzCore.framework/Versions/A/QuartzCore
+       0x1a3053000 -        0x1a30a4adf  libFontRegistry.dylib (391.6.0.1) <6A18A25C-8E29-38A5-BC96-81C4035CD854> /System/Library/Frameworks/ApplicationServices.framework/Versions/A/Frameworks/ATS.framework/Versions/A/Resources/libFontRegistry.dylib
+       0x1a3339000 -        0x1a3346a7f  com.apple.OpenDirectory (15.6 - 643) <21D9B5E4-5D90-3380-B07A-F4EBF10C2151> /System/Library/Frameworks/OpenDirectory.framework/Versions/A/OpenDirectory
+       0x1a3347000 -        0x1a3365053  com.apple.CFOpenDirectory (15.6 - 643) <2B023818-EF71-3CF5-BF26-8C27B0A807DA> /System/Library/Frameworks/OpenDirectory.framework/Versions/A/Frameworks/CFOpenDirectory.framework/Versions/A/CFOpenDirectory
+       0x1a3366000 -        0x1a337383b  com.apple.CoreServices.FSEvents (1400.100.1 - 1400.100.1) <B39570B0-DBCA-3E28-A650-00E07668AE67> /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/FSEvents
+       0x1a3374000 -        0x1a339d83f  com.apple.coreservices.SharedFileList (225 - 225) <930922F8-7DDF-3A45-ACC9-43ED445E6C10> /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/SharedFileList.framework/Versions/A/SharedFileList
+       0x1a339e000 -        0x1a33a10af  libapp_launch_measurement.dylib (17) <6560472A-BBC1-3712-B74D-B11AA2AB6F57> /usr/lib/libapp_launch_measurement.dylib
+       0x1a33a2000 -        0x1a33eb55f  com.apple.CoreAutoLayout (1.0 - 33) <F4722B74-B54F-32B4-9794-402B2608DA60> /System/Library/PrivateFrameworks/CoreAutoLayout.framework/Versions/A/CoreAutoLayout
+       0x1a33ec000 -        0x1a34d5c9b  libxml2.2.dylib (38.15) <4412586C-E119-3A27-908B-D4466DD26621> /usr/lib/libxml2.2.dylib
+       0x1a34d6000 -        0x1a3536d5f  com.apple.CoreVideo (1.8 - 692.1) <09D2CFD2-78BE-3AB9-BD62-81ADFB485FCC> /System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo
+       0x1a3537000 -        0x1a3539e7f  com.apple.loginsupport (3.0 - 259.5.1) <D4668654-0726-35E5-87E6-F614FD9EC9C0> /System/Library/PrivateFrameworks/login.framework/Versions/A/Frameworks/loginsupport.framework/Versions/A/loginsupport
+       0x1a3577000 -        0x1a35a157f  com.apple.UserManagement (1.0 - 1) <F5EEDB3F-49E3-3CAF-8963-47D8FB9D8633> /System/Library/PrivateFrameworks/UserManagement.framework/Versions/A/UserManagement
+       0x1a4ee2000 -        0x1a4f1238f  libsystem_containermanager.dylib (689.100.6) <24EE4AC1-5C9F-3EE0-8B4E-9D060EBCBD41> /usr/lib/system/libsystem_containermanager.dylib
+       0x1a4f13000 -        0x1a4f2bedf  com.apple.IOSurface (372.5.2 - 372.5.2) <B681DAE8-0089-38F1-98E0-FAC680608E1F> /System/Library/Frameworks/IOSurface.framework/Versions/A/IOSurface
+       0x1a4f2c000 -        0x1a4f35e9f  com.apple.IOAccelerator (485 - 485) <8C396EF6-B4DC-312F-8A1C-4E588832AC53> /System/Library/PrivateFrameworks/IOAccelerator.framework/Versions/A/IOAccelerator
+       0x1a4f36000 -        0x1a51a8a1f  com.apple.Metal (368.52 - 368.52) <F83EE1A6-49CC-3A46-80AF-1B8B07EE0322> /System/Library/Frameworks/Metal.framework/Versions/A/Metal
+       0x1a51a9000 -        0x1a51d0ddf  com.apple.audio.caulk (1.0 - 181.700) <42085F32-42E2-3F11-B0B4-0343137B5F72> /System/Library/PrivateFrameworks/caulk.framework/Versions/A/caulk
+       0x1a51d1000 -        0x1a532ca7f  com.apple.CoreMedia (1.0 - 3235.14.1) <B58190F1-836A-3043-9003-AEED46970E59> /System/Library/Frameworks/CoreMedia.framework/Versions/A/CoreMedia
+       0x1a532d000 -        0x1a55ff27f  libFontParser.dylib (423.6.0.2) <EC125789-35EC-3DA0-AEFA-8FB606B96F80> /System/Library/PrivateFrameworks/FontServices.framework/libFontParser.dylib
+       0x1a595d000 -        0x1a5cdbf9f  com.apple.ImageIO (3.3.0 - 2661.6.2) <6C7096CE-FEFA-3420-9FAE-4567DFEC4DCA> /System/Library/Frameworks/ImageIO.framework/Versions/A/ImageIO
+       0x1a5cdc000 -        0x1a609697f  com.apple.CoreImage (19.0.0 - 1510.140.2) <D42177F0-3B0C-39CD-85C1-5620DEE9B5CF> /System/Library/Frameworks/CoreImage.framework/Versions/A/CoreImage
+       0x1a6097000 -        0x1a6146ddf  com.apple.MetalPerformanceShaders.MPSCore (1.0 - 1) <D921BBB7-3E7E-3E06-8567-65051E1DCE7A> /System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSCore.framework/Versions/A/MPSCore
+       0x1a6147000 -        0x1a614b5df  libsystem_configuration.dylib (1351.140.5) <B1ADB810-702B-3646-8B66-EB2C288FE51A> /usr/lib/system/libsystem_configuration.dylib
+       0x1a614c000 -        0x1a615247f  libsystem_sandbox.dylib (2401.140.15) <B86C6D35-683E-3156-BAB2-A422F5AFF2BD> /usr/lib/system/libsystem_sandbox.dylib
+       0x1a6153000 -        0x1a615417f  com.apple.AggregateDictionary (1.0 - 1) <372DB354-1857-3580-8EF9-ED51E93B94FD> /System/Library/PrivateFrameworks/AggregateDictionary.framework/Versions/A/AggregateDictionary
+       0x1a6155000 -        0x1a615959b  com.apple.AppleSystemInfo (3.1.5 - 3.1.5) <715E55BA-3640-3069-959F-C72A0CB1E8AB> /System/Library/PrivateFrameworks/AppleSystemInfo.framework/Versions/A/AppleSystemInfo
+       0x1a615a000 -        0x1a615b44f  liblangid.dylib (140) <177E6F2C-552D-3918-B0FA-E41D3994D594> /usr/lib/liblangid.dylib
+       0x1a615c000 -        0x1a6278fbf  com.apple.CoreNLP (1.0 - 313) <43BE2651-24A0-3DFF-B1CB-F5230E883875> /System/Library/PrivateFrameworks/CoreNLP.framework/Versions/A/CoreNLP
+       0x1a6279000 -        0x1a627f55f  com.apple.LinguisticData (1.0 - 483.10) <B176FCC7-BFA1-3A88-BE8F-21CA30A60F3D> /System/Library/PrivateFrameworks/LinguisticData.framework/Versions/A/LinguisticData
+       0x1a6280000 -        0x1a6d2cbb7  libBNNS.dylib (1497.120.5) <794CFDA3-BA8D-33FA-9FB4-2AB42EABF3A8> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBNNS.dylib
+       0x1a6d2d000 -        0x1a6e1ecff  libvDSP.dylib (1068.100.12) <4A17CD0E-0460-333B-8347-C11B0BEDEE2F> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libvDSP.dylib
+       0x1a6e52000 -        0x1a6e627e7  com.apple.IOMobileFramebuffer (343.0.0 - 343.0.0) <6DE81CE6-C629-3194-AD6A-B0E8A02A3937> /System/Library/PrivateFrameworks/IOMobileFramebuffer.framework/Versions/A/IOMobileFramebuffer
+       0x1a7062000 -        0x1a707eddf  com.apple.MobileKeyBag (2.0 - 1.0) <6A8A1EBF-2700-3033-B7B5-6D05EFAA12EC> /System/Library/PrivateFrameworks/MobileKeyBag.framework/Versions/A/MobileKeyBag
+       0x1a707f000 -        0x1a708d15f  com.apple.AssertionServices (1.0 - 961.100.17) <45F6BFCA-44CC-339B-AD77-6422A999B5C6> /System/Library/PrivateFrameworks/AssertionServices.framework/Versions/A/AssertionServices
+       0x1a708e000 -        0x1a711c9df  com.apple.securityfoundation (6.0 - 55290) <F1E5AC83-C3D0-3CC9-B4F2-74682268D7E2> /System/Library/Frameworks/SecurityFoundation.framework/Versions/A/SecurityFoundation
+       0x1a711d000 -        0x1a714bc7f  com.apple.coreservices.BackgroundTaskManagement (1.0 - 104) <7D03C736-510B-30E4-91AF-30CAE864EEFF> /System/Library/PrivateFrameworks/BackgroundTaskManagement.framework/Versions/A/BackgroundTaskManagement
+       0x1a7157000 -        0x1a7159fe3  libquarantine.dylib (181.120.2) <8CE8DAD0-52D6-3F46-98EF-161E1397FB48> /usr/lib/system/libquarantine.dylib
+       0x1a715a000 -        0x1a7165323  libCheckFix.dylib (33) <97583C83-D04E-33FE-85B3-F29C7663AD24> /usr/lib/libCheckFix.dylib
+       0x1a7166000 -        0x1a717d44f  libcoretls.dylib (186) <EDFD57F9-1580-3CBD-B37E-FB507B9202F4> /usr/lib/libcoretls.dylib
+       0x1a717e000 -        0x1a718f26b  libbsm.0.dylib (89) <FA3678AC-02BA-3D6A-917C-AC6241E8F9F1> /usr/lib/libbsm.0.dylib
+       0x1a7190000 -        0x1a71ef81f  libmecab.dylib (1093.502) <626F850B-833D-383B-8247-089C476B50AA> /usr/lib/libmecab.dylib
+       0x1a71f0000 -        0x1a71f244b  libgermantok.dylib (31) <ADC70CB8-B2EF-3A6D-BD4B-31ACC79BA474> /usr/lib/libgermantok.dylib
+       0x1a71f3000 -        0x1a7207a5f  libLinearAlgebra.dylib (1545) <9F530DCD-2D1A-39F9-8205-8052AD7BB661> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libLinearAlgebra.dylib
+       0x1a7208000 -        0x1a745331f  com.apple.MetalPerformanceShaders.MPSNeuralNetwork (1.0 - 1) <B081231B-0721-3E8F-AE92-C38FCEDA7348> /System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSNeuralNetwork.framework/Versions/A/MPSNeuralNetwork
+       0x1a7454000 -        0x1a74a87df  com.apple.MetalPerformanceShaders.MPSRayIntersector (1.0 - 1) <18E6F25E-A7D2-3383-AF17-A3DDF2630DAE> /System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSRayIntersector.framework/Versions/A/MPSRayIntersector
+       0x1a763f000 -        0x1a767023f  com.apple.MetalPerformanceShaders.MPSMatrix (1.0 - 1) <0D54A81B-B9CD-34CC-AFF1-1ADA0D8F27D6> /System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSMatrix.framework/Versions/A/MPSMatrix
+       0x1a7671000 -        0x1a77bed7f  com.apple.MetalPerformanceShaders.MPSNDArray (1.0 - 1) <D6066B0F-8147-36A6-81FA-744E9A58C368> /System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSNDArray.framework/Versions/A/MPSNDArray
+       0x1a77bf000 -        0x1a785315f  com.apple.MetalPerformanceShaders.MPSImage (1.0 - 1) <638755FF-884D-3731-8F7A-DA71D31BAC32> /System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSImage.framework/Versions/A/MPSImage
+       0x1a7854000 -        0x1a785f193  com.apple.AppleFSCompression (170 - 1.0) <785F1EB7-768B-322A-8F2B-D9AA35595A61> /System/Library/PrivateFrameworks/AppleFSCompression.framework/Versions/A/AppleFSCompression
+       0x1a7860000 -        0x1a786c56b  libbz2.1.0.dylib (46) <BB0834D5-06A1-35D4-9437-47FF94DDBDB8> /usr/lib/libbz2.1.0.dylib
+       0x1a786d000 -        0x1a7874033  libsystem_coreservices.dylib (178.6.1) <A4E84D5A-8D0E-3692-B888-89B9EEF8753D> /usr/lib/system/libsystem_coreservices.dylib
+       0x1a7875000 -        0x1a78a729f  com.apple.CoreServices.OSServices (1141.1 - 1141.1) <C95E9290-6ED3-32EB-93CC-3BEDB5FF90CD> /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/OSServices.framework/Versions/A/OSServices
+       0x1a7cdd000 -        0x1a7cebe97  libz.1.dylib (98) <FD078C6F-B196-3EF4-A464-36D3F6DBF918> /usr/lib/libz.1.dylib
+       0x1a7cec000 -        0x1a7d292b7  libsystem_m.dylib (3291.100.4) <0D060230-BD2F-3C8E-ACB9-8A79F5CD8EDE> /usr/lib/system/libsystem_m.dylib
+       0x1a7d2a000 -        0x1a7d2ac9b  libcharset.1.dylib (109.100.2) <5517E59D-AA69-3422-9AFE-4E3CA7307050> /usr/lib/libcharset.1.dylib
+       0x1a7d2b000 -        0x1a7d2e4e7  libmacho.dylib (1024.3) <87AB4EEF-3A18-3399-A767-C6BF4ECEDCEB> /usr/lib/system/libmacho.dylib
+       0x1a7d2f000 -        0x1a7d47dfb  libkxld.dylib (11417.140.69) <30C6B4F5-421A-374C-89BF-0F86D7C74FB0> /usr/lib/system/libkxld.dylib
+       0x1a7d48000 -        0x1a7d555ef  libcommonCrypto.dylib (600035) <E6BC26C2-DED7-3C04-A670-AEDB150BDB1F> /usr/lib/system/libcommonCrypto.dylib
+       0x1a7d56000 -        0x1a7d5fad7  libunwind.dylib (1900.125) <F753CC2B-775B-3567-B0C6-D2989CA9EBF4> /usr/lib/system/libunwind.dylib
+       0x1a7d60000 -        0x1a7d67109  liboah.dylib (349) <4EE80AAC-8204-3BD0-AB75-EDD23DE67E2F> /usr/lib/liboah.dylib
+       0x1a7d68000 -        0x1a7d7269f  libcopyfile.dylib (224) <213FA18D-6145-3615-8DB5-906B6863EAB9> /usr/lib/system/libcopyfile.dylib
+       0x1a7d73000 -        0x1a7d7698f  libcompiler_rt.dylib (103.3) <F0F65700-8E9D-35F3-AC32-952D363190BC> /usr/lib/system/libcompiler_rt.dylib
+       0x1a7d77000 -        0x1a7d7ba1b  libsystem_collections.dylib (1698.140.3) <B77BE835-646C-3F05-BDBD-7703DE140F6A> /usr/lib/system/libsystem_collections.dylib
+       0x1a7d7c000 -        0x1a7d7f2c7  libsystem_secinit.dylib (153.140.2) <D15B45AD-1345-34BF-B8E3-05336C4046A0> /usr/lib/system/libsystem_secinit.dylib
+       0x1a7d80000 -        0x1a7d82b6f  libremovefile.dylib (81) <9BCF9A24-BECB-3DED-A78E-3A3ECD1B1757> /usr/lib/system/libremovefile.dylib
+       0x1a7d83000 -        0x1a7d83f27  libkeymgr.dylib (31) <B20C6921-D5BE-3BB5-B68C-32D90D629E39> /usr/lib/system/libkeymgr.dylib
+       0x1a7d84000 -        0x1a7d8cd57  libsystem_dnssd.dylib (2600.140.3) <61F023F3-E2C5-3F19-BA1B-B02D7564ACC4> /usr/lib/system/libsystem_dnssd.dylib
+       0x1a7d8d000 -        0x1a7d920b3  libcache.dylib (95) <2B900F8F-9EDE-3208-AB17-BD1385B5546A> /usr/lib/system/libcache.dylib
+       0x1a7d93000 -        0x1a7d94ca3  libSystem.B.dylib (1351) <072C7C60-2B6C-3E07-AA56-FD1750EADC2F> /usr/lib/libSystem.B.dylib
+       0x1a7d95000 -        0x1a7d9703f  libfakelink.dylib (5) <4306B95C-F250-3D6D-8F27-47AB568FC36B> /usr/lib/libfakelink.dylib
+       0x1a7d98000 -        0x1a7d98a63  com.apple.SoftLinking (1.0 - 65) <794A11DB-27AC-3F0B-9035-D7109AE09F12> /System/Library/PrivateFrameworks/SoftLinking.framework/Versions/A/SoftLinking
+       0x1a7dcf000 -        0x1a7dd61eb  libiconv.2.dylib (109.100.2) <621F2C06-2AF7-3EA8-AEDC-C922075CB67B> /usr/lib/libiconv.2.dylib
+       0x1a7dea000 -        0x1a7ee15cf  libarchive.2.dylib (151.140.2) <71EEF1EB-4098-3E0D-92F8-5CE8BE58928F> /usr/lib/libarchive.2.dylib
+       0x1a7ee2000 -        0x1a7f4957f  com.apple.SearchKit (1.4.2 - 1.4.2) <DAF96486-1362-3A68-9329-5CC6BCB83970> /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/SearchKit.framework/Versions/A/SearchKit
+       0x1a7f4a000 -        0x1a7f5209f  libThaiTokenizer.dylib (28) <137CF9AD-D5ED-39AD-902C-6039EE0E24EA> /usr/lib/libThaiTokenizer.dylib
+       0x1a7f53000 -        0x1a7f77187  com.apple.applesauce (1.0 - 16.62) <A20CA568-BBC1-34A4-A324-4374C0A0C6A7> /System/Library/PrivateFrameworks/AppleSauce.framework/Versions/A/AppleSauce
+       0x1a7f78000 -        0x1a7f919ff  libapple_nghttp2.dylib (29) <E52CBCF0-8814-35A1-901F-73550FCE667D> /usr/lib/libapple_nghttp2.dylib
+       0x1a7f92000 -        0x1a7fb8ac3  libSparseBLAS.dylib (1545) <133526B0-B0BC-359C-AA89-337B9230FC26> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libSparseBLAS.dylib
+       0x1a7fb9000 -        0x1a7fba59f  com.apple.MetalPerformanceShaders.MetalPerformanceShaders (1.0 - 1) <3B79D590-616A-3753-BB30-719FF80CE7B7> /System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/MetalPerformanceShaders
+       0x1a7fbb000 -        0x1a7fc0f7f  libpam.2.dylib (34) <5B5E5276-679D-30AC-B2BA-08B3B0C841B4> /usr/lib/libpam.2.dylib
+       0x1a7fc1000 -        0x1a809184f  libcompression.dylib (181.100.1) <BC7B578D-54F3-3504-A67B-CC46F43A8478> /usr/lib/libcompression.dylib
+       0x1a8092000 -        0x1a80961e7  libQuadrature.dylib (8) <4F62F3C9-E470-30B9-8B3D-AE8A17C62B0F> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libQuadrature.dylib
+       0x1a8097000 -        0x1a92f82df  libLAPACK.dylib (1545) <82C02762-17B0-370D-B760-9413D38F49AC> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libLAPACK.dylib
+       0x1a92f9000 -        0x1a934f31f  com.apple.DictionaryServices (1.2 - 368.203) <9DD35110-DFA6-34A1-94A0-408BC95FAE2B> /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/DictionaryServices.framework/Versions/A/DictionaryServices
+       0x1a9350000 -        0x1a936e8bf  liblzma.5.dylib (20) <3BF01D85-5D8A-3631-A421-3987D83CBF3B> /usr/lib/liblzma.5.dylib
+       0x1a936f000 -        0x1a9370867  libcoretls_cfhelpers.dylib (186) <7EDDF8E1-C6EF-3D7C-832A-D158EDF1F6D1> /usr/lib/libcoretls_cfhelpers.dylib
+       0x1a9371000 -        0x1a93e27cb  com.apple.APFS (2332.140.13 - 2332.140.13) <86C1D3EF-1C0D-3326-A14A-0E1A7F6CBAA4> /System/Library/PrivateFrameworks/APFS.framework/Versions/A/APFS
+       0x1a93e3000 -        0x1a93f168b  libxar.1.dylib (501) <A33DCA22-6997-3F85-A7B3-4ACDC88F64B0> /usr/lib/libxar.1.dylib
+       0x1a93f2000 -        0x1a93f57fb  libutil.dylib (72) <A1063365-F998-3B4D-8F2E-363BBA169472> /usr/lib/libutil.dylib
+       0x1a93f6000 -        0x1a942178f  libxslt.1.dylib (21.11) <83F120D8-DC7D-39E6-BAC5-1DD10E6B82E0> /usr/lib/libxslt.1.dylib
+       0x1a942a000 -        0x1a94a37c7  libvMisc.dylib (1068.100.12) <9F8D55C6-728A-3B13-97F9-3D8E178F22AE> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libvMisc.dylib
+       0x1a94a4000 -        0x1a95343bf  libate.dylib (3.0.9) <6CF8BB06-F870-39D9-9C70-8DF764B0C8AF> /usr/lib/libate.dylib
+       0x1a953e000 -        0x1a955191f  com.apple.CrashReporterSupport (10.13 - 15131) <A3AF81B2-8970-3B02-9716-277363F5E424> /System/Library/PrivateFrameworks/CrashReporterSupport.framework/Versions/A/CrashReporterSupport
+       0x1a9692000 -        0x1a96d34bf  com.apple.pluginkit.framework (1.0 - 1) <D3681B49-43DF-3CED-80F7-7D6F3446C47B> /System/Library/PrivateFrameworks/PlugInKit.framework/Versions/A/PlugInKit
+       0x1a96d4000 -        0x1a96db61b  libMatch.1.dylib (48) <90841E57-A443-3ADF-AFF2-5EA0359CB65D> /usr/lib/libMatch.1.dylib
+       0x1a974a000 -        0x1a9792ef7  com.apple.AppleVAFramework (6.2.10 - 6.2.10) <F29D894B-DD6C-38F4-BD36-0F526771CA34> /System/Library/PrivateFrameworks/AppleVA.framework/Versions/A/AppleVA
+       0x1a9793000 -        0x1a97ad2a7  libexpat.1.dylib (43) <4D5F1B49-1ECE-3392-B90E-BA826A4CAE37> /usr/lib/libexpat.1.dylib
+       0x1a97ae000 -        0x1a97b7bab  libheimdal-asn1.dylib (693.140.2) <39990E7A-0118-3168-B716-5FA192E0E4E6> /usr/lib/libheimdal-asn1.dylib
+       0x1a9898000 -        0x1a993e7ff  com.apple.MediaExperience (1.0 - 1) <20DDB5F5-3D6B-33A9-AF13-A9059147A09C> /System/Library/PrivateFrameworks/MediaExperience.framework/Versions/A/MediaExperience
+       0x1a996b000 -        0x1a9976eff  com.apple.GraphVisualizer (1.0 - 120.1) <40B192AF-71D9-37F3-96EA-F76CB29BF343> /System/Library/PrivateFrameworks/GraphVisualizer.framework/Versions/A/GraphVisualizer
+       0x1a9977000 -        0x1a99b779f  com.apple.OTSVG (1.0 - 844.6.0.4) <A2A2003F-A40B-3476-98A2-77EA5E2DEE1D> /System/Library/PrivateFrameworks/OTSVG.framework/Versions/A/OTSVG
+       0x1a99b8000 -        0x1a99c1a9f  com.apple.xpc.AppServerSupport (1.0 - 2894.140.12) <7D6D34E4-C7E3-3226-BF8E-7421E2E6BF0B> /System/Library/PrivateFrameworks/AppServerSupport.framework/Versions/A/AppServerSupport
+       0x1a99c2000 -        0x1a99c867f  libspindump.dylib (383.17) <10205D3C-4FBE-33FD-A05D-1CB1BA17F66B> /usr/lib/libspindump.dylib
+       0x1a99c9000 -        0x1a9a89c7f  com.apple.Heimdal (4.0 - 2.0) <AF4E59A2-E134-3646-B09F-7B9A213C71AA> /System/Library/PrivateFrameworks/Heimdal.framework/Versions/A/Heimdal
+       0x1a9cf2000 -        0x1a9d3737f  com.apple.AppleJPEG (1.0 - 1) <6FCE7323-BA18-3941-A41A-4A5FE7250C40> /System/Library/PrivateFrameworks/AppleJPEG.framework/Versions/A/AppleJPEG
+       0x1a9d38000 -        0x1a9e2825f  libJP2.dylib (2661.6.2) <55A9F8FD-1B1A-3E3C-9FBC-5B55806C2778> /System/Library/Frameworks/ImageIO.framework/Versions/A/Resources/libJP2.dylib
+       0x1a9e29000 -        0x1a9e2ad53  com.apple.WatchdogClient.framework (1.0 - 299.140.5) <9A14A61F-4052-33E6-8896-5B67E01E071B> /System/Library/PrivateFrameworks/WatchdogClient.framework/Versions/A/WatchdogClient
+       0x1a9e2b000 -        0x1a9e7029f  com.apple.MultitouchSupport.framework (8440.1 - 8440.1) <202E0EFF-A57D-3D80-A56E-155F80FE08F3> /System/Library/PrivateFrameworks/MultitouchSupport.framework/Versions/A/MultitouchSupport
+       0x1a9e71000 -        0x1aa2e739f  com.apple.VideoToolbox (1.0 - 3235.14.1) <6885D61E-6EAB-35AA-B279-212D0947CC9B> /System/Library/Frameworks/VideoToolbox.framework/Versions/A/VideoToolbox
+       0x1aa2e8000 -        0x1aa31d63f  libAudioToolboxUtility.dylib (1456.703) <03319E37-4127-3701-95EF-1AFE937C7FC1> /usr/lib/libAudioToolboxUtility.dylib
+       0x1aa31e000 -        0x1aa3484c7  libPng.dylib (2661.6.2) <1CF7E330-7F0D-3D9D-A79D-CFAAD04AB91E> /System/Library/Frameworks/ImageIO.framework/Versions/A/Resources/libPng.dylib
+       0x1aa349000 -        0x1aa3ab12f  libTIFF.dylib (2661.6.2) <40220114-B389-3915-B9E1-DDEA6080B1DD> /System/Library/Frameworks/ImageIO.framework/Versions/A/Resources/libTIFF.dylib
+       0x1aa3ac000 -        0x1aa3cb983  com.apple.IOPresentment (67 - 67) <D99C7E44-9C52-304A-A888-D25081915FA3> /System/Library/PrivateFrameworks/IOPresentment.framework/Versions/A/IOPresentment
+       0x1aa3cc000 -        0x1aa3d07e3  com.apple.GPUWrangler (8.1.10 - 8.1.10) <D7A31D1D-DDA3-320D-9E12-C9B911ECD752> /System/Library/PrivateFrameworks/GPUWrangler.framework/Versions/A/GPUWrangler
+       0x1aa3d1000 -        0x1aa3d394b  libRadiance.dylib (2661.6.2) <55A571F9-19F4-3052-BA4D-B9A179B0DAF1> /System/Library/Frameworks/ImageIO.framework/Versions/A/Resources/libRadiance.dylib
+       0x1aa3d4000 -        0x1aa3d964f  com.apple.DSExternalDisplay (3.1 - 380) <34B9CC3D-CFFA-3B98-8CA7-BF0EC6842A1F> /System/Library/PrivateFrameworks/DSExternalDisplay.framework/Versions/A/DSExternalDisplay
+       0x1aa3da000 -        0x1aa404e87  libJPEG.dylib (2661.6.2) <25ACB188-2F92-371F-967D-9408FB352F97> /System/Library/Frameworks/ImageIO.framework/Versions/A/Resources/libJPEG.dylib
+       0x1aa433000 -        0x1aa4387a3  libGIF.dylib (2661.6.2) <868FC504-1C26-306A-B6AF-540D36B43A7C> /System/Library/Frameworks/ImageIO.framework/Versions/A/Resources/libGIF.dylib
+       0x1aa439000 -        0x1aa447d1f  com.apple.CMCaptureCore (1.0 - 587.140.11.0.1) <0EC748BE-CDD6-3D68-A44D-9766B44AE214> /System/Library/PrivateFrameworks/CMCaptureCore.framework/Versions/A/CMCaptureCore
+       0x1ab263000 -        0x1ab2d3753  libusrtcp.dylib (4277.140.33) <9320597F-D1C4-3306-9EF1-FF61429C8A8D> /usr/lib/libusrtcp.dylib
+       0x1ab2d4000 -        0x1ab842f3f  libswiftCore.dylib (6.1.2 - 6.1.2.1.101) <7186C5C8-2A46-3F35-B27F-F7F6923F7186> /usr/lib/swift/libswiftCore.dylib
+       0x1ab8f8000 -        0x1ab93ee5f  libSessionUtility.dylib (321.702) <109116D0-2D5E-3DC8-92A3-164CDD5D4AD0> /System/Library/PrivateFrameworks/AudioSession.framework/libSessionUtility.dylib
+       0x1ab93f000 -        0x1abae945f  com.apple.audio.toolbox.AudioToolbox (1.14 - 1.14) <36E6E4C6-232D-3188-96D5-4C7FC3726DFB> /System/Library/Frameworks/AudioToolbox.framework/Versions/A/AudioToolbox
+       0x1abaea000 -        0x1abb47d7f  com.apple.audio.AudioSession (1.0 - 321.702) <199EACBB-C237-305F-8CFE-E29EF9558488> /System/Library/PrivateFrameworks/AudioSession.framework/Versions/A/AudioSession
+       0x1abb48000 -        0x1abb6089f  libAudioStatistics.dylib (235.601) <0DF10E87-E2C5-3FC4-BB4F-7F6D151F260C> /usr/lib/libAudioStatistics.dylib
+       0x1abc0d000 -        0x1abc29003  libresolv.9.dylib (91) <E3C88F79-60F8-34AC-8DB1-0512C9404F78> /usr/lib/libresolv.9.dylib
+       0x1abc2a000 -        0x1abc3c6e7  libsasl2.2.dylib (215) <BE12C1B8-7004-34C7-9BD3-92BC5809C600> /usr/lib/libsasl2.2.dylib
+       0x1abe2c000 -        0x1abf0ca0f  libSMC.dylib (38) <D4A4ACEC-771A-3A09-A6AD-77BE3CD088D6> /usr/lib/libSMC.dylib
+       0x1abf6c000 -        0x1abf78a17  com.apple.NetAuth (6.2 - 6.2) <06EA9EBB-1F8E-30E3-921F-220B383149D7> /System/Library/PrivateFrameworks/NetAuth.framework/Versions/A/NetAuth
+       0x1abf8b000 -        0x1abf9849f  com.apple.perfdata (1.0 - 121) <721F7C91-AC36-3671-ACEE-26E14A9CB595> /System/Library/PrivateFrameworks/perfdata.framework/Versions/A/perfdata
+       0x1abf99000 -        0x1abfa6cdf  libperfcheck.dylib (46) <A6A48167-3F5F-30F9-B5F7-5EAC32BABFB9> /usr/lib/libperfcheck.dylib
+       0x1abfa7000 -        0x1abfb7fbf  com.apple.Kerberos (3.0 - 1) <37C143BE-E694-3012-BEF9-31AA87703AC8> /System/Library/Frameworks/Kerberos.framework/Versions/A/Kerberos
+       0x1abfb8000 -        0x1ac009a17  com.apple.GSS (4.0 - 2.0) <D096B8E6-9053-35D7-8C3A-C13211A54364> /System/Library/Frameworks/GSS.framework/Versions/A/GSS
+       0x1ac00a000 -        0x1ac01ada7  com.apple.CommonAuth (4.0 - 2.0) <21CD953E-4336-3EA4-95C6-E94F51D9BFD7> /System/Library/PrivateFrameworks/CommonAuth.framework/Versions/A/CommonAuth
+       0x1ad6bb000 -        0x1ad7d2537  com.apple.combine (1.0 - 3022) <C42A6603-325A-3681-B42E-B99F53555F04> /System/Library/Frameworks/Combine.framework/Versions/A/Combine
+       0x1af79b000 -        0x1af79b86f  com.apple.Accelerate.vecLib (3.11 - vecLib 3.11) <9E5CC1C0-A5F8-395F-B84A-96D532A98712> /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/vecLib
+       0x1af7c0000 -        0x1af7c098f  com.apple.CoreServices (1226 - 1226) <1125F05C-0D0F-310D-A951-4BE5E3EA0B89> /System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices
+       0x1afa6c000 -        0x1afa6c417  com.apple.Accelerate (1.11 - Accelerate 1.11) <907AA97D-7ADF-3A9E-8A47-4CF51E9253E4> /System/Library/Frameworks/Accelerate.framework/Versions/A/Accelerate
+       0x1b077a000 -        0x1b07a887f  com.apple.PowerLog (1.0 - 1) <3E8FD162-29BC-3C1B-8E2A-62495321AC75> /System/Library/PrivateFrameworks/PowerLog.framework/Versions/A/PowerLog
+       0x1b07b6000 -        0x1b086a31f  com.apple.DiscRecording (9.0.3 - 9030.4.5) <3B57AC05-3937-33E2-8E4D-308B13051C69> /System/Library/Frameworks/DiscRecording.framework/Versions/A/DiscRecording
+       0x1b086b000 -        0x1b089c25f  com.apple.MediaKit (16 - 938) <B01DD3DE-8949-365E-B938-53BDC6B75035> /System/Library/PrivateFrameworks/MediaKit.framework/Versions/A/MediaKit
+       0x1b12b9000 -        0x1b12cfaf8  libswiftDispatch.dylib (54) <DD8B3C94-A6A9-30CB-98D0-0EBDD5B3AB66> /usr/lib/swift/libswiftDispatch.dylib
+       0x1b161e000 -        0x1b168cabf  com.apple.BoardServices (1.0 - 694.5.5) <5B304A06-94BE-3B3C-8EF6-B7CB09AC8189> /System/Library/PrivateFrameworks/BoardServices.framework/Versions/A/BoardServices
+       0x1b1a2b000 -        0x1b1a4e721  com.apple.DebugSymbols (216 - 217) <061CC5D4-9B48-339B-9F7E-28F44F166266> /System/Library/PrivateFrameworks/DebugSymbols.framework/Versions/A/DebugSymbols
+       0x1b1a4f000 -        0x1b1b5bea3  com.apple.CoreSymbolication (16.0 - 64570.35.1) <66107D0A-7C53-314C-82CF-E2C64E0CC2F5> /System/Library/PrivateFrameworks/CoreSymbolication.framework/Versions/A/CoreSymbolication
+       0x1b1b5c000 -        0x1b1b6617f  com.apple.CoreTime (334.0.4.1) <04AF580A-8231-3417-B47E-8876103FB681> /System/Library/PrivateFrameworks/CoreTime.framework/Versions/A/CoreTime
+       0x1b32ca000 -        0x1b3305967  com.apple.LDAPFramework (2.4.28 - 194.5) <5C678210-2715-345A-85AC-72C3E24C9CB3> /System/Library/Frameworks/LDAP.framework/Versions/A/LDAP
+       0x1b3306000 -        0x1b33077a7  com.apple.TrustEvaluationAgent (2.0 - 38) <4030FCD6-C647-3FBB-833F-DE0988AF8E4F> /System/Library/PrivateFrameworks/TrustEvaluationAgent.framework/Versions/A/TrustEvaluationAgent
+       0x1b3434000 -        0x1b34f199f  com.apple.DiskImagesFramework (671.140.2 - 671.140.2) <3872319F-0AEA-3B04-A166-E1F2A980A193> /System/Library/PrivateFrameworks/DiskImages.framework/Versions/A/DiskImages
+       0x1b35f2000 -        0x1b3673157  libcurl.4.dylib (160) <A1891A92-4BE8-3B76-9CC0-5A10299C91C0> /usr/lib/libcurl.4.dylib
+       0x1b3e92000 -        0x1b3e923f7  libHeimdalProxy.dylib (87.100.1) <1503CC2C-3561-34F8-92CB-238AC537FA51> /System/Library/Frameworks/Kerberos.framework/Versions/A/Libraries/libHeimdalProxy.dylib
+       0x1b3f3b000 -        0x1b3f3ebdd  libswiftObjectiveC.dylib (940.4) <9CA5A29C-BDB6-3D63-AA8A-0ABC8A9D608D> /usr/lib/swift/libswiftObjectiveC.dylib
+       0x1b3f3f000 -        0x1b3f581ff  libswiftos.dylib (1062.100.1) <786A3581-D02F-3BF2-BEB5-4E74B7D8E8D6> /usr/lib/swift/libswiftos.dylib
+       0x1b4ed5000 -        0x1b4f0201f  com.apple.ANEServices (8.600 - 8.600) <D4C6F312-D1C4-3130-9C71-D63CA4E4CBFE> /System/Library/PrivateFrameworks/ANEServices.framework/Versions/A/ANEServices
+       0x1b507e000 -        0x1b50b3fff  com.apple.ASEProcessing (1.41.51 - 1.41.51) <BCAF95BF-815A-34DF-ABD5-59FA39B11048> /System/Library/PrivateFrameworks/ASEProcessing.framework/Versions/A/ASEProcessing
+       0x1b5fff000 -        0x1b605dadf  com.apple.CoreML.AppleNeuralEngine (1.0 - 1) <84969FBF-B5F0-36C4-9FE0-52FF25EE8846> /System/Library/PrivateFrameworks/AppleNeuralEngine.framework/Versions/A/AppleNeuralEngine
+       0x1b6188000 -        0x1b6242d1f  com.apple.audio.midi.CoreMIDI (2.0 - 88) <504D9A4A-F0A7-348F-A7BC-13FD26B48D99> /System/Library/Frameworks/CoreMIDI.framework/Versions/A/CoreMIDI
+       0x1b6c66000 -        0x1b6c6a547  com.apple.IOSurfaceAccelerator (1.0.0 - 1.0.0) <976B7271-DCBD-3433-8693-71E8834057B0> /System/Library/PrivateFrameworks/IOSurfaceAccelerator.framework/Versions/A/IOSurfaceAccelerator
+       0x1bb64c000 -        0x1bb65cdbf  com.apple.HID (1.0 - 1) <502EA20E-1554-3A3A-9807-122C37B7FF00> /System/Library/PrivateFrameworks/HID.framework/Versions/A/HID
+       0x1bf93d000 -        0x1bf94c53f  com.apple.NetFS (6.0 - 4.0) <EA81278B-8281-3413-BB0E-7A98CBBD101F> /System/Library/Frameworks/NetFS.framework/Versions/A/NetFS
+       0x1bfe14000 -        0x1bfe15d3b  libswiftDarwin.dylib (310.100.8.0.1) <69DA8436-3AF9-337A-B186-0D9F72326B0D> /usr/lib/swift/libswiftDarwin.dylib
+       0x1c1b45000 -        0x1c1c334df  libquic.dylib (4277.140.33) <98A7CCD6-84FF-33E8-AAC5-8723B44B9341> /usr/lib/libquic.dylib
+       0x1c1c3e000 -        0x1c1c633ff  com.apple.private.SystemPolicy (1.0 - 1) <2C546714-FC56-3BF4-BE42-E1E9C0D758D0> /System/Library/PrivateFrameworks/SystemPolicy.framework/Versions/A/SystemPolicy
+       0x1c2996000 -        0x1c2a1e5ff  com.apple.LoggingSupport (1.0 - 1643.120.5) <3A3864AF-99BE-37D4-A4B1-70BE44C2C714> /System/Library/PrivateFrameworks/LoggingSupport.framework/Versions/A/LoggingSupport
+       0x1c2a1f000 -        0x1c2a2b62b  com.apple.MallocStackLogging (1.0 - 64570.58.1) <440CA2E7-CBC1-3DBA-902C-E3F98B54A267> /System/Library/PrivateFrameworks/MallocStackLogging.framework/Versions/A/MallocStackLogging
+       0x1c2a51000 -        0x1c2a8547f  libmis.dylib (436.100.18) <D794BA6C-5CA3-3135-B6B3-99C573EE90AC> /usr/lib/libmis.dylib
+       0x1c2a86000 -        0x1c2a89c7f  com.apple.gpusw.GPURawCounter (34 - 34) <0868254A-D17B-37C5-8F15-3C301507B6B5> /System/Library/PrivateFrameworks/GPURawCounter.framework/Versions/A/GPURawCounter
+       0x1c2aab000 -        0x1c2ab1fff  libswiftCoreFoundation.dylib (2401) <14125A42-FDBF-3E76-B72A-360E057C2F29> /usr/lib/swift/libswiftCoreFoundation.dylib
+       0x1c2abd000 -        0x1c2b046da  libswiftXPC.dylib (69.120.3) <2266E375-73D0-3FAF-8DA1-16C34CD3C7BE> /usr/lib/swift/libswiftXPC.dylib
+       0x1c2b06000 -        0x1c2b06ab3  libswiftIOKit.dylib (1) <845B7138-7C18-3F26-B364-2B4EDE7A9933> /usr/lib/swift/libswiftIOKit.dylib
+       0x1c635f000 -        0x1c6376a4b  libswiftsimd.dylib (21) <51BB28D1-EF2E-35C4-A0FE-CDDB2B5EDE5B> /usr/lib/swift/libswiftsimd.dylib
+       0x1c76cb000 -        0x1c770723f  libncurses.5.4.dylib (79) <0694535C-E1CA-3B73-A39F-DC14B122A225> /usr/lib/libncurses.5.4.dylib
+       0x1c7708000 -        0x1c771129f  com.apple.IOAccelMemoryInfo (1.0 - 1) <687C8C09-F5C9-32B3-974D-3CD46C9CDEDB> /System/Library/PrivateFrameworks/IOAccelMemoryInfo.framework/Versions/A/IOAccelMemoryInfo
+       0x1cf670000 -        0x1cf6773b8  libswiftMetal.dylib (368.52) <34BE65B2-3609-3A4A-BF7E-DD4A821C5D4F> /usr/lib/swift/libswiftMetal.dylib
+       0x1d3646000 -        0x1d36a3d1f  com.apple.osanalytics.OSAnalytics (1.0 - 1) <1422F546-9320-3DDD-9D89-14CCE8432731> /System/Library/PrivateFrameworks/OSAnalytics.framework/Versions/A/OSAnalytics
+       0x1d4a0f000 -        0x1d4a10e25  libswiftQuartzCore.dylib (4) <FEAF25A9-D673-3D99-9E21-B9DBDB1749E6> /usr/lib/swift/libswiftQuartzCore.dylib
+       0x1d4e04000 -        0x1d4e09967  com.apple.kperf (1.0 - 1) <73FBFFF3-D364-3F63-8B65-997C39CBC9DF> /System/Library/PrivateFrameworks/kperf.framework/Versions/A/kperf
+       0x1d4f0e000 -        0x1d4f1345f  com.apple.MobileSystemServices (1.0 - 1) <693296D2-17BA-3078-AC4C-9D60788E5846> /System/Library/PrivateFrameworks/MobileSystemServices.framework/Versions/A/MobileSystemServices
+       0x1d906a000 -        0x1d9078815  libswiftUniformTypeIdentifiers.dylib (840.8) <E7BE1DAE-7200-3E29-8858-5A92A6C95805> /usr/lib/swift/libswiftUniformTypeIdentifiers.dylib
+       0x1de611000 -        0x1de612d8b  libswiftOSLog.dylib (8) <652469EF-4AB1-3BAC-B734-95BCAE271663> /usr/lib/swift/libswiftOSLog.dylib
+       0x1e214f000 -        0x1e224bbdf  com.apple.Symbolication (16.0 - 64570.58.1) <53FE7B05-915A-387A-BD77-6677DA4A98BC> /System/Library/PrivateFrameworks/Symbolication.framework/Versions/A/Symbolication
+       0x1e624d000 -        0x1e625d21f  com.apple.OSLog (1.0 - 1643.120.5) <0BA0151F-829E-310C-AF22-805F4479AEB8> /System/Library/Frameworks/OSLog.framework/Versions/A/OSLog
+       0x1e6486000 -        0x1e658f7dc  com.apple.InternalSwiftProtobuf (1.0 - 1.26.0) <3D0160BE-6CF5-3938-8069-F712E5E45C76> /System/Library/PrivateFrameworks/InternalSwiftProtobuf.framework/Versions/A/InternalSwiftProtobuf
+       0x1e6654000 -        0x1e665f2ff  com.apple.HIDDisplay (1.0 - 1) <1C4ED25E-429B-3872-8544-9F8EFADEFB16> /System/Library/PrivateFrameworks/HIDDisplay.framework/Versions/A/HIDDisplay
+       0x1ed7bc000 -        0x1ed7bcc5b  com.apple.FeatureFlags (1.0 - 97) <0414B0A9-C26E-33A4-89B6-F7DB46A4DE36> /System/Library/PrivateFrameworks/FeatureFlags.framework/Versions/A/FeatureFlags
+       0x1f705c000 -        0x1f705e65f  com.apple.ConfigProfileHelper (17.1 - 1722) <4A7052C7-9527-341E-94F9-9E6B71DA40B2> /System/Library/PrivateFrameworks/ConfigProfileHelper.framework/Versions/A/ConfigProfileHelper
+       0x1f7676000 -        0x1f8a0a43f  com.apple.ANECompiler (8.5.4 - 8.5.4) <2B72B185-4CC0-35A3-9179-CCD55785AF17> /System/Library/PrivateFrameworks/ANECompiler.framework/Versions/A/ANECompiler
+       0x1fa000000 -        0x1fa0072f7  libCoreFSCache.dylib (301) <A2D8A355-802C-3624-86AC-4D8B349A3FC8> /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libCoreFSCache.dylib
+       0x1fa008000 -        0x1fa00d907  libCoreVMClient.dylib (301) <EB205CBC-BD0A-3F61-A715-C2255DF73A78> /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libCoreVMClient.dylib
+       0x1fa00e000 -        0x1fa01e277  com.apple.opengl (21.1.1 - 21.1.1) <B7FB8397-67BB-3A39-AB27-B78079EB02BA> /System/Library/Frameworks/OpenGL.framework/Versions/A/OpenGL
+       0x1fa01f000 -        0x1fa0217af  libCVMSPluginSupport.dylib (21.1.2) <29B3D4D7-C716-3B50-8BDB-73D0A3852EBE> /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libCVMSPluginSupport.dylib
+       0x1fa022000 -        0x1fa02a6bf  libGFXShared.dylib (21.1.2) <6A31ADEE-A1F3-393E-9DA8-FDDF94453E69> /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGFXShared.dylib
+       0x1fa02b000 -        0x1fa05dce3  libGLImage.dylib (21.1.2) <202EBBC2-6332-3F72-A721-35171ED8989C> /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGLImage.dylib
+       0x1fa05e000 -        0x1fa09832f  libGLU.dylib (21.1.2) <B1BFDFB3-91A6-38EF-A671-12D70F6BE387> /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGLU.dylib
+       0x1fa1ea000 -        0x1fa1f3bcf  libGL.dylib (21.1.2) <884FD2BC-9F1C-3AA5-8590-025FB88C55DC> /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib
+       0x1fbc2f000 -        0x1fbcf907f  com.apple.ExtensionFoundation (97 - 97) <50633427-3001-3CCC-8011-77CCC9BE1053> /System/Library/Frameworks/ExtensionFoundation.framework/Versions/A/ExtensionFoundation
+       0x1fd8e2000 -        0x1fd8ff09f  com.apple.MPSBenchmarkLoop (1.0 - 1) <FA36F8B7-C1A5-3739-A3DB-4F0F8DC43CC7> /System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSBenchmarkLoop.framework/Versions/A/MPSBenchmarkLoop
+       0x1fd900000 -        0x1fd9141bf  com.apple.MPSFunctions (1.0 - 1) <CA6CE94E-6351-3B59-9A66-2A55C3DE77B2> /System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSFunctions.framework/Versions/A/MPSFunctions
+       0x1fd915000 -        0x1fea21e7f  com.apple.MetalPerformanceShadersGraph (5.6.2 - 5.6.2) <3F34C8AD-534E-3602-BAF4-6B8A9E09C231> /System/Library/Frameworks/MetalPerformanceShadersGraph.framework/Versions/A/MetalPerformanceShadersGraph
+       0x200512000 -        0x20064c022  com.apple.SwiftData (1.0 - 98.1) <C2A307A9-407E-372D-BAAA-6D1C5A7FEDD7> /System/Library/Frameworks/SwiftData.framework/Versions/A/SwiftData
+       0x2439d5000 -        0x243a2b20f  com.apple.AppleKeyStore (1.0 - 1.0) <33F3452C-1002-3DE6-8D60-8887B9FE6EC3> /System/Library/PrivateFrameworks/AppleKeyStore.framework/Versions/A/AppleKeyStore
+       0x244163000 -        0x24417bc5f  com.apple.private.AppleMobileFileIntegrity-fmk (1.0 - 1) <A04725C4-C001-3242-985C-B79A4DFB2F8B> /System/Library/PrivateFrameworks/AppleMobileFileIntegrity.framework/Versions/A/AppleMobileFileIntegrity
+       0x244553000 -        0x24458157f  com.apple.imgaudio.AudioAnalytics (1.0 - 1) <F8F266B4-B07E-35F0-8B17-4F52C0B14B41> /System/Library/PrivateFrameworks/AudioAnalytics.framework/Versions/A/AudioAnalytics
+       0x247c4e000 -        0x247d91297  com.apple.CollectionsInternal (1.1.0 - 103.5) <B42360F3-3579-371F-922E-EB453B1A0F2D> /System/Library/PrivateFrameworks/CollectionsInternal.framework/Versions/A/CollectionsInternal
+       0x24dea5000 -        0x24dea56e3  com.apple.FontServices (1.0 - 1) <CDC993A6-B1B4-3F03-ACE6-62BC2CF425A1> /System/Library/PrivateFrameworks/FontServices.framework/Versions/A/FontServices
+       0x24dea6000 -        0x24df6edef  libXTFontStaticRegistryData.dylib (309.6.0.2) <C3F24150-4860-35F3-8F8E-4BF5EBDAA6F6> /System/Library/PrivateFrameworks/FontServices.framework/libXTFontStaticRegistryData.dylib
+       0x24df70000 -        0x24df7bfdf  com.apple.FramePacing (1.0 - 1) <4274A591-284D-3F26-99FC-010D602D172C> /System/Library/PrivateFrameworks/FramePacing.framework/Versions/A/FramePacing
+       0x24eae5000 -        0x24eaea747  libGPUCompilerUtils.dylib (32023.622) <2F123CA9-D284-3341-AE21-7A92789ED26F> /System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/32023/Libraries/libGPUCompilerUtils.dylib
+       0x252b74000 -        0x252bb401f  libllvm-flatbuffers.dylib (32023.622) <B3D0267C-66A6-3C28-9471-C4A48AB55E14> /System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/32023/Libraries/libllvm-flatbuffers.dylib
+       0x2576c4000 -        0x2577a8c3f  com.apple.InstalledContentLibrary (1.0 - 1.0) <9D5D2A2E-CC34-316E-AF24-942B499577BC> /System/Library/PrivateFrameworks/InstalledContentLibrary.framework/Versions/A/InstalledContentLibrary
+       0x25be8f000 -        0x25c5207cf  com.apple.MIL (3405.2 - 3405.2.1) <F7D03EF9-C62C-338F-A832-044058C56772> /System/Library/PrivateFrameworks/MIL.framework/Versions/A/MIL
+       0x25eaa0000 -        0x25eaf5c3f  com.apple.MessageSecurity (1.0 - 115.100.9) <F57140EC-5899-33BC-929A-3454D831C112> /System/Library/PrivateFrameworks/MessageSecurity.framework/Versions/A/MessageSecurity
+       0x262d44000 -        0x262e637af  com.apple.ParsingInternal (0.0.1 - 103.5) <ED54149F-0A9A-37C3-B89B-94024B30A681> /System/Library/PrivateFrameworks/ParsingInternal.framework/Versions/A/ParsingInternal
+       0x265fab000 -        0x265fca67f  com.apple.accessibility.PhotosensitivityProcessing (1.0 - 1) <3C3E0096-B0B8-3CBB-8BB5-DC454C843B60> /System/Library/PrivateFrameworks/PhotosensitivityProcessing.framework/Versions/A/PhotosensitivityProcessing
+       0x266e3e000 -        0x266ec147f  com.apple.ProDisplayLibrary (9.4.6 - 9.4.6) <44F0A589-2A78-3F21-A464-3204AFE76831> /System/Library/PrivateFrameworks/ProDisplayLibrary.framework/Versions/A/ProDisplayLibrary
+       0x267b00000 -        0x267b08efb  com.apple.ReflectionInternal (1.0.0 - 103.5) <077A2310-D596-374B-A0A6-B211AA70B70D> /System/Library/PrivateFrameworks/ReflectionInternal.framework/Versions/A/ReflectionInternal
+       0x2687d7000 -        0x2687eba87  com.apple.RuntimeInternal (1.0.0 - 103.5) <59C620F9-15F4-31AA-BD57-8FE22C86D534> /System/Library/PrivateFrameworks/RuntimeInternal.framework/Versions/A/RuntimeInternal
+       0x271d63000 -        0x271d8f00f  com.apple.security.SwiftASN1Internal (1.0 - 1) <52F78B56-77F7-361E-9E57-81E3944506E0> /System/Library/PrivateFrameworks/SwiftASN1Internal.framework/Versions/A/SwiftASN1Internal
+       0x278069000 -        0x27806a197  com.apple.VideoToolboxParavirtualizationSupport (40.7.1 - 40.7.1) <E3D2B701-A052-3B0D-978E-25BA1137BF49> /System/Library/PrivateFrameworks/VideoToolboxParavirtualizationSupport.framework/Versions/A/VideoToolboxParavirtualizationSupport
+       0x280f97000 -        0x28102fc27  libAppleArchive.dylib (423.100.6) <0E6A8DD6-851E-365A-82F0-D4E23D1B8BF4> /usr/lib/libAppleArchive.dylib
+       0x2810cc000 -        0x2810d66df  libCoreEntitlements.dylib (69.100.2) <32D93AAD-F537-3F8B-91A7-2A345A8BC46D> /usr/lib/libCoreEntitlements.dylib
+       0x281274000 -        0x28127b109  libRosetta.dylib (349) <4EE80AAC-8204-3BD0-AB75-EDD23DE67E2F> /usr/lib/libRosetta.dylib
+       0x2812d7000 -        0x2812e041f  libTLE.dylib (69.100.2) <4D92D884-07DE-3229-8DCD-01DB7AB1F885> /usr/lib/libTLE.dylib
+       0x28150b000 -        0x28161b4b7  libcrypto.46.dylib (107) <EDA6D5D9-4E62-3C7E-97A6-9B600B3D0682> /usr/lib/libcrypto.46.dylib
+       0x281659000 -        0x281674567  libhvf.dylib (9) <8AE2E2A9-1EDF-37C3-A803-59EA1875FE12> /usr/lib/libhvf.dylib
+       0x282035000 -        0x28206d1d7  libssl.48.dylib (107) <E652A685-648E-3029-BAEE-2F0198004B7C> /usr/lib/libssl.48.dylib
+       0x282258000 -        0x28226ca7f  libswiftDistributed.dylib (6.1.2 - 6.1.2.1.101) <82A85240-141B-3964-8833-65CDAC5E052E> /usr/lib/swift/libswiftDistributed.dylib
+       0x282284000 -        0x282291e97  libswiftObservation.dylib (6.1.2 - 6.1.2.1.101) <FA0C6C15-2754-31B3-A41F-2C8FD298CFB1> /usr/lib/swift/libswiftObservation.dylib
+       0x2822a1000 -        0x2822ad847  libswiftRegexBuilder.dylib (6.1.2 - 6.1.2.1.101) <7C8BCF65-594E-3D82-B5E2-3903BE9EFE12> /usr/lib/swift/libswiftRegexBuilder.dylib
+       0x2822f1000 -        0x2822fa97f  libswiftSynchronization.dylib (6.1.2 - 6.1.2.1.101) <8497FE13-91B1-3A3B-926E-324A14CDE11C> /usr/lib/swift/libswiftSynchronization.dylib
+       0x2822fb000 -        0x2823156f7  libswiftSystem.dylib (64) <07B721E1-3431-3467-B5C7-B404DABEF3C5> /usr/lib/swift/libswiftSystem.dylib
+       0x28236a000 -        0x28236c7ef  libswift_Builtin_float.dylib (6.1.2 - 6.1.2.1.101) <03D0A1F4-BF98-39AE-8776-8E69D5711ED0> /usr/lib/swift/libswift_Builtin_float.dylib
+       0x28236d000 -        0x2823edc63  libswift_Concurrency.dylib (6.1.2 - 6.1.2.1.101) <33017264-73FF-36D0-B876-2B45899474E2> /usr/lib/swift/libswift_Concurrency.dylib
+       0x282429000 -        0x2824cb2cf  libswift_RegexParser.dylib (6.1.2 - 6.1.2.1.101) <C440C1F0-D56E-3C2C-BDC2-3DC394FE8DA5> /usr/lib/swift/libswift_RegexParser.dylib
+       0x2824cc000 -        0x28255be57  libswift_StringProcessing.dylib (6.1.2 - 6.1.2.1.101) <2566B4EF-A771-327C-9201-90D29956BBFA> /usr/lib/swift/libswift_StringProcessing.dylib
+       0x28255f000 -        0x282560497  libswift_errno.dylib (310.100.8.0.1) <D41C076F-BDAD-35CD-9C5D-6E2D964C2249> /usr/lib/swift/libswift_errno.dylib
+       0x282561000 -        0x28256377f  libswift_math.dylib (310.100.8.0.1) <DE0364A8-5368-3AE6-A17F-199447A96059> /usr/lib/swift/libswift_math.dylib
+       0x282564000 -        0x282564565  libswift_signal.dylib (310.100.8.0.1) <6A943F54-D50D-3D25-BCCE-0ECE1EEED5AA> /usr/lib/swift/libswift_signal.dylib
+       0x282565000 -        0x282565dcf  libswift_stdio.dylib (310.100.8.0.1) <CF7EEC05-B0DF-36F7-B113-DB80FAE5ABCA> /usr/lib/swift/libswift_stdio.dylib
+       0x282566000 -        0x2825667c7  libswift_time.dylib (310.100.8.0.1) <F13769AF-C154-363F-A10B-119CDB3D0273> /usr/lib/swift/libswift_time.dylib
+       0x282567000 -        0x282567737  libswiftsys_time.dylib (310.100.8.0.1) <89FE4D79-D655-3935-9A3A-FD4DB442946A> /usr/lib/swift/libswiftsys_time.dylib
+       0x282568000 -        0x28256898f  libswiftunistd.dylib (310.100.8.0.1) <5B1696DE-91D6-33EC-B0E4-207DD00976AC> /usr/lib/swift/libswiftunistd.dylib
+       0x28269f000 -        0x2826a2deb  libsystem_darwindirectory.dylib (122) <277D32FB-F49A-3949-97A4-B190A3DF89E8> /usr/lib/system/libsystem_darwindirectory.dylib
+       0x2826a3000 -        0x2826aa523  libsystem_eligibility.dylib (181.140.5) <27E48AAA-644F-394A-9F62-49CEFB813716> /usr/lib/system/libsystem_eligibility.dylib
+       0x2826ab000 -        0x2826b06c5  libsystem_sanitizers.dylib (19) <FB86D2F7-4501-38E4-9D9A-83F960D7D7BA> /usr/lib/system/libsystem_sanitizers.dylib

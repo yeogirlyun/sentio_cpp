@@ -18,7 +18,7 @@ void show_trade_flow(const std::string& db_path, const std::string& run_id, cons
     
     // Get run info and print header
     RunInfo info = get_run_info(db_path, run_id);
-    print_run_header("EXECUTION FLOW REPORT", info);
+    print_run_header(" EXECUTION FLOW REPORT ", info);
     
     if (!symbol_filter.empty()) {
       printf("Symbol Filter: %s\n", symbol_filter.c_str());

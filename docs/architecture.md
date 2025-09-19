@@ -4,7 +4,7 @@
 
 Sentio is a high-performance quantitative trading system built in C++ that implements a strategy-agnostic architecture for systematic trading. The system is designed to maximize profit through sophisticated signal generation, dynamic allocation, and comprehensive audit capabilities.
 
-> **📖 For complete usage instructions, see the [Sentio User Guide](sentio_user_guide.md) which covers both CLI and audit systems.**
+
 
 ## Core Architecture Principles
 
@@ -339,30 +339,22 @@ std::vector<AllocationDecision> IREStrategy::get_allocation_decisions(...) {
 - **Correlation Controls**: Limits on correlated positions
 - **Drawdown Protection**: Automatic position reduction during drawdowns
 
-### 6. Polygon Interface
+### 6. Polygon Interface (Integrated via sentio_cli download)
 
 #### Data Pipeline
 ```
-Polygon API → Data Downloader → Data Aligner → Binary Cache → Strategy Processing
+Polygon API → sentio_cli download (data_downloader) → CSV (UTC) → Strategy Processing
 ```
 
-#### Data Downloader (`tools/data_downloader.py`)
-```python
-def download_symbol_data(symbol, years=3, api_key=None):
-    """Download historical data from Polygon.io"""
-    start_date = datetime.now() - timedelta(days=years*365)
-    end_date = datetime.now()
-    
-    # Download bars with RTH filtering
-    bars = polygon_client.get_bars(symbol, start_date, end_date, 
-                                 timespan='minute', adjusted=True)
-    
-    # Filter for Regular Trading Hours
-    rth_bars = filter_rth_bars(bars)
-    
-    # Save to CSV format (all trading hours, no holidays)
-    save_bars_to_csv(all_hours_bars, f"{symbol}_NH.csv")
+#### Data Downloader (C++ module)
+```bash
+# Examples (minute bars, 3y, family symbols if QQQ)
+export POLYGON_API_KEY=YOUR_KEY
+./build/sentio_cli download QQQ --period 3y --timespan minute --family
 ```
+Notes:
+- Timestamps are stored in UTC; optional holiday exclusion (`_NH` suffix).
+- RTH is approximated via UTC window; DST-precise ET windowing can be enabled later.
 
 #### Data Alignment (`tools/align_bars.py`)
 ```python
@@ -390,7 +382,35 @@ def align_bars(symbols, output_dir="data"):
 - **Indexing**: Fast timestamp-based lookups
 - **Validation**: SHA1 checksums for data integrity
 
-### 7. Machine Learning Approaches
+### 7. Transformer Strategy: Training and Usage
+
+#### Components
+- `TransformerStrategy` (`src/strategy_transformer.cpp`): feature generation per-bar, input validation, probability calculation with no-grad, eval mode.
+- `FeaturePipeline` (`src/feature_pipeline.cpp`): base + enhanced features (momentum persistence, volatility regime, microstructure, options proxies).
+- `TransformerModel` (`src/transformer_model.cpp`): LibTorch model; `save_model`/`load_model` via shared_ptr; `get_memory_usage_bytes`.
+
+#### Training CLI
+```bash
+./build/transformer_trainer_main --data data/equities/QQQ_RTH_NH.csv \
+  --sequence-length 64 --feature-dim 173 --epochs 20 --batch-size 512
+```
+Behavior:
+- Prepares per-bar sequences, validates shapes [sequence_length, feature_dim].
+- Skips incomplete sequences; logs sample shape and counts.
+
+#### Evaluation CLI
+```bash
+./build/transformer_evaluator_main --input results/preds_labels.csv
+```
+Metrics:
+- MSE, MAE, directional accuracy, correlation; letter grade A+/A/A-/B+/B/not-usable.
+
+#### Inference Path (Strategy)
+```
+Bars → EnhancedFeaturePipeline → torch::Tensor [seq, feat] → model.forward → prob [0,1]
+```
+Validation:
+- Input shape checks, clamp to [0,1], debug logging toggles.
 
 #### Offline Training Pipeline
 ```
@@ -724,10 +744,10 @@ Signal (Probability) → Router → Sizer → Runner → Actual PnL
 - **Risk Management**: Value at Risk (VaR), expected shortfall, turnover rate
 - **Signal Correlation**: Signal-to-PnL correlation, signal effectiveness
 
-### 3. Virtual Market Testing (VMTest)
+### 3. Virtual Market Testing (VMTest) — deprecated
 
 #### VMTest Overview
-VMTest provides comprehensive virtual market simulation for strategy testing using multiple data generation approaches. The system supports both synthetic data generation and integration with the MarS (Market Simulation Engine) for realistic market microstructure modeling.
+VMTest based on Monte Carlo synthetic generation is removed from default flows. We rely on MarS-based future data and canonical Trading Block evaluation instead. A minimal shim provides `generate_theoretical_leverage_series` for leverage families.
 
 #### VMTest Architecture
 ```

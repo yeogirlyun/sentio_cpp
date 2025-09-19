@@ -1,0 +1,12 @@
+{
+  "model_type": "TFA_CPP_Compatible",
+  "feature_count": 55,
+  "sequence_length": 48,
+  "d_model": 128,
+  "nhead": 8,
+  "num_layers": 3,
+  "cpp_compatible": true,
+  "schema_version": "2.0",
+  "saved_at": 1758266465,
+  "framework": "torchscript"
+}

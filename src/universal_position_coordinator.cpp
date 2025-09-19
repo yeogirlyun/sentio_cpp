@@ -22,19 +22,43 @@ std::vector<CoordinationDecision> UniversalPositionCoordinator::coordinate(
     std::vector<CoordinationDecision> results;
     
     
-    // STEP 1: Aggressively check for existing conflicts
-    if (check_portfolio_conflicts(portfolio, ST)) {
+    // STEP 1: Atomic conflict resolution - capture portfolio state first
+    std::vector<std::pair<size_t, double>> conflicted_positions;
+    bool has_conflicts = false;
+    
+    // Atomic check and capture of conflicted positions
+    {
+        bool has_long = false;
+        bool has_inverse = false;
         
-        // Generate closing orders for ALL existing positions to clear the conflict
         for (size_t sid = 0; sid < portfolio.positions.size(); ++sid) {
-            if (std::abs(portfolio.positions[sid].qty) > 1e-6) {
+            if (has_position(portfolio.positions[sid])) {
                 const std::string& symbol = ST.get_symbol(sid);
-                results.push_back({
-                    {symbol, 0.0, "IMMEDIATE CONFLICT RESOLUTION"},
-                    CoordinationResult::APPROVED,
-                    "Closing position to resolve portfolio conflict."
-                });
+                
+                if (LONG_ETFS.count(symbol)) {
+                    has_long = true;
+                }
+                if (INVERSE_ETFS.count(symbol)) {
+                    has_inverse = true;
+                }
+                
+                // Capture all positions for potential closure
+                conflicted_positions.push_back({sid, portfolio.positions[sid].qty});
             }
+        }
+        
+        has_conflicts = (has_long && has_inverse);
+    }
+    
+    if (has_conflicts) {
+        // Generate closing orders for ALL captured positions atomically
+        for (const auto& [sid, qty] : conflicted_positions) {
+            const std::string& symbol = ST.get_symbol(sid);
+            results.push_back({
+                {symbol, 0.0, "IMMEDIATE CONFLICT RESOLUTION"},
+                CoordinationResult::APPROVED,
+                "Closing position to resolve portfolio conflict."
+            });
         }
         
         // STEP 2: Reject ALL incoming allocations for this bar to prevent worsening the state
@@ -112,7 +136,7 @@ bool UniversalPositionCoordinator::check_portfolio_conflicts(
     bool has_inverse = false;
     
     for (size_t sid = 0; sid < portfolio.positions.size(); ++sid) {
-        if (std::abs(portfolio.positions[sid].qty) > 1e-6) {
+        if (has_position(portfolio.positions[sid])) {
             const std::string& symbol = ST.get_symbol(sid);
             
             if (LONG_ETFS.count(symbol)) {
@@ -142,7 +166,7 @@ bool UniversalPositionCoordinator::would_create_conflict(
     // CORRECTED: Only check for DIRECTIONAL conflicts (long vs inverse)
     // Multiple inverse ETFs (PSQ+SQQQ) are ALLOWED - same direction, optimal allocation
     for (size_t sid = 0; sid < portfolio.positions.size(); ++sid) {
-        if (std::abs(portfolio.positions[sid].qty) > 1e-6) {
+        if (has_position(portfolio.positions[sid])) {
             const std::string& symbol = ST.get_symbol(sid);
             bool has_long = LONG_ETFS.count(symbol) > 0;
             bool has_inverse = INVERSE_ETFS.count(symbol) > 0;
@@ -160,7 +184,7 @@ bool UniversalPositionCoordinator::would_create_conflict(
 
 bool UniversalPositionCoordinator::portfolio_has_positions(const Portfolio& portfolio) const {
     for (size_t sid = 0; sid < portfolio.positions.size(); ++sid) {
-        if (std::abs(portfolio.positions[sid].qty) > 1e-6) {
+        if (has_position(portfolio.positions[sid])) {
             return true;
         }
     }

@@ -1,8 +1,7 @@
 #include "sentio/polygon_client.hpp"
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
-#include <cctz/time_zone.h>
-#include <cctz/civil_time.h>
+#include "sentio/time_utils.hpp"
 #include <fstream>
 #include <thread>
 #include <chrono>
@@ -21,30 +20,12 @@ static size_t write_cb(void* contents, size_t size, size_t nmemb, void* userp) {
 }
 
 static std::string rfc3339_utc_from_epoch_ms(long long ms) {
-  using namespace std::chrono;
-  
-  cctz::time_point<cctz::seconds> tp{cctz::seconds{ms / 1000}};
-  
-  // Get UTC timezone
-  cctz::time_zone utc_tz;
-  if (!cctz::load_time_zone("UTC", &utc_tz)) {
-    return "1970-01-01T00:00:00Z"; // fallback
-  }
-  
-  // Convert to UTC civil time
-  auto lt = cctz::convert(tp, utc_tz);
-  auto ct = cctz::civil_second(lt);
-  
-  std::ostringstream oss;
-  oss << std::setfill('0') 
-      << std::setw(4) << ct.year() << "-"
-      << std::setw(2) << ct.month() << "-"
-      << std::setw(2) << ct.day() << "T"
-      << std::setw(2) << ct.hour() << ":"
-      << std::setw(2) << ct.minute() << ":"
-      << std::setw(2) << ct.second() << "Z";
-  
-  return oss.str();
+  std::time_t seconds = static_cast<std::time_t>(ms / 1000);
+  std::tm* tm_utc = std::gmtime(&seconds);
+  if (!tm_utc) return "1970-01-01T00:00:00Z";
+  char buf[32];
+  std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", tm_utc);
+  return std::string(buf);
 }
 
 // **REMOVED**: RTH filtering - now keeping all trading hours data
@@ -196,6 +177,12 @@ std::vector<AggBar> PolygonClient::get_aggs_chunked(const AggsQuery& q, int max_
         std::strftime(start_str, sizeof(start_str), "%Y-%m-%d", current_tm);
         std::strftime(end_str, sizeof(end_str), "%Y-%m-%d", chunk_end_tm);
         
+        // Skip if start and end are the same date (avoid duplicate chunks)
+        if (std::string(start_str) == std::string(end_str)) {
+            current_time = chunk_end + (24 * 60 * 60); // Move to next day properly
+            continue;
+        }
+        
         std::cerr << "Downloading chunk: " << start_str << " to " << end_str << std::endl;
         
         // Create chunk query
@@ -228,7 +215,7 @@ std::vector<AggBar> PolygonClient::get_aggs_chunked(const AggsQuery& q, int max_
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
         
-        current_time = chunk_end + 1; // Move to next day
+        current_time = chunk_end + (24 * 60 * 60); // Move to next day properly
         std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Rate limiting between chunks
     }
     
@@ -237,27 +224,32 @@ std::vector<AggBar> PolygonClient::get_aggs_chunked(const AggsQuery& q, int max_
 }
 
 void PolygonClient::write_csv(const std::string& out_path,const std::string& symbol,
-                              const std::vector<AggBar>& bars, bool exclude_holidays) {
+                              const std::vector<AggBar>& bars, bool exclude_holidays, bool rth_only) {
   std::ofstream f(out_path);
   f << "timestamp,symbol,open,high,low,close,volume\n";
   for (auto& a: bars) {
     // **MODIFIED**: RTH and holiday filtering is now done directly on the UTC timestamp
     // before any string conversion, making it much more reliable.
 
-    // RTH filtering removed - keeping all trading hours data
+    // RTH filtering: 9:30 AM - 4:00 PM ET
+    // Simplified: approximate by UTC window (14:30-21:00 UTC). For exact ET/DST use tzdb.
+    if (rth_only) {
+        std::time_t sec = static_cast<std::time_t>(a.ts_ms / 1000);
+        std::tm* tm_utc = std::gmtime(&sec);
+        if (!tm_utc) continue;
+        // Skip weekends
+        if (tm_utc->tm_wday == 0 || tm_utc->tm_wday == 6) continue; // Sun=0, Sat=6
+        int time_minutes = tm_utc->tm_hour * 60 + tm_utc->tm_min;
+        const int rth_start_utc = 14 * 60 + 30; // 14:30 UTC
+        const int rth_end_utc = 21 * 60;        // 21:00 UTC
+        if (time_minutes < rth_start_utc || time_minutes >= rth_end_utc) continue;
+    }
     
     if (exclude_holidays) {
-        cctz::time_point<cctz::seconds> tp{cctz::seconds{a.ts_ms / 1000}};
-        
-        // Get UTC timezone
-        cctz::time_zone utc_tz;
-        if (cctz::load_time_zone("UTC", &utc_tz)) {
-            auto lt = cctz::convert(tp, utc_tz);
-            auto ct = cctz::civil_second(lt);
-            
-            if (is_us_market_holiday_utc(ct.year(), ct.month(), ct.day())) {
-                continue;
-            }
+        std::time_t sec = static_cast<std::time_t>(a.ts_ms / 1000);
+        std::tm* tm_utc = std::gmtime(&sec);
+        if (tm_utc) {
+            if (is_us_market_holiday_utc(tm_utc->tm_year + 1900, tm_utc->tm_mon + 1, tm_utc->tm_mday)) continue;
         }
     }
     

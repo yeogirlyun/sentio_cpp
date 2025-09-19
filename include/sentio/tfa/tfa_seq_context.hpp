@@ -40,14 +40,26 @@ struct TfaSeqContext {
     meta  = load_json(meta_json);
 
     runtime_names  = names_from_spec(spec);
-    expected_names = meta["expects"]["feature_names"].get<std::vector<std::string>>();
-    F         = meta["expects"]["input_dim"].get<int>();
-    if (meta["expects"].contains("seq_len")) T = meta["expects"]["seq_len"].get<int>();
-    emit_from = meta["expects"]["emit_from"].get<int>();
-    pad_value = meta["expects"]["pad_value"].get<float>();
+    
+    // Handle both old (v1) and new (v2_m4_optimized) metadata formats
+    if (meta.contains("expects")) {
+      // Old format (v1)
+      expected_names = meta["expects"]["feature_names"].get<std::vector<std::string>>();
+      F         = meta["expects"]["input_dim"].get<int>();
+      if (meta["expects"].contains("seq_len")) T = meta["expects"]["seq_len"].get<int>();
+      emit_from = meta["expects"]["emit_from"].get<int>();
+      pad_value = meta["expects"]["pad_value"].get<float>();
+    } else {
+      // New format (v2_m4_optimized)
+      F = meta["feature_count"].get<int>();
+      T = meta["sequence_length"].get<int>();
+      // For new format, use runtime names as expected names
+      expected_names = runtime_names;
+      emit_from = T; // Use sequence length as emit_from
+      pad_value = 0.0f; // Default pad value
+    }
 
     if (F!=55) std::cerr << "[WARN] model F="<<F<<" expected 55\n";
-    std::cerr << "[TFA-SEQ] loaded: F="<<F<<" T="<<T<<" emit_from="<<emit_from<<"\n";
   }
 
   template<class Bars>
@@ -62,7 +74,6 @@ struct TfaSeqContext {
       auto proj = sentio::ColumnProjector::make(runtime_names, expected_names, pad_value);
       proj.project(X.data.data(), (size_t)X.rows, (size_t)X.cols, Xproj);
       Xp = Xproj.data(); Fs = F;
-      std::cerr << "[TFA-SEQ] projected "<<X.cols<<" -> "<<F<<"\n";
     }
 
     // Sanitize
@@ -95,9 +106,6 @@ struct TfaSeqContext {
     // Stats
     float pmin=1.f, pmax=0.f, ps=0.f; int64_t cnt=0;
     for (int64_t i=start;i<(int64_t)probs_out.size();++i){ pmin=std::min(pmin,probs_out[i]); pmax=std::max(pmax,probs_out[i]); ps+=probs_out[i]; cnt++; }
-    std::cerr << "[TFA-SEQ] prob stats: min="<<pmin<<" mean="<<(ps/std::max<int64_t>(1,cnt))<<" max="<<pmax<<"\n";
-    for (int64_t i=start; i<(int64_t)probs_out.size(); i+=50)
-      std::cerr << "[TFA-SEQ] prob["<<i<<"]="<<probs_out[i]<<"\n";
   }
 };
 

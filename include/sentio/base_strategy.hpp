@@ -93,36 +93,21 @@ public:
         return StrategySignal::from_probability(prob);
     }
     
-    // **NEW**: Strategy-agnostic allocation interface
-    struct AllocationDecision {
-        std::string instrument;
-        double target_weight; // -1.0 to 1.0
-        double confidence;    // 0.0 to 1.0
-        std::string reason;   // Human-readable reason for allocation
-    };
+    // REMOVED: get_allocation_decisions - strategies only produce probabilities
+    // AllocationManager handles instrument selection for maximum profit
     
-    // **NEW**: Get allocation decisions for this strategy
-    virtual std::vector<AllocationDecision> get_allocation_decisions(
-        const std::vector<Bar>& bars, 
-        int current_index,
-        const std::string& base_symbol,
-        const std::string& bull3x_symbol,
-        const std::string& bear3x_symbol) = 0;
-    
-    // **NEW**: Get strategy-specific router configuration
-    virtual RouterCfg get_router_config() const = 0;
+    // REMOVED: get_router_config - AllocationManager handles routing
     
     // REMOVED: get_sizer_config() - No artificial limits allowed for profit maximization
     // Sizer will always use maximum capital deployment and leverage
     
-    // **NEW**: Check if strategy requires special handling (e.g., dynamic leverage)
-    virtual bool requires_dynamic_allocation() const { return false; }
+    // REMOVED: requires_dynamic_allocation - all strategies use same allocation pipeline
     
-    // **STRATEGY-AGNOSTIC CONFLICT PREVENTION**: Let strategy define its own constraints
+    // **CONFLICT PREVENTION (HARD DEFAULT)**: Disallow simultaneous positions by default.
+    // Coordinator enforces family-level conflict rules; strategies should rarely override this.
     virtual bool allows_simultaneous_positions(const std::string& instrument1, const std::string& instrument2) const {
-        // Default: allow all combinations (backward compatible)
         (void)instrument1; (void)instrument2; // Suppress unused parameter warnings
-        return true;
+        return false;
     }
     
     // **STRATEGY-AGNOSTIC TRANSITION CONTROL**: Let strategy control its own transitions

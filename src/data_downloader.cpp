@@ -1,5 +1,6 @@
 #include "sentio/data_downloader.hpp"
 #include "sentio/polygon_client.hpp"
+#include "sentio/time_utils.hpp"
 #include <iostream>
 #include <ctime>
 #include <iomanip>
@@ -27,33 +28,6 @@ std::string get_current_date() {
     return oss.str();
 }
 
-std::string calculate_start_date(int years, int months, int days) {
-    std::time_t now = std::time(nullptr);
-    std::time_t yesterday = now - 24 * 60 * 60; // Start from yesterday
-    
-    std::tm* tm_start = std::gmtime(&yesterday);
-    
-    if (years > 0) {
-        tm_start->tm_year -= years;
-    } else if (months > 0) {
-        tm_start->tm_mon -= months;
-        if (tm_start->tm_mon < 0) {
-            tm_start->tm_mon += 12;
-            tm_start->tm_year--;
-        }
-    } else if (days > 0) {
-        tm_start->tm_mday -= days;
-        // Let mktime handle month/year overflow
-        std::mktime(tm_start);
-    } else {
-        // Default: 3 years (now explicit default)
-        tm_start->tm_year -= 3;
-    }
-    
-    std::ostringstream oss;
-    oss << std::put_time(tm_start, "%Y-%m-%d");
-    return oss.str();
-}
 
 std::string symbol_to_family(const std::string& symbol) {
     std::string upper_symbol = symbol;
@@ -122,7 +96,7 @@ bool download_symbol_data(const std::string& symbol,
     }
     
     // **DATE CALCULATION**
-    std::string from = calculate_start_date(years, months, days);
+    std::string from = sentio::calculate_start_date(years, months, days);
     std::string to = get_yesterday_date();
     
     std::cout << "📅 Current date: " << get_current_date() << std::endl;

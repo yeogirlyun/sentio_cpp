@@ -245,6 +245,61 @@ When making code changes, AI models **MUST**:
 
 ## 🏗️ Architecture Rules
 
+### **CRITICAL ARCHITECTURAL CONTRACT (Mandatory)**
+
+**ALL backend systems (runner, router, sizer) MUST be strategy-agnostic and follow these principles:**
+
+#### **🔒 RULE 1: Strategy-Agnostic Backend**
+- **Runner**: Must work with ANY strategy implementing BaseStrategy interface
+- **Router**: Must work with ANY RouterCfg from ANY strategy  
+- **Sizer**: Must work with ANY strategy configuration
+- **NO** strategy names, types, or strategy-specific logic in core systems
+- **ALL** strategy behavior controlled via BaseStrategy virtual methods
+
+#### **🔒 RULE 2: BaseStrategy API Completeness**
+- **ALL** strategy behavior expressed through BaseStrategy virtual methods
+- **Extension Pattern**: Add virtual methods to BaseStrategy, NOT core system modifications
+- **Feature Flags**: Use boolean flags like `requires_dynamic_allocation()` for optional behaviors
+- **Configuration Objects**: Strategy preferences via config structs (RouterCfg, etc.)
+
+#### **🔒 RULE 3: Profit Maximization Mandate**
+- **100% Capital Deployment**: Always use full available capital
+- **Maximum Leverage**: Use leveraged instruments (TQQQ, SQQQ, PSQ) for strong signals
+- **No Artificial Limits**: Remove any constraints that limit capital deployment or leverage
+- **Position Integrity**: Never allow negative positions or conflicting long/short positions
+
+#### **🔒 RULE 4: Architectural Enforcement**
+```cpp
+// ✅ CORRECT: Strategy controls behavior via virtual methods
+if (strategy->requires_dynamic_allocation()) {
+    // Use dynamic allocation path
+} else {
+    // Use legacy router path
+}
+
+// ❌ WRONG: Strategy-specific logic in runner
+if (strategy->get_name() == "tfa") {
+    // TFA-specific logic - FORBIDDEN
+}
+```
+
+#### **🔒 RULE 5: Extension Protocol**
+**BEFORE** modifying runner/router/sizer, ask:
+1. Can this be achieved by extending BaseStrategy API?
+2. Is this change strategy-agnostic?
+3. Does this maintain backward compatibility?
+4. Will this work for all current and future strategies?
+
+**If ANY answer is "No", extend BaseStrategy instead.**
+
+#### **🔒 RULE 6: Code Review Checklist**
+- [ ] **No strategy names** in runner/router/sizer code
+- [ ] **All behavior** controlled via BaseStrategy virtual methods
+- [ ] **Backward compatible** with existing strategies
+- [ ] **100% capital deployment** maintained
+- [ ] **Maximum leverage** for strong signals
+- [ ] **Position integrity** preserved (no negative/conflicting positions)
+
 ### **System Architecture Principles**
 
 1. **Multi-Algorithm Engine**: All trading logic goes through the multi-algorithm system
@@ -252,6 +307,7 @@ When making code changes, AI models **MUST**:
 3. **Event-Driven**: Asynchronous, non-blocking operations
 4. **GUI Integration**: All features must have GUI controls
 5. **Performance Tracking**: All algorithms must have performance monitoring
+6. **Strategy-Agnostic Core**: Backend systems work with any BaseStrategy implementation
 
 ### **Code Organization**
 
@@ -705,140 +761,145 @@ git add docs/ARCHITECTURE.md docs/README.md  # Only these docs allowed
 - To document implementation details
 - Without explicit user instruction
 
-### **Mandatory Usage of create_mega_document.py**
+### **Mandatory Mega Document Creation Process**
 
-**When explicitly requested, always use the `create_mega_document.py` tool** located in the `tools/` folder for creating comprehensive documentation:
+**When explicitly requested, ALWAYS follow this exact process:**
 
-#### **1. Bug Reports (place in `bug_reports/` folder)**
-
+#### **Step 1: Create Temporary Directory Structure**
 ```bash
-# Step 1: Create JSON configuration file
-# Example: bug_reports/performance_bug_config.json
-{
-  "files": [
-    "algorithms/problematic_strategy.py",
-    "test_results.py", 
-    "docs/ARCHITECTURE.md",
-    "existing_analysis.md"
-  ],
-  "sections": [
-    {
-      "title": "Executive Summary",
-      "content": "Brief description of the bug and impact"
-    },
-    {
-      "title": "Root Cause Analysis",
-      "content": "Detailed analysis of what's causing the issue"
-    },
-    {
-      "title": "Proposed Solutions", 
-      "content": "Implementation roadmap and fixes"
-    }
-  ]
-}
-
-# Step 2: Generate mega document
-python3 tools/create_mega_document.py \
-  --config bug_reports/performance_bug_config.json \
-  --title "Performance Bug Analysis" \
-  --description "Analysis of system performance issues" \
-  --output bug_reports/PERFORMANCE_BUG_ANALYSIS_MEGA.md
+# Create temporary directory for organizing relevant files
+mkdir -p temp_mega_doc
 ```
 
-#### **2. Requirement Requests (place in `req_requests/` folder)**
-
+#### **Step 2: Copy ONLY Relevant Source Modules**
 ```bash
-# Step 1: Create JSON configuration file  
-# Example: req_requests/feature_enhancement_config.json
-{
-  "files": [
-    "algorithms/current_implementation.py",
-    "docs/ARCHITECTURE.md",
-    "similar_feature_example.py",
-    "performance_benchmarks.json"
-  ],
-  "sections": [
-    {
-      "title": "Feature Requirements",
-      "content": "Detailed requirements and specifications"
-    },
-    {
-      "title": "Success Criteria",
-      "content": "How to measure successful implementation"
-    },
-    {
-      "title": "Implementation Roadmap",
-      "content": "Step-by-step implementation plan"
-    }
-  ]
-}
-
-# Step 2: Generate mega document
-python3 tools/create_mega_document.py \
-  --config req_requests/feature_enhancement_config.json \
-  --title "Feature Enhancement Request" \
-  --description "Request for new system capabilities" \
-  --output req_requests/FEATURE_ENHANCEMENT_REQUEST_MEGA.md
+# Copy ONLY the source modules directly related to the analysis
+# Example for a backend bug analysis:
+cp src/strategy_profiler.cpp temp_mega_doc/
+cp src/adaptive_allocation_manager.cpp temp_mega_doc/
+cp include/sentio/strategy_profiler.hpp temp_mega_doc/
+cp include/sentio/adaptive_allocation_manager.hpp temp_mega_doc/
+# ... only relevant files
 ```
 
-#### **3. Performance Analysis Documents**
-
+#### **Step 3: Copy Bug Report or Requirement Document**
 ```bash
-# For performance gap analysis, system comparisons, etc.
-# Example: bug_reports/financeai_comparison_config.json
-{
-  "files": [
-
-    "algorithms/ultra_volatility_exploitation_strategy.py", 
-    "test_results.json",
-    "historical_performance_data.md"
-  ],
-  "sections": [
-    {
-      "title": "Performance Comparison",
-      "content": "Current vs target performance metrics"
-    },
-    {
-      "title": "Gap Analysis", 
-      "content": "Identification of performance gaps and causes"
-    }
-  ]
-}
-
-python3 tools/create_mega_document.py \
-  --config bug_reports/financeai_comparison_config.json \
-  --title "FinanceAI Performance Gap Analysis" \
-  --description "Comprehensive performance comparison and analysis" \
-  --output bug_reports/FINANCEAI_PERFORMANCE_GAP_MEGA.md
+# Copy the bug report or requirement document to temp directory
+cp BUG_REPORT_NAME.md temp_mega_doc/
+# OR
+cp REQUIREMENT_DOCUMENT_NAME.md temp_mega_doc/
 ```
 
-### **JSON Configuration Format**
-
-```json
-{
-  "files": [
-    "path/to/file1.py",
-    "path/to/file2.md",
-    "path/to/file3.json"
-  ],
-  "sections": [
-    {
-      "title": "Section Title",
-      "content": "Section content description and analysis"
-    }
-  ],
-  "max_lines": 1000
-}
+#### **Step 4: Generate Mega Document**
+```bash
+# Use create_mega_document.py with the temp directory
+python tools/create_mega_document.py \
+  --directories temp_mega_doc \
+  --title "Descriptive Title" \
+  --description "Detailed description of the analysis" \
+  --output megadocs/MEGA_DOCUMENT_NAME.md \
+  --include-bug-report \
+  --bug-report-file temp_mega_doc/BUG_REPORT_NAME.md
 ```
 
-### **Key Benefits of Using the Tool**
+#### **Step 5: Clean Up Temporary Directory**
+```bash
+# Remove temporary directory after mega document creation
+rm -rf temp_mega_doc
+```
 
-1. **Token Efficiency**: Avoids massive token consumption from manual document creation
-2. **Standardized Format**: Consistent document structure and formatting  
-3. **File Management**: Proper file inclusion and organization
-4. **Metadata**: Automatic statistics and file information
-5. **AI-Ready**: Optimized format for AI model analysis
-6. **Size Management**: Handles large documents efficiently
+### **Critical Rules for File Selection**
+
+**ONLY include files that are directly relevant to the analysis topic:**
+
+#### ✅ **INCLUDE Files When Relevant**
+- **Core Implementation**: Files directly implementing the analyzed functionality
+- **Interface Headers**: Header files defining the interfaces being analyzed
+- **Bug Report/Requirement**: The specific document that triggered the mega doc creation
+- **Test Files**: Only tests directly related to the analyzed functionality
+- **Configuration**: Only config files directly affecting the analyzed components
+
+#### ❌ **EXCLUDE Files Always**
+- **Unrelated Modules**: Files not connected to the analysis topic
+- **Third-Party Libraries**: External dependencies and vendor code
+- **Build Files**: Makefiles, CMake files, build scripts
+- **Documentation**: General docs not specific to the analysis
+- **Test Data**: Large data files, test datasets, sample files
+- **Generated Files**: Auto-generated code, compiled binaries
+
+### **Example Mega Document Creation Processes**
+
+#### **Example 1: Backend Bug Analysis**
+```bash
+# Step 1: Create temp directory
+mkdir -p temp_mega_doc
+
+# Step 2: Copy only relevant backend files
+cp src/strategy_profiler.cpp temp_mega_doc/
+cp src/adaptive_allocation_manager.cpp temp_mega_doc/
+cp src/universal_position_coordinator.cpp temp_mega_doc/
+cp include/sentio/strategy_profiler.hpp temp_mega_doc/
+cp include/sentio/adaptive_allocation_manager.hpp temp_mega_doc/
+cp include/sentio/universal_position_coordinator.hpp temp_mega_doc/
+
+# Step 3: Copy bug report
+cp BACKEND_BUG_REPORT.md temp_mega_doc/
+
+# Step 4: Generate mega document
+python tools/create_mega_document.py \
+  --directories temp_mega_doc \
+  --title "Backend Critical Bug Analysis" \
+  --description "Analysis of strategy-agnostic backend issues" \
+  --output megadocs/BACKEND_BUG_ANALYSIS_MEGA_DOC.md \
+  --include-bug-report \
+  --bug-report-file temp_mega_doc/BACKEND_BUG_REPORT.md
+
+# Step 5: Clean up
+rm -rf temp_mega_doc
+```
+
+#### **Example 2: Strategy Enhancement Request**
+```bash
+# Step 1: Create temp directory
+mkdir -p temp_mega_doc
+
+# Step 2: Copy only relevant strategy files
+cp src/strategy_signal_or.cpp temp_mega_doc/
+cp include/sentio/strategy_signal_or.hpp temp_mega_doc/
+cp include/sentio/detectors/rsi_detector.hpp temp_mega_doc/
+cp include/sentio/detectors/bollinger_detector.hpp temp_mega_doc/
+
+# Step 3: Copy requirement document
+cp STRATEGY_ENHANCEMENT_REQUIREMENTS.md temp_mega_doc/
+
+# Step 4: Generate mega document
+python tools/create_mega_document.py \
+  --directories temp_mega_doc \
+  --title "Strategy Enhancement Analysis" \
+  --description "Analysis for new strategy detector integration" \
+  --output megadocs/STRATEGY_ENHANCEMENT_MEGA_DOC.md \
+  --include-bug-report \
+  --bug-report-file temp_mega_doc/STRATEGY_ENHANCEMENT_REQUIREMENTS.md
+
+# Step 5: Clean up
+rm -rf temp_mega_doc
+```
+
+
+### **Size Guidelines and Best Practices**
+
+#### **Target Specifications**
+- **Target Size**: 200-500 KB maximum for focused analysis
+- **File Count**: 5-15 relevant files maximum (not 182 files!)
+- **Content Focus**: Only files directly related to the analysis topic
+
+#### **Benefits of Using the Temporary Directory Process**
+
+1. **Focused Analysis**: Only relevant files included, not entire codebase
+2. **Manageable Size**: Documents stay under 500 KB for efficient processing
+3. **Clean Organization**: Temporary structure keeps project clean
+4. **Comprehensive Context**: Bug report + relevant source code together
+5. **AI-Optimized**: Right amount of context without information overload
 
 ### **Prohibited Actions**
 
@@ -849,11 +910,14 @@ python3 tools/create_mega_document.py \
 ❌ **NEVER DO**: Write documents >1KB manually in responses
 ❌ **NEVER DO**: Update existing bug reports unless explicitly instructed
 ❌ **NEVER DO**: Create summary or completion documents
+❌ **NEVER DO**: Include entire directories (src/, include/) without filtering
+❌ **NEVER DO**: Skip the temporary directory process
 
-✅ **ONLY DO WHEN EXPLICITLY REQUESTED**: Use `create_mega_document.py` for any document >1KB  
-✅ **WHEN REQUESTED**: Create JSON config first, then run the tool  
-✅ **WHEN REQUESTED**: Place outputs in appropriate folders (`bug_reports/` or `req_requests/`)  
-✅ **WHEN REQUESTED**: Include relevant source code files in the configuration
+✅ **ONLY DO WHEN EXPLICITLY REQUESTED**: Use the 5-step temporary directory process
+✅ **WHEN REQUESTED**: Copy ONLY relevant source modules to temp directory
+✅ **WHEN REQUESTED**: Include the bug report or requirement document
+✅ **WHEN REQUESTED**: Use `create_mega_document.py` with `--directories temp_mega_doc`
+✅ **WHEN REQUESTED**: Clean up temporary directory after creation
 
 ### **Common Use Cases**
 

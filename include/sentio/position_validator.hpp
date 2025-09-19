@@ -7,9 +7,9 @@
 
 namespace sentio {
 
-// **UPDATED**: Conflicting position detection for PSQ -> SHORT QQQ architecture
+// **UPDATED**: Conflicting position detection - PSQ is inverse ETF, not short position
 const std::unordered_set<std::string> LONG_ETFS = {"QQQ", "TQQQ"};
-const std::unordered_set<std::string> INVERSE_ETFS = {"SQQQ"}; // PSQ removed
+const std::unordered_set<std::string> INVERSE_ETFS = {"SQQQ", "PSQ"}; // PSQ restored as inverse ETF
 
 inline bool has_conflicting_positions(const Portfolio& pf, const SymbolTable& ST) {
     bool has_long_etf = false;

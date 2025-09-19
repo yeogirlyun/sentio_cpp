@@ -2,6 +2,7 @@
 
 #include "sentio/metrics.hpp"
 #include "sentio/cost_model.hpp"
+#include "sentio/runner.hpp" // For BacktestOutput
 #include <vector>
 #include <string>
 
@@ -11,6 +12,17 @@ namespace audit {
 }
 
 namespace sentio {
+
+// NEW: This is the canonical, final report struct. All systems will use this.
+struct UnifiedMetricsReport {
+    double final_equity;
+    double total_return;
+    double sharpe_ratio;
+    double max_drawdown;
+    double monthly_projected_return; // Canonical MPR
+    double avg_daily_trades;
+    int total_fills;
+};
 
 /**
  * Unified Metrics Calculator - Single Source of Truth for Performance Metrics
@@ -26,8 +38,17 @@ namespace sentio {
 class UnifiedMetricsCalculator {
 public:
     /**
+     * NEW: Primary method to generate a unified report from raw backtest data.
+     * This is the single source of truth for all metric calculations.
+     * 
+     * @param output Raw backtest output containing equity curve and trade statistics
+     * @return UnifiedMetricsReport with all canonical performance metrics
+     */
+    static UnifiedMetricsReport calculate_metrics(const BacktestOutput& output);
+    
+    /**
+     * CHANGED: This is now a helper method used by the primary one.
      * Calculate performance metrics from equity curve
-     * This is the authoritative method used by all systems
      * 
      * @param equity_curve Vector of (timestamp, equity_value) pairs
      * @param fills_count Number of fill events for trade statistics

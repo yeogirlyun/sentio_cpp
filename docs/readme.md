@@ -7,10 +7,11 @@ A high-performance quantitative trading system built in C++ with strategy-agnost
 ## Quick Start
 
 ### Prerequisites
-- macOS (tested on macOS 24.6.0)
-- C++20 compatible compiler (GCC 10+ or Clang 12+)
-- Python 3.8+ (for ML training and audit analysis)
-- Polygon.io API key (for market data)
+ - macOS (tested on macOS 24.6.0)
+ - C++20 compatible compiler (AppleClang 17+ recommended)
+ - CMake 3.16+
+ - LibTorch (PyTorch C++); set Torch_DIR to your Python torch cmake path
+ - Polygon.io API key (for market data)
 
 ### Installation
 
@@ -27,12 +28,18 @@ export POLYGON_API_KEY="your_api_key_here"
 
 3. **Build the system**
 ```bash
-make
+cmake -S /Users/yeogirlyun/C++/sentio_cpp -B /Users/yeogirlyun/C++/sentio_cpp/build -DCMAKE_BUILD_TYPE=Release -DTorch_DIR=/Users/yeogirlyun/C++/sentio_cpp/MarS/mars_env/lib/python3.13/site-packages/torch/share/cmake/Torch
+cmake --build /Users/yeogirlyun/C++/sentio_cpp/build --target sentio_cli sentio_audit -j8
 ```
 
-4. **Download market data**
+Binaries:
+- `/Users/yeogirlyun/C++/sentio_cpp/build/sentio_cli`
+- `/Users/yeogirlyun/C++/sentio_cpp/build/sentio_audit`
+
+4. **Download market data (Polygon subcommand)**
 ```bash
-./build/sentio_cli download QQQ --family --period 3y
+export POLYGON_API_KEY="your_api_key_here"
+./build/sentio_cli download QQQ --family --period 3y --timespan minute
 ```
 
 5. **Run your first strategy test**
@@ -101,8 +108,8 @@ make
 # Quick development test
 ./build/sentio_cli strattest tfa QQQ --quick --duration 1d
 
-# Monte Carlo simulation
-./build/sentio_cli strattest momentum QQQ --mode monte-carlo --simulations 100
+# Canonical Trading Block evaluation (preferred)
+./build/sentio_cli strattest tfa QQQ --blocks 20 --block-size 480
 ```
 
 ### Audit Analysis
@@ -120,19 +127,23 @@ make
 ./build/sentio_audit position-history --max 50
 ```
 
-### ML Model Training
+### Transformer: Train and Evaluate
 ```bash
-# Train TFA model
-python train_models.py --config configs/tfa.yaml
+# Discover trainer/evaluator options
+./build/transformer_trainer_main --help
+./build/transformer_evaluator_main --help
 
-# Train IRE model
-python sentio_trainer/trainers/tfa_fast.py --symbol QQQ --epochs 50
+# Example: quick training run (adjust data path/flags per --help)
+./build/transformer_trainer_main --data data/equities/QQQ_RTH_NH.csv --epochs 20
+
+# Example: evaluate a saved run or predictions (see --help for exact args)
+./build/transformer_evaluator_main --input results/preds_labels.csv
 ```
 
-### Data Management
+### Data Management (Polygon)
 ```bash
 # Download latest data
-./build/sentio_cli download QQQ --family --period 1y
+./build/sentio_cli download QQQ --family --period 1y --timespan minute
 
 # Download specific timespan
 ./build/sentio_cli download SPY --period 6m --timespan day
@@ -214,17 +225,17 @@ training:
 
 ### Building from Source
 ```bash
-# Clean build
-make clean && make
+# Configure (Release)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTorch_DIR=$PYTORCH_CMAKE
 
-# Build specific target
-make build/sentio_cli
+# Build key targets
+cmake --build build --target sentio_cli sentio_audit -j8
+
+# Other targets
+cmake --build build --target transformer_trainer_main transformer_evaluator_main transformer_tests -j8
 
 # Run tests
-make test
-
-# Run sanity checks
-make sanity-test
+./build/transformer_tests
 ```
 
 ### Adding New Strategies

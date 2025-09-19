@@ -58,10 +58,20 @@ inline void apply_fill(Portfolio& pf, int sid, double qty_delta, double price) {
     }
 }
 
+// Helper function to check if a position exists (non-zero quantity)
+inline bool has_position(const Position& pos) {
+    return std::abs(pos.qty) > 1e-9;
+}
+
+// Helper function to get position exposure (always positive)
+inline double position_exposure(const Position& pos) {
+    return std::abs(pos.qty);
+}
+
 inline double equity_mark_to_market(const Portfolio& pf, const std::vector<double>& last_prices) {
     double eq = pf.cash;
     for (size_t sid = 0; sid < pf.positions.size(); ++sid) {
-        if (std::abs(pf.positions[sid].qty) > 0.0 && sid < last_prices.size()) {
+        if (has_position(pf.positions[sid]) && sid < last_prices.size()) {
             eq += pf.positions[sid].qty * last_prices[sid];
         }
     }

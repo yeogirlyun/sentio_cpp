@@ -1,0 +1,124 @@
+# transformer_config.yaml - Main configuration file
+strategy:
+  name: "transformer"
+  version: "1.0"
+  description: "Sentio Transformer Strategy with real-time learning"
+  
+model:
+  architecture:
+    feature_dim: 128
+    sequence_length: 64
+    d_model: 256
+    num_heads: 8
+    num_layers: 6
+    ffn_hidden: 1024
+    dropout: 0.1
+    
+  training:
+    offline:
+      batch_size: 256
+      learning_rate: 0.001
+      max_epochs: 1000
+      patience: 50
+      min_delta: 0.000001
+      optimizer: "AdamW"
+      weight_decay: 0.0001
+      scheduler: "CosineAnnealingWarmRestarts"
+      grad_clip_norm: 1.0
+      validation_split: 0.2
+      
+    online:
+      update_interval_minutes: 60
+      learning_rate: 0.0001
+      replay_buffer_size: 10000
+      min_samples_for_update: 1000
+      enable_regime_detection: true
+      regime_change_threshold: 0.15
+      regime_detection_window: 100
+      validation_threshold: 0.02
+      validation_window: 500
+      max_update_time_seconds: 300
+      adaptation_rate: 0.01
+      
+features:
+  price_features: 40
+  volume_features: 20
+  microstructure_features: 25
+  cross_asset_features: 15
+  temporal_features: 28
+  
+  normalization:
+    method: "z_score"  # z_score, min_max, robust, quantile_uniform
+    decay_factor: 0.999
+    
+  generation:
+    max_latency_us: 500
+    cache_size: 10000
+    
+performance:
+  latency:
+    max_inference_ms: 1.0
+    target_inference_ms: 0.5
+    max_feature_generation_ms: 0.5
+    
+  memory:
+    max_usage_mb: 1024
+    max_gpu_memory_mb: 2048
+    
+  accuracy:
+    min_directional_accuracy: 0.52
+    target_directional_accuracy: 0.55
+    min_sharpe_ratio: 1.0
+    target_sharpe_ratio: 2.0
+    max_drawdown: 0.15
+    min_win_rate: 0.45
+    
+risk_management:
+  position_limits:
+    max_position_size: 1.0
+    max_daily_trades: 100
+    
+  safety:
+    max_drawdown_threshold: 0.10
+    min_confidence_threshold: 0.6
+    emergency_stop_enabled: true
+    
+  validation:
+    enable_model_validation: true
+    validation_frequency_hours: 4
+    performance_degradation_threshold: 0.05
+    
+monitoring:
+  metrics:
+    update_interval_seconds: 30
+    history_length: 1000
+    
+  alerts:
+    latency_threshold_ms: 2.0
+    accuracy_threshold: 0.45
+    drawdown_threshold: 0.08
+    memory_threshold_mb: 800
+    
+  logging:
+    level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+    file_path: "/var/log/sentio/transformer_strategy.log"
+    max_file_size_mb: 100
+    backup_count: 5
+    
+deployment:
+  model_path: "/opt/sentio/models/transformer_v1.pt"
+  backup_model_path: "/opt/sentio/models/transformer_backup.pt"
+  
+  auto_save:
+    enabled: true
+    interval_hours: 6
+    max_versions: 10
+    
+  a_b_testing:
+    enabled: false
+    traffic_split: 0.1
+    
+  canary_deployment:
+    enabled: false
+    canary_traffic: 0.05
+    validation_period_hours: 2

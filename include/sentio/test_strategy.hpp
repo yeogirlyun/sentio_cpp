@@ -49,14 +49,8 @@ public:
     // **BaseStrategy Interface Implementation**
     double calculate_probability(const std::vector<Bar>& bars, int current_index) override;
     
-    std::vector<AllocationDecision> get_allocation_decisions(
-        const std::vector<Bar>& bars,
-        int current_index,
-        const std::string& base_symbol,
-        const std::string& bull3x_symbol,
-        const std::string& bear3x_symbol) override;
-    
-    RouterCfg get_router_config() const override;
+    // REMOVED: get_allocation_decisions - AllocationManager handles all instrument decisions
+    // REMOVED: get_router_config - AllocationManager handles routing
     
     // **Strategy-Specific Conflict Rules**
     bool allows_simultaneous_positions(const std::string& instrument1, const std::string& instrument2) const override;

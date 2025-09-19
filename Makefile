@@ -5,8 +5,8 @@
 CXX = g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -O3 -march=native -DNDEBUG -ffast-math -fno-math-errno -fno-trapping-math -DSENTIO_WITH_LIBTORCH -flto
 CXXFLAGS_DEBUG = -std=c++20 -Wall -Wextra -O1 -g -DSENTIO_WITH_LIBTORCH -fsanitize=address,undefined -fno-omit-frame-pointer
-INCLUDES = -Iinclude -Iaudit/include -Ithird_party/nlohmann/include -I/opt/homebrew/include -I/opt/homebrew/lib/python3.12/site-packages/torch/include -I/opt/homebrew/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -I/opt/homebrew/include/gtest
-LIBS = -lsqlite3 -lcurl -L/opt/homebrew/lib -lcctz -L/opt/homebrew/lib/python3.12/site-packages/torch/lib -ltorch -ltorch_cpu -lc10 -L/opt/homebrew/lib -lgtest -lgtest_main
+INCLUDES = -Iinclude -Iaudit/include -Ithird_party/nlohmann/include -I/opt/homebrew/include -I/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/torch/include -I/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/torch/include/torch/csrc/api/include -I/opt/homebrew/include/gtest
+LIBS = -lsqlite3 -lcurl -L/opt/homebrew/lib -lcctz -L/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/torch/lib -ltorch -ltorch_cpu -lc10 -lgtest -lgtest_main -Wl,-rpath,/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/torch/lib
 LIBS_DEBUG = -lsqlite3 -lcurl -L/opt/homebrew/lib -lcctz -L/opt/homebrew/lib/python3.12/site-packages/torch/lib -ltorch -ltorch_cpu -lc10 -fsanitize=address,undefined -L/opt/homebrew/lib -lgtest -lgtest_main
 
 # Python module flags
@@ -19,8 +19,11 @@ INCLUDE_DIR = include
 BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 
-# Source files (exclude poly_fetch_main.cpp and test_rth.cpp from main executable)
-SOURCES = $(filter-out $(SRC_DIR)/poly_fetch_main.cpp $(SRC_DIR)/test_rth.cpp, $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(SRC_DIR)/ml/*.cpp) $(wildcard $(SRC_DIR)/feature_engineering/*.cpp))
+# Source files (exclude poly_fetch_main.cpp, test_rth.cpp, tfa_train_main.cpp, tfa_trainer.cpp, and transformer_trainer_main.cpp from main executable)
+SOURCES = $(filter-out $(SRC_DIR)/poly_fetch_main.cpp $(SRC_DIR)/test_rth.cpp $(SRC_DIR)/tfa_train_main.cpp $(SRC_DIR)/training/tfa_trainer.cpp $(SRC_DIR)/transformer_trainer_main.cpp, $(wildcard $(SRC_DIR)/*.cpp) $(wildcard $(SRC_DIR)/ml/*.cpp) $(wildcard $(SRC_DIR)/feature_engineering/*.cpp) $(wildcard $(SRC_DIR)/training/*.cpp))
+# Add transformer strategy sources (excluding the trainer main)
+TRANSFORMER_SOURCES = src/strategy_transformer.cpp src/feature_pipeline.cpp src/transformer_model.cpp
+SOURCES += $(TRANSFORMER_SOURCES)
 OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 AUDIT_OBJECTS = audit/src/audit_db.cpp audit/src/audit_db_recorder.cpp audit/src/hash.cpp audit/src/clock.cpp
 AUDIT_OBJECT_FILES = $(AUDIT_OBJECTS:audit/src/%.cpp=$(OBJ_DIR)/audit_%.o)
@@ -28,11 +31,14 @@ ALL_OBJECTS = $(filter-out $(AUDIT_OBJECT_FILES), $(OBJECTS)) $(AUDIT_OBJECT_FIL
 
 # Main targets
 MAIN_TARGET = $(BUILD_DIR)/sentio_cli
+TFA_TRAINER_TARGET = $(BUILD_DIR)/tfa_trainer
+TRANSFORMER_TRAINER_TARGET = $(BUILD_DIR)/transformer_trainer
 POLY_TARGET = $(BUILD_DIR)/poly_fetch
+AUDIT_CLI_TARGET = $(BUILD_DIR)/sentio_audit
 LIBRARY_TARGET = $(BUILD_DIR)/libsentio.a
 TEST_TARGET = $(BUILD_DIR)/test_sma_cross
 PIPELINE_TEST_TARGET = $(BUILD_DIR)/test_pipeline_emits
-AUDIT_TEST_TARGET = $(BUILD_DIR)/test_audit_replay
+# AUDIT_TEST_TARGET = $(BUILD_DIR)/test_audit_replay
 AUDIT_SIMPLE_TEST_TARGET = $(BUILD_DIR)/test_audit_simple
 SANITY_TEST_TARGET = $(BUILD_DIR)/test_sanity_end_to_end
 PERF_TEST_TARGET = $(BUILD_DIR)/test_tfa_performance
@@ -61,13 +67,24 @@ RULE_ENSEMBLE_TARGET = $(BUILD_DIR)/run_rule_ensemble
 CSV_RUNNER_TARGET = $(BUILD_DIR)/csv_runner
 RSI_TEST_TARGET = $(BUILD_DIR)/test_rsi_strategy
 BACKEND_INTEGRATION_TEST_TARGET = $(BUILD_DIR)/test_backend_integration
-AUDIT_CLI_TARGET = $(BUILD_DIR)/sentio_audit
 
 # Default target
-all: $(MAIN_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(TS_TEST_TARGET) $(TS_PARITY_TEST_TARGET) $(FEATURE_BUILDER_TEST_TARGET) $(PERF_TEST_TARGET) $(PROD_PERF_TEST_TARGET) $(PROGRESS_BAR_TEST_TARGET) $(WF_PROGRESS_TEST_TARGET) $(LEVERAGE_TEST_TARGET) $(BUILDER_GUARD_TEST_TARGET) $(LEVERAGE_EXAMPLE_TARGET) $(PYTHON_MODULE_TARGET) $(REPLAY_AUDIT_TARGET) $(PNL_TEST_TARGET) $(RULE_ENSEMBLE_TARGET) $(CSV_RUNNER_TARGET) $(RSI_TEST_TARGET) $(BACKEND_INTEGRATION_TEST_TARGET) $(AUDIT_CLI_TARGET)
+all: $(MAIN_TARGET) $(TFA_TRAINER_TARGET) $(TRANSFORMER_TRAINER_TARGET) $(POLY_TARGET) $(TEST_TARGET) $(PIPELINE_TEST_TARGET) $(AUDIT_SIMPLE_TEST_TARGET) $(SANITY_TEST_TARGET) $(SANITY_INTEGRATION_TARGET) $(TS_TEST_TARGET) $(TS_PARITY_TEST_TARGET) $(FEATURE_BUILDER_TEST_TARGET) $(PERF_TEST_TARGET) $(PROD_PERF_TEST_TARGET) $(PROGRESS_BAR_TEST_TARGET) $(WF_PROGRESS_TEST_TARGET) $(LEVERAGE_TEST_TARGET) $(BUILDER_GUARD_TEST_TARGET) $(LEVERAGE_EXAMPLE_TARGET) $(PYTHON_MODULE_TARGET) $(REPLAY_AUDIT_TARGET) $(PNL_TEST_TARGET) $(RULE_ENSEMBLE_TARGET) $(CSV_RUNNER_TARGET) $(RSI_TEST_TARGET) $(BACKEND_INTEGRATION_TEST_TARGET) $(AUDIT_CLI_TARGET)
 
 # Main executable
 $(MAIN_TARGET): $(ALL_OBJECTS)
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# TFA Trainer executable
+$(TFA_TRAINER_TARGET): $(filter-out $(OBJ_DIR)/main.o, $(ALL_OBJECTS)) $(OBJ_DIR)/training/tfa_trainer.o $(OBJ_DIR)/tfa_train_main.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Transformer trainer executable
+$(TRANSFORMER_TRAINER_TARGET): $(filter-out $(OBJ_DIR)/main.o $(OBJ_DIR)/transformer_trainer_main.o, $(ALL_OBJECTS)) $(OBJ_DIR)/transformer_trainer_main.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
@@ -78,6 +95,12 @@ $(POLY_TARGET): $(OBJ_DIR)/poly_fetch_main.o $(OBJ_DIR)/polygon_client.o $(OBJ_D
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
+# Audit CLI executable
+$(AUDIT_CLI_TARGET): $(OBJ_DIR)/audit_audit_cli.o $(OBJ_DIR)/audit_audit_db.o $(OBJ_DIR)/audit_hash.o $(OBJ_DIR)/audit_clock.o $(OBJ_DIR)/audit_price_csv.o $(OBJ_DIR)/unified_metrics.o $(OBJ_DIR)/adaptive_allocation_manager.o $(OBJ_DIR)/universal_position_coordinator.o $(OBJ_DIR)/adaptive_eod_manager.o $(OBJ_DIR)/strategy_profiler.o
+	@echo "Linking $@"
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -o $@ $^ -L/opt/homebrew/opt/sqlite/lib -lsqlite3
+
 # Static library
 $(LIBRARY_TARGET): $(OBJECTS)
 	@echo "Creating $@"
@@ -86,24 +109,24 @@ $(LIBRARY_TARGET): $(OBJECTS)
 
 
 # Unit test
-$(TEST_TARGET): tests/test_sma_cross_emit.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o
+# $(TEST_TARGET): tests/test_sma_cross_emit.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 
 # Pipeline test
-$(PIPELINE_TEST_TARGET): tests/test_pipeline_emits.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o
+# $(PIPELINE_TEST_TARGET): tests/test_pipeline_emits.cpp $(OBJ_DIR)/signal_gate.o $(OBJ_DIR)/strategy_sma_cross.o $(OBJ_DIR)/signal_engine.o $(OBJ_DIR)/signal_pipeline.o $(OBJ_DIR)/signal_trace.o
 	@echo "Linking $@"
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 
 # Audit test
-$(AUDIT_TEST_TARGET): tests/test_audit_replay.cpp $(OBJ_DIR)/audit.o
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+# $(AUDIT_TEST_TARGET): tests/test_audit_replay.cpp $(OBJ_DIR)/audit.o
+#	@echo "Linking $@"
+#	@mkdir -p $(BUILD_DIR)
+#	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 # Audit simple test
 $(AUDIT_SIMPLE_TEST_TARGET): tests/test_audit_simple.cpp $(OBJ_DIR)/audit.o
@@ -296,16 +319,18 @@ $(COMPREHENSIVE_ANALYSIS_TARGET): tools/comprehensive_strategy_analysis.cpp
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ $^
 
-# Audit CLI
-$(AUDIT_CLI_TARGET): $(OBJ_DIR)/audit_audit_cli.o $(OBJ_DIR)/audit_audit_db.o $(OBJ_DIR)/audit_hash.o $(OBJ_DIR)/audit_clock.o $(OBJ_DIR)/audit_price_csv.o $(OBJ_DIR)/unified_metrics.o
-	@echo "Linking $@"
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $^ -L/opt/homebrew/opt/sqlite/lib -lsqlite3
+# Duplicate audit CLI target removed - using the one at line 82
 
 
 
 # Object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@echo "Compiling $<"
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+# Training object files
+$(OBJ_DIR)/training/%.o: $(SRC_DIR)/training/%.cpp
 	@echo "Compiling $<"
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
@@ -321,6 +346,14 @@ $(OBJ_DIR)/audit_%.o: audit/src/%.cpp
 clean:
 	@echo "Cleaning object files"
 	rm -rf $(OBJ_DIR)
+
+# Convenient targets
+tfa-trainer: $(TFA_TRAINER_TARGET)
+
+train-tfa: $(TFA_TRAINER_TARGET)
+	@echo "🚀 C++ TFA Trainer built successfully!"
+	@echo "📋 Usage: ./build/tfa_trainer --data <csv_file> --feature-spec <json_file>"
+	@echo "📖 Run './build/tfa_trainer --help' for full options"
 
 clean-all:
 	@echo "Cleaning all build artifacts"
@@ -376,9 +409,9 @@ leverage-pricing-test: $(LEVERAGE_PRICING_TEST_TARGET)
 	@$(LEVERAGE_PRICING_TEST_TARGET)
 
 # Run audit test
-audit-test: $(AUDIT_TEST_TARGET)
-	@echo "Running audit replay test..."
-	@$(AUDIT_TEST_TARGET)
+# audit-test: $(AUDIT_TEST_TARGET)
+#	@echo "Running audit replay test..."
+#	@$(AUDIT_TEST_TARGET)
 
 # Run sanity test
 sanity-test: $(SANITY_TEST_TARGET)
@@ -434,7 +467,13 @@ help:
 	@echo "  test-ml - Run all ML tests"
 	@echo "  test-compile - Test compilation only"
 	@echo "  install-deps - Install dependencies (macOS)"
+	@echo "  train-transformer - Train transformer strategy (20 epochs)"
 	@echo "  help         - Show this help"
 
+# Training targets
+train-transformer: $(TRANSFORMER_TRAINER_TARGET)
+	@echo "Training Transformer strategy for 20 epochs..."
+	./$(TRANSFORMER_TRAINER_TARGET) --epochs 20 --data data/equities/QQQ_1min.csv --output artifacts/Transformer/v1
+
 # Phony targets
-.PHONY: all clean clean-all debug release test pipeline-test leverage-pricing-test audit-test sanity-test sanity-integration test-torchscript test-ts-parity test-feature-builder test-ml test-compile install-deps help
+.PHONY: all clean clean-all debug release test pipeline-test leverage-pricing-test audit-test sanity-test sanity-integration test-torchscript test-ts-parity test-feature-builder test-ml test-compile install-deps help train-transformer

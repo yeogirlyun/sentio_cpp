@@ -143,8 +143,8 @@ sentio_cli strattest <strategy> <symbol> [options]
 | **Option** | **Description** | **Default** |
 |------------|-----------------|-------------|
 | `--mode <mode>` | Simulation mode: monte-carlo\|historical\|ai-regime\|hybrid | hybrid |
-| `--simulations <n>` | Number of simulations | 50 |
-| `--duration <period>` | Test duration: 1h, 4h, 1d, 5d, 1w, 1m | 5d |
+| `--simulations <n>` | Number of simulations | 1 |
+| `--duration <period>` | Test duration: 1h, 4h, 1d, 5d, 1w, 2w, 4w, 1m | 4w |
 | `--historical-data <file>` | Historical data file (auto-detect if not specified) | - |
 | `--regime <regime>` | Market regime: normal\|volatile\|trending\|bear\|bull | normal |
 | `--stress-test` | Enable stress testing scenarios | false |

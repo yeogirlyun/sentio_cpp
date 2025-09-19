@@ -1,0 +1,12 @@
+{
+  "feature_dim": 128,
+  "sequence_length": 64,
+  "d_model": 256,
+  "num_heads": 8,
+  "num_layers": 6,
+  "model_type": "Transformer",
+  "version": "v1",
+  "best_val_loss": 2.01218e-06,
+  "training_samples": 261,
+  "validation_samples": 65
+}

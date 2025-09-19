@@ -26,27 +26,16 @@ struct ColumnProjectorSafe {
     pos.reserve(src.size()*2);
     for (int i=0;i<(int)src.size();++i) pos[src[i]] = i;
     
-    int filled_count = 0;
-    int mapped_count = 0;
-    
     for (int j=0;j<(int)dst.size();++j){
       auto it = pos.find(dst[j]);
       if (it!=pos.end()) {
         P.map[j] = it->second; // Found mapping
-        mapped_count++;
       } else {
         P.map[j] = -1; // Will be filled
-        filled_count++;
       }
     }
     
-    std::cout << "[ColumnProjectorSafe] Created: " << src.size() << " src → " << dst.size() 
-              << " dst (mapped=" << mapped_count << ", filled=" << filled_count << ")" << std::endl;
     
-    if (filled_count > 0) {
-      std::cout << "[ColumnProjectorSafe] WARNING: " << filled_count 
-                << " features will be filled with " << fill_value << std::endl;
-    }
     
     return P;
   }

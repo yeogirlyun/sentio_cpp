@@ -28,26 +28,15 @@ public:
   
   // push raw features in metadata order (length == feat_dim)
   void push(const std::vector<double>& raw) {
-    static int push_calls = 0;
-    push_calls++;
     
     if ((int)raw.size() != spec_.feat_dim) {
       // Diagnostic for size mismatch
-      if (push_calls % 1000 == 0 || push_calls <= 10) {
-        std::cout << "[DIAG] FeatureWindow push FAILED: call=" << push_calls 
-                  << " raw.size()=" << raw.size() 
-                  << " expected=" << spec_.feat_dim << std::endl;
-      }
       return;
     }
     
     buf_.push_back(raw);
     if ((int)buf_.size() > spec_.seq_len) buf_.pop_front();
     
-    if (push_calls % 1000 == 0 || push_calls <= 10) {
-      std::cout << "[DIAG] FeatureWindow push SUCCESS: call=" << push_calls 
-                << " buf_size=" << buf_.size() << "/" << spec_.seq_len << std::endl;
-    }
   }
   
   bool ready() const { return (int)buf_.size() == spec_.seq_len; }

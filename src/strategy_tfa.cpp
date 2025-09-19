@@ -12,8 +12,8 @@ namespace sentio {
 
 static ml::WindowSpec make_spec(const ml::ModelSpec& s){
   ml::WindowSpec w;
-  // TFA always uses sequence length of 64 (hardcoded for now since TorchScript doesn't store this)
-  w.seq_len = 64;
+  // TFA v2_m4_optimized uses sequence length of 48 (from model.meta.json)
+  w.seq_len = 48;
   w.layout  = s.input_layout.empty()? "BTF" : s.input_layout;
   w.feat_dim = (int)s.feature_names.size();
   // Disable external normalization; model contains its own scaler
@@ -205,7 +205,7 @@ double TFAStrategy::calculate_probability(const std::vector<Bar>& bars, int curr
   probability_history_.reserve(4096);
   const int window = 250;
   const float q_long = 0.70f, q_short = 0.30f;
-  const float floor_long = 0.51f, ceil_short = 0.49f;
+  const float floor_long = 0.505f, ceil_short = 0.495f;  // Tighter thresholds for weak signals
   const int cooldown = 5;
 
   probability_history_.push_back(prob);
@@ -239,7 +239,9 @@ double TFAStrategy::calculate_probability(const std::vector<Bar>& bars, int curr
   return 0.5; // Neutral
 }
 
-std::vector<BaseStrategy::AllocationDecision> TFAStrategy::get_allocation_decisions(
+// REMOVED: get_allocation_decisions - AllocationManager handles all instrument decisions
+/*
+std::vector<BaseStrategy::AllocationDecision> TFAStrategy::get_allocation_decisions_REMOVED(
     const std::vector<Bar>& bars, 
     int current_index,
     const std::string& base_symbol,
@@ -287,14 +289,18 @@ std::vector<BaseStrategy::AllocationDecision> TFAStrategy::get_allocation_decisi
     
     return decisions;
 }
+*/
 
-RouterCfg TFAStrategy::get_router_config() const {
+// REMOVED: get_router_config - AllocationManager handles routing
+/*
+RouterCfg TFAStrategy::get_router_config_REMOVED() const {
     RouterCfg cfg;
     cfg.bull3x = "TQQQ";
     cfg.bear3x = "SQQQ";
     // Note: moderate sell signals now use SHORT QQQ instead of PSQ
     return cfg;
 }
+*/
 
 // REMOVED: get_sizer_config() - No artificial limits allowed
 // Sizer will use profit-maximizing defaults: 100% capital deployment, maximum leverage

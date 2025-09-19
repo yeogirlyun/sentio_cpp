@@ -56,16 +56,13 @@ inline TfaArtifactsSafe load_tfa_artifacts_safe(const std::string& model_pt,
 {
   TfaArtifactsSafe A;
   
-  std::cout << "[TFA] Loading model: " << model_pt << std::endl;
   A.model = torch::jit::load(model_pt, torch::kCPU);
   A.model.eval();
   
-  std::cout << "[TFA] Loading feature spec: " << feature_spec_json << std::endl;
   std::ifstream fs(feature_spec_json); 
   if(!fs) throw std::runtime_error("missing feature_spec.json: " + feature_spec_json);
   fs >> A.spec;
   
-  std::cout << "[TFA] Loading model meta: " << model_meta_json << std::endl;
   std::ifstream fm(model_meta_json); 
   if(!fm) throw std::runtime_error("missing model.meta.json: " + model_meta_json);
   fm >> A.meta;
@@ -86,14 +83,9 @@ inline TfaArtifactsSafe load_tfa_artifacts_safe(const std::string& model_pt,
     std::string spec_hash = A.spec["content_hash"].get<std::string>();
     std::string expected_hash = A.get_spec_hash();
     if (spec_hash != expected_hash) {
-      std::cout << "[TFA] WARNING: Spec hash mismatch!\n"
-                << "  Runtime spec: " << spec_hash.substr(0,16) << "...\n"
-                << "  Model expects: " << expected_hash.substr(0,16) << "..." << std::endl;
     }
   }
   
-  std::cout << "[TFA] Model expects " << A.get_expected_input_dim() 
-            << " features, emit_from=" << A.get_emit_from() << std::endl;
   
   return A;
 }

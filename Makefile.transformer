@@ -1,0 +1,152 @@
+# Makefile - Alternative build system for Sentio Transformer Strategy
+CXX ?= g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -pedantic
+LDFLAGS = 
+
+# Build type
+BUILD_TYPE ?= Release
+
+ifeq ($(BUILD_TYPE),Debug)
+    CXXFLAGS += -O0 -g -DDEBUG
+else ifeq ($(BUILD_TYPE),Release)
+    CXXFLAGS += -O3 -march=native -ffast-math -DNDEBUG -funroll-loops
+else ifeq ($(BUILD_TYPE),RelWithDebInfo)
+    CXXFLAGS += -O2 -g -DNDEBUG
+endif
+
+# Directories
+SRC_DIR = src/transformer
+INCLUDE_DIR = include/sentio
+BUILD_DIR = build/transformer
+OBJ_DIR = $(BUILD_DIR)/obj
+BIN_DIR = $(BUILD_DIR)/bin
+LIB_DIR = $(BUILD_DIR)/lib
+
+# Find packages
+TORCH_PREFIX ?= $(shell python3 -c "import torch; print(torch.utils.cmake_prefix_path)" 2>/dev/null)
+ifneq ($(TORCH_PREFIX),)
+    CXXFLAGS += -I$(TORCH_PREFIX)/include
+    LDFLAGS += -L$(TORCH_PREFIX)/lib -ltorch -ltorch_cpu -lc10
+endif
+
+# yaml-cpp
+CXXFLAGS += $(shell pkg-config --cflags yaml-cpp 2>/dev/null)
+LDFLAGS += $(shell pkg-config --libs yaml-cpp 2>/dev/null)
+
+# OpenMP
+CXXFLAGS += -fopenmp
+LDFLAGS += -lgomp
+
+# Include directories
+CXXFLAGS += -I$(INCLUDE_DIR) -I$(SRC_DIR) -Iinclude
+
+# Source files
+SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
+OBJECTS = $(SOURCES:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
+HEADERS = $(wildcard $(INCLUDE_DIR)/*.hpp)
+
+# Targets
+LIBRARY = $(LIB_DIR)/libsentio_transformer.a
+EXECUTABLES = $(BIN_DIR)/train_transformer $(BIN_DIR)/backtest_transformer $(BIN_DIR)/evaluate_model
+
+# Test files
+TEST_SOURCES = $(wildcard tests/transformer/*.cpp)
+TEST_OBJECTS = $(TEST_SOURCES:tests/transformer/%.cpp=$(OBJ_DIR)/tests/%.o)
+TEST_EXECUTABLE = $(BIN_DIR)/transformer_tests
+
+# Default target
+.PHONY: all clean install test docs format tidy
+
+all: $(LIBRARY) $(EXECUTABLES)
+
+# Create directories
+$(OBJ_DIR) $(BIN_DIR) $(LIB_DIR):
+	@mkdir -p $@
+
+# Compile source files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(HEADERS) | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Build library
+$(LIBRARY): $(OBJECTS) | $(LIB_DIR)
+	ar rcs $@ $^
+	@echo "Built library: $@"
+
+# Build executables
+$(BIN_DIR)/train_transformer: tools/train_transformer.cpp $(LIBRARY) | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $< -o $@ -L$(LIB_DIR) -lsentio_transformer $(LDFLAGS)
+
+$(BIN_DIR)/backtest_transformer: tools/backtest_transformer.cpp $(LIBRARY) | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $< -o $@ -L$(LIB_DIR) -lsentio_transformer $(LDFLAGS)
+
+$(BIN_DIR)/evaluate_model: tools/evaluate_model.cpp $(LIBRARY) | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $< -o $@ -L$(LIB_DIR) -lsentio_transformer $(LDFLAGS)
+
+# Tests
+$(OBJ_DIR)/tests/%.o: tests/transformer/%.cpp $(HEADERS) | $(OBJ_DIR)
+	@mkdir -p $(OBJ_DIR)/tests
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(TEST_EXECUTABLE): $(TEST_OBJECTS) $(LIBRARY) | $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(TEST_OBJECTS) -o $@ -L$(LIB_DIR) -lsentio_transformer $(LDFLAGS) -lgtest -lgtest_main -lpthread
+
+test: $(TEST_EXECUTABLE)
+	@echo "Running tests..."
+	$(TEST_EXECUTABLE)
+
+# Documentation
+docs:
+	@command -v doxygen >/dev/null 2>&1 || { echo "Doxygen not found. Please install doxygen."; exit 1; }
+	doxygen docs/Doxyfile
+
+# Code formatting
+format:
+	@command -v clang-format >/dev/null 2>&1 || { echo "clang-format not found."; exit 1; }
+	find $(SRC_DIR) $(INCLUDE_DIR) -name "*.cpp" -o -name "*.hpp" | xargs clang-format -i
+
+# Static analysis
+tidy:
+	@command -v clang-tidy >/dev/null 2>&1 || { echo "clang-tidy not found."; exit 1; }
+	clang-tidy $(SOURCES) -- $(CXXFLAGS)
+
+# Clean build artifacts
+clean:
+	rm -rf $(BUILD_DIR)
+
+# Install (requires root)
+install: $(LIBRARY) $(EXECUTABLES)
+	@echo "Installing to /usr/local..."
+	install -d /usr/local/lib /usr/local/bin /usr/local/include/sentio
+	install $(LIBRARY) /usr/local/lib/
+	install $(EXECUTABLES) /usr/local/bin/
+	install $(HEADERS) /usr/local/include/sentio/
+	ldconfig
+
+# Show help
+help:
+	@echo "Sentio Transformer Strategy Build System"
+	@echo ""
+	@echo "Targets:"
+	@echo "  all        - Build library and executables (default)"
+	@echo "  test       - Build and run tests"
+	@echo "  docs       - Generate documentation"
+	@echo "  format     - Format code with clang-format"
+	@echo "  tidy       - Run static analysis with clang-tidy"
+	@echo "  clean      - Remove build artifacts"
+	@echo "  install    - Install to system (requires root)"
+	@echo "  help       - Show this help"
+	@echo ""
+	@echo "Variables:"
+	@echo "  BUILD_TYPE - Debug, Release, RelWithDebInfo (default: Release)"
+	@echo "  CXX        - C++ compiler (default: g++)"
+	@echo "  TORCH_PREFIX - PyTorch installation path"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make BUILD_TYPE=Debug"
+	@echo "  make test"
+	@echo "  make CXX=clang++"
+
+# Dependencies
+$(OBJECTS): $(HEADERS)
+
+.PHONY: help

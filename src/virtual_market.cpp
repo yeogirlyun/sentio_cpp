@@ -1,14 +1,15 @@
 #include "sentio/virtual_market.hpp"
-// Strategy registry removed - using factory pattern instead
 #include "sentio/runner.hpp"
-#include "sentio/temporal_analysis.hpp"
+// #include "sentio/temporal_analysis.hpp" // Removed during cleanup
 #include "sentio/symbol_table.hpp"
 #include "sentio/audit.hpp"
 #include "audit/audit_db_recorder.hpp"
 #include "sentio/base_strategy.hpp"
 #include "sentio/mars_data_loader.hpp"
 #include "sentio/future_qqq_loader.hpp"
+#include "sentio/leverage_aware_csv_loader.hpp"
 #include "sentio/run_id_generator.hpp"
+#include "sentio/dataset_metadata.hpp"
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
@@ -18,6 +19,47 @@
 #include <chrono>
 
 namespace sentio {
+
+// **PROFIT MAXIMIZATION**: Generate theoretical leverage series for maximum capital deployment
+std::vector<Bar> generate_theoretical_leverage_series(const std::vector<Bar>& base_series, double leverage_factor) {
+    std::vector<Bar> leverage_series;
+    leverage_series.reserve(base_series.size());
+    
+    if (base_series.empty()) return leverage_series;
+    
+    // Initialize with first bar (no leverage effect on first bar)
+    Bar first_bar = base_series[0];
+    leverage_series.push_back(first_bar);
+    
+    // Generate subsequent bars with leverage effect
+    for (size_t i = 1; i < base_series.size(); ++i) {
+        const Bar& prev_base = base_series[i-1];
+        const Bar& curr_base = base_series[i];
+        const Bar& prev_leverage = leverage_series[i-1];
+        
+        // Calculate base return
+        double base_return = (curr_base.close - prev_base.close) / prev_base.close;
+        
+        // Apply leverage factor
+        double leverage_return = base_return * leverage_factor;
+        
+        // Calculate new leverage prices
+        Bar leverage_bar;
+        leverage_bar.ts_utc_epoch = curr_base.ts_utc_epoch;
+        leverage_bar.close = prev_leverage.close * (1.0 + leverage_return);
+        
+        // Approximate OHLV based on close price movement
+        double price_ratio = leverage_bar.close / prev_leverage.close;
+        leverage_bar.open = prev_leverage.close;  // Open at previous close
+        leverage_bar.high = std::max(leverage_bar.open, leverage_bar.close) * 1.001;  // Small spread
+        leverage_bar.low = std::min(leverage_bar.open, leverage_bar.close) * 0.999;   // Small spread
+        leverage_bar.volume = curr_base.volume;  // Use base volume
+        
+        leverage_series.push_back(leverage_bar);
+    }
+    
+    return leverage_series;
+}
 
 VirtualMarketEngine::VirtualMarketEngine() 
     : rng_(std::chrono::steady_clock::now().time_since_epoch().count()) {
@@ -180,47 +222,16 @@ std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_mo
     std::unique_ptr<BaseStrategy> strategy,
     const RunnerCfg& runner_cfg) {
     
-    std::vector<VMSimulationResult> results;
-    results.reserve(config.simulations);
+    std::cout << "🔄 FIXED DATA: Using Future QQQ tracks instead of random Monte Carlo..." << std::endl;
     
-    int periods = config.hours > 0 ? config.hours * 60 : config.days * 390;
-    
-    std::cout << "🎲 Running " << config.simulations << " Monte Carlo simulations..." << std::endl;
-    
-    auto start_time = std::chrono::high_resolution_clock::now();
-    
-    for (int i = 0; i < config.simulations; ++i) {
-        // Reduced progress reporting - only show every 50% or at key milestones
-        if (config.simulations >= 10 && ((i + 1) % (config.simulations / 2) == 0 || i == 0 || i == config.simulations - 1)) {
-            auto elapsed = std::chrono::high_resolution_clock::now() - start_time;
-            auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(elapsed).count();
-            double progress_pct = ((i + 1) / static_cast<double>(config.simulations)) * 100;
-            
-            std::cout << "📊 Progress: " << std::fixed << std::setprecision(0) << progress_pct 
-                      << "% (" << (i + 1) << "/" << config.simulations << ")" << std::endl;
-        }
-        
-        // Generate synthetic market data
-        std::vector<Bar> market_data = generate_market_data(config.symbol, periods, 60);
-        
-        // Create a new strategy instance for this simulation
-        auto sim_strategy = StrategyFactory::instance().create_strategy(config.strategy_name);
-        
-        // Run single simulation
-        VMSimulationResult result = run_single_simulation(market_data, 
-                                                         std::move(sim_strategy),
-                                                         runner_cfg, 
-                                                         config.initial_capital);
-        results.push_back(result);
-    }
-    
-    auto total_time = std::chrono::high_resolution_clock::now() - start_time;
-    auto total_sec = std::chrono::duration_cast<std::chrono::seconds>(total_time).count();
-    
-    std::cout << "⏱️  Completed " << config.simulations << " simulations in " 
-              << total_sec << " seconds" << std::endl;
-    
-    return results;
+    // **FIXED DATA REPLACEMENT**: Use Future QQQ regime test instead of random generation
+    return run_future_qqq_regime_test(
+        config.strategy_name, 
+        config.symbol, 
+        config.simulations, 
+        "normal",  // Default to normal regime for Monte Carlo replacement
+        config.params_json
+    );
 }
 
 std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_mars_monte_carlo_simulation(
@@ -229,65 +240,16 @@ std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_ma
     const RunnerCfg& runner_cfg,
     const std::string& market_regime) {
     
-    std::vector<VMSimulationResult> results;
-    results.reserve(config.simulations);
+    std::cout << "🔄 FIXED DATA: Using Future QQQ tracks instead of random MarS generation..." << std::endl;
     
-    std::cout << "🤖 Running " << config.simulations << " AI regime tests..." << std::endl;
-    
-    auto start_time = std::chrono::high_resolution_clock::now();
-    
-    for (int i = 0; i < config.simulations; ++i) {
-        // Minimal progress reporting
-        if (config.simulations >= 5 && ((i + 1) % std::max(1, config.simulations / 2) == 0 || i == config.simulations - 1)) {
-            double progress_pct = (100.0 * (i + 1)) / config.simulations;
-            std::cout << "📊 Progress: " << std::fixed << std::setprecision(0) << progress_pct 
-                      << "% (" << (i + 1) << "/" << config.simulations << ")" << std::endl;
-        }
-        
-        try {
-            // Generate MarS data for this simulation
-            int periods = config.days * 24 * 60; // Convert days to minutes
-            auto mars_data = MarsDataLoader::load_mars_data(
-                config.symbol, periods, 60, 1, market_regime
-            );
-            
-            if (mars_data.empty()) {
-                std::cerr << "Warning: No MarS data generated for simulation " << (i + 1) << std::endl;
-                results.push_back(VMSimulationResult{}); // Add empty result
-                continue;
-            }
-            
-            // Create new strategy instance for this simulation
-            auto strategy_instance = StrategyFactory::instance().create_strategy(
-                config.strategy_name
-            );
-            
-            if (!strategy_instance) {
-                std::cerr << "Error: Could not create strategy instance for simulation " << (i + 1) << std::endl;
-                results.push_back(VMSimulationResult{}); // Add empty result
-                continue;
-            }
-            
-            // Run simulation with MarS data
-            auto result = run_single_simulation(
-                mars_data, std::move(strategy_instance), runner_cfg, config.initial_capital
-            );
-            
-            results.push_back(result);
-            
-        } catch (const std::exception& e) {
-            std::cerr << "Error in MarS simulation " << (i + 1) << ": " << e.what() << std::endl;
-            results.push_back(VMSimulationResult{}); // Add empty result
-        }
-    }
-    
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto total_time = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count();
-    
-    std::cout << "⏱️  Completed " << config.simulations << " MarS simulations in " 
-              << total_time << " seconds" << std::endl;
-    
-    return results;
+    // **FIXED DATA REPLACEMENT**: Use Future QQQ regime test instead of random MarS generation
+    return run_future_qqq_regime_test(
+        config.strategy_name, 
+        config.symbol, 
+        config.simulations, 
+        market_regime,  // Use the requested regime
+        config.params_json
+    );
 }
 
 std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_mars_vm_test(
@@ -381,6 +343,7 @@ std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_fu
             runner_cfg.strategy_name = strategy_name;
             runner_cfg.strategy_params["buy_hi"] = "0.6";
             runner_cfg.strategy_params["sell_lo"] = "0.4";
+            runner_cfg.audit_level = AuditLevel::Full; // Ensure full audit logging
             
             // Run simulation with future QQQ data
             auto result = run_single_simulation(
@@ -421,84 +384,19 @@ std::vector<VirtualMarketEngine::VMSimulationResult> VirtualMarketEngine::run_fa
     int simulations,
     const std::string& params_json) {
     
-    std::vector<VMSimulationResult> results;
-    results.reserve(simulations);
-    
-    std::cout << "⚡ Starting Fast Historical Test..." << std::endl;
+    std::cout << "🔄 FIXED DATA: Using Future QQQ tracks instead of random fast historical generation..." << std::endl;
     std::cout << "📊 Strategy: " << strategy_name << std::endl;
     std::cout << "📈 Symbol: " << symbol << std::endl;
-    std::cout << "📊 Historical data: " << historical_data_file << std::endl;
-    std::cout << "⏱️  Continuation: " << continuation_minutes << " minutes" << std::endl;
     std::cout << "🎲 Simulations: " << simulations << std::endl;
     
-    auto start_time = std::chrono::high_resolution_clock::now();
-    
-    for (int i = 0; i < simulations; ++i) {
-        // Minimal progress reporting
-        if (simulations >= 5 && ((i + 1) % std::max(1, simulations / 2) == 0 || i == simulations - 1)) {
-            double progress_pct = (100.0 * (i + 1)) / simulations;
-            std::cout << "📊 Progress: " << std::fixed << std::setprecision(0) << progress_pct 
-                      << "% (" << (i + 1) << "/" << simulations << ")" << std::endl;
-        }
-        
-        try {
-            // Generate fast historical data for this simulation
-            auto fast_data = MarsDataLoader::load_fast_historical_data(
-                symbol, historical_data_file, continuation_minutes
-            );
-            
-            if (fast_data.empty()) {
-                std::cerr << "Warning: No fast historical data generated for simulation " << (i + 1) << std::endl;
-                results.push_back(VMSimulationResult{}); // Add empty result
-                continue;
-            }
-            
-            // Create new strategy instance for this simulation
-            auto strategy_instance = StrategyFactory::instance().create_strategy(
-                strategy_name
-            );
-            
-            if (!strategy_instance) {
-                std::cerr << "Error: Could not create strategy instance for simulation " << (i + 1) << std::endl;
-                results.push_back(VMSimulationResult{}); // Add empty result
-                continue;
-            }
-            
-            // Create runner configuration
-            RunnerCfg runner_cfg;
-            runner_cfg.strategy_name = strategy_name;
-            runner_cfg.strategy_params["buy_hi"] = "0.6";
-            runner_cfg.strategy_params["sell_lo"] = "0.4";
-            
-            // Run simulation with fast historical data
-            auto result = run_single_simulation(
-                fast_data, std::move(strategy_instance), runner_cfg, 100000.0
-            );
-            
-            results.push_back(result);
-            
-        } catch (const std::exception& e) {
-            std::cerr << "Error in fast historical simulation " << (i + 1) << ": " << e.what() << std::endl;
-            results.push_back(VMSimulationResult{}); // Add empty result
-        }
-    }
-    
-    auto end_time = std::chrono::high_resolution_clock::now();
-    auto total_time = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count();
-    
-    std::cout << "⏱️  Completed " << simulations << " fast historical simulations in " 
-              << total_time << " seconds" << std::endl;
-    
-    // Print comprehensive report
-    VMTestConfig config;
-    config.strategy_name = strategy_name;
-    config.symbol = symbol;
-    config.simulations = simulations;
-    config.params_json = params_json;
-    config.initial_capital = 100000.0;
-    print_simulation_report(results, config);
-    
-    return results;
+    // **FIXED DATA REPLACEMENT**: Use Future QQQ regime test instead of random fast historical generation
+    return run_future_qqq_regime_test(
+        strategy_name, 
+        symbol, 
+        simulations, 
+        "normal",  // Default to normal regime for historical replacement
+        params_json
+    );
 }
 
 VirtualMarketEngine::VMSimulationResult VirtualMarketEngine::run_single_simulation(
@@ -511,13 +409,28 @@ VirtualMarketEngine::VMSimulationResult VirtualMarketEngine::run_single_simulati
     VMSimulationResult result;
     
     try {
-        // 1. Create SymbolTable for the test symbol
+        // 1. Create SymbolTable for QQQ family (profit maximization requires all leverage instruments)
         SymbolTable ST;
-        int symbol_id = ST.intern("QQQ"); // Use QQQ as the base symbol
+        int qqq_id = ST.intern("QQQ");
+        int tqqq_id = ST.intern("TQQQ");  // 3x leveraged long
+        int sqqq_id = ST.intern("SQQQ");  // 3x leveraged short
+        int psq_id = ST.intern("PSQ");    // 1x inverse
         
-        // 2. Create series data structure (single symbol)
-        std::vector<std::vector<Bar>> series(1);
-        series[0] = market_data;
+        // 2. Create series data structure (QQQ family for maximum leverage)
+        std::vector<std::vector<Bar>> series(4);
+        series[qqq_id] = market_data;  // Base QQQ data
+        
+        // Generate theoretical leverage data for profit maximization
+        std::cout << "🚀 Generating theoretical leverage data for maximum profit..." << std::endl;
+        
+        // Generate theoretical leverage series directly from QQQ data
+        series[tqqq_id] = generate_theoretical_leverage_series(market_data, 3.0);   // 3x leveraged long
+        series[sqqq_id] = generate_theoretical_leverage_series(market_data, -3.0);  // 3x leveraged short  
+        series[psq_id] = generate_theoretical_leverage_series(market_data, -1.0);   // 1x inverse
+        
+        std::cout << "✅ TQQQ theoretical data generated (" << series[tqqq_id].size() << " bars, 3x leverage)" << std::endl;
+        std::cout << "✅ SQQQ theoretical data generated (" << series[sqqq_id].size() << " bars, -3x leverage)" << std::endl;
+        std::cout << "✅ PSQ theoretical data generated (" << series[psq_id].size() << " bars, -1x leverage)" << std::endl;
         
         // 3. Create audit recorder - use in-memory database if audit logging is disabled
         std::string run_id = generate_run_id();
@@ -527,20 +440,36 @@ VirtualMarketEngine::VMSimulationResult VirtualMarketEngine::run_single_simulati
         std::string db_path = (runner_cfg.audit_level == AuditLevel::MetricsOnly) ? ":memory:" : "audit/sentio_audit.sqlite3";
         audit::AuditDBRecorder audit(db_path, run_id, note);
         
-        // 4. Run REAL backtest using actual Runner
-        RunResult run_result = run_backtest(audit, ST, series, symbol_id, runner_cfg);
+        // 4. Run REAL backtest using actual Runner (now returns raw BacktestOutput)
+        // **DATASET TRACEABILITY**: Pass comprehensive dataset metadata
+        DatasetMetadata dataset_meta;
+        dataset_meta.source_type = "future_qqq_track";
+        dataset_meta.file_path = "data/future_qqq/future_qqq_track_01.csv";
+        dataset_meta.track_id = "track_01";
+        dataset_meta.regime = "normal"; // Default regime for fixed data
+        dataset_meta.bars_count = static_cast<int>(market_data.size());
+        if (!market_data.empty()) {
+            dataset_meta.time_range_start = market_data.front().ts_utc_epoch * 1000;
+            dataset_meta.time_range_end = market_data.back().ts_utc_epoch * 1000;
+        }
+        BacktestOutput backtest_output = run_backtest(audit, ST, series, qqq_id, runner_cfg, dataset_meta);
         
         // Suppress debug output for cleaner console
         
-        // 5. Extract performance metrics from real results
-        result.total_return = run_result.total_return;
-        result.final_capital = initial_capital * (1 + run_result.total_return);
-        result.sharpe_ratio = run_result.sharpe_ratio;
-        result.max_drawdown = run_result.max_drawdown;
-        result.win_rate = 0.0; // Not available in RunResult, calculate separately if needed
-        result.total_trades = run_result.total_fills;
-        result.monthly_projected_return = run_result.monthly_projected_return;
-        result.daily_trades = static_cast<double>(run_result.daily_trades);
+        // 5. NEW: Store raw output and calculate unified metrics
+        result.raw_output = backtest_output;
+        result.unified_metrics = UnifiedMetricsCalculator::calculate_metrics(backtest_output);
+        result.run_id = run_id;  // Store run ID for audit verification
+        
+        // 6. Populate metrics for backward compatibility
+        result.total_return = result.unified_metrics.total_return;
+        result.final_capital = result.unified_metrics.final_equity;
+        result.sharpe_ratio = result.unified_metrics.sharpe_ratio;
+        result.max_drawdown = result.unified_metrics.max_drawdown;
+        result.win_rate = 0.0; // Not calculated in unified metrics yet
+        result.total_trades = result.unified_metrics.total_fills;
+        result.monthly_projected_return = result.unified_metrics.monthly_projected_return;
+        result.daily_trades = result.unified_metrics.avg_daily_trades;
         
         // Suppress individual simulation output for cleaner console
         
@@ -548,6 +477,8 @@ VirtualMarketEngine::VMSimulationResult VirtualMarketEngine::run_single_simulati
         std::cerr << "❌ VM simulation failed: " << e.what() << std::endl;
         
         // Return zero results on error
+        result.raw_output = BacktestOutput{}; // Empty raw output
+        result.unified_metrics = UnifiedMetricsReport{}; // Empty unified metrics
         result.total_return = 0.0;
         result.final_capital = initial_capital;
         result.sharpe_ratio = 0.0;
@@ -671,40 +602,7 @@ void VirtualMarketEngine::print_simulation_report(const std::vector<VMSimulation
     int profitable_sims = std::count_if(returns.begin(), returns.end(), [](double ret) { return ret > 0; });
     double prob_profit = static_cast<double>(profitable_sims) / returns.size() * 100;
     
-    // Print report
-    std::cout << "\n" << std::string(70, '=') << std::endl;
-    std::cout << "📊 VIRTUAL MARKET TEST RESULTS" << std::endl;
-    std::cout << std::string(70, '=') << std::endl;
-    std::cout << "Strategy:                 " << config.strategy_name << std::endl;
-    std::cout << "Symbol:                   " << config.symbol << std::endl;
-    std::cout << "Simulations:              " << config.simulations << std::endl;
-    std::cout << "Simulation Period:        " << (config.hours > 0 ? std::to_string(config.hours) + " hours" : std::to_string(config.days) + " days") << std::endl;
-    std::cout << std::string(70, '-') << std::endl;
-    std::cout << "📈 RETURN STATISTICS" << std::endl;
-    std::cout << std::string(70, '-') << std::endl;
-    std::cout << "Mean Return:              " << std::setw(8) << std::fixed << std::setprecision(2) << mean_return * 100 << "%" << std::endl;
-    std::cout << "Median Return:            " << std::setw(8) << std::fixed << std::setprecision(2) << median_return * 100 << "%" << std::endl;
-    std::cout << "Standard Deviation:       " << std::setw(8) << std::fixed << std::setprecision(2) << std_return * 100 << "%" << std::endl;
-    std::cout << "Minimum Return:           " << std::setw(8) << std::fixed << std::setprecision(2) << returns.front() * 100 << "%" << std::endl;
-    std::cout << "Maximum Return:           " << std::setw(8) << std::fixed << std::setprecision(2) << returns.back() * 100 << "%" << std::endl;
-    std::cout << std::string(70, '-') << std::endl;
-    std::cout << "📊 CONFIDENCE INTERVALS" << std::endl;
-    std::cout << std::string(70, '-') << std::endl;
-    std::cout << "5th Percentile:           " << std::setw(8) << std::fixed << std::setprecision(2) << returns[static_cast<size_t>(returns.size() * 0.05)] * 100 << "%" << std::endl;
-    std::cout << "25th Percentile:          " << std::setw(8) << std::fixed << std::setprecision(2) << returns[static_cast<size_t>(returns.size() * 0.25)] * 100 << "%" << std::endl;
-    std::cout << "75th Percentile:          " << std::setw(8) << std::fixed << std::setprecision(2) << returns[static_cast<size_t>(returns.size() * 0.75)] * 100 << "%" << std::endl;
-    std::cout << "95th Percentile:          " << std::setw(8) << std::fixed << std::setprecision(2) << returns[static_cast<size_t>(returns.size() * 0.95)] * 100 << "%" << std::endl;
-    std::cout << std::string(70, '-') << std::endl;
-    std::cout << "🎯 PROBABILITY ANALYSIS" << std::endl;
-    std::cout << std::string(70, '-') << std::endl;
-    std::cout << "Probability of Profit:    " << std::setw(8) << std::fixed << std::setprecision(1) << prob_profit << "%" << std::endl;
-    std::cout << std::string(70, '-') << std::endl;
-    std::cout << "📋 ADDITIONAL METRICS" << std::endl;
-    std::cout << std::string(70, '-') << std::endl;
-    std::cout << "Mean Sharpe Ratio:        " << std::setw(8) << std::fixed << std::setprecision(2) << mean_sharpe << std::endl;
-    std::cout << "Mean MPR (Monthly):       " << std::setw(8) << std::fixed << std::setprecision(2) << mean_mpr * 100 << "%" << std::endl;
-    std::cout << "Mean Daily Trades:        " << std::setw(8) << std::fixed << std::setprecision(1) << mean_daily_trades << std::endl;
-    std::cout << std::string(70, '=') << std::endl << std::endl;
+    // Report generation moved to UnifiedStrategyTester for consistency
 }
 
 // VMTestRunner implementation

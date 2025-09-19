@@ -26,7 +26,7 @@ struct DropCounters {
 
 struct ThresholdPolicy {
   // Either fixed threshold or rolling quantile
-  float min_prob = 0.55f;      // fixed
+  float min_prob = 0.51f;      // fixed - no trade zone 0.49-0.51
   int   q_window = 0;          // if >0, use quantile
   float q_level  = 0.75f;      // 75th percentile
 
@@ -34,7 +34,10 @@ struct ThresholdPolicy {
     const int64_t N = (int64_t)prob.size();
     std::vector<uint8_t> keep(N, 0);
     if (q_window <= 0){
-      for (int64_t i=0;i<N;++i) keep[i] = (prob[i] >= min_prob) ? 1 : 0;
+      // No trade zone: 0.49 < p < 0.51 (filter out)
+      for (int64_t i=0;i<N;++i) {
+        keep[i] = (prob[i] >= 0.51f || prob[i] <= 0.49f) ? 1 : 0;
+      }
       return keep;
     }
     // rolling quantile

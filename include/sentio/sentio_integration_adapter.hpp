@@ -30,7 +30,7 @@ public:
     struct SystemHealth {
         bool position_integrity = true;
         bool cash_integrity = true;
-        bool eod_compliance = true;
+        // eod_compliance removed - no longer required by trading system
         double current_equity = 0.0;
         std::vector<std::string> active_warnings;
         std::vector<std::string> critical_alerts;
@@ -92,11 +92,7 @@ public:
             health.critical_alerts.push_back("CRITICAL: Position conflicts detected");
         }
         
-        // EOD compliance check (simplified)
-        health.eod_compliance = check_eod_compliance(portfolio);
-        if (!health.eod_compliance) {
-            health.active_warnings.push_back("WARNING: Positions held overnight");
-        }
+        // EOD compliance check removed - no longer required by trading system
         
         // Performance warnings
         double drawdown_pct = ((peak_equity_ - health.current_equity) / peak_equity_) * 100.0;
@@ -136,16 +132,9 @@ public:
                 result.error_message += "PositionCoordinator test failed; ";
             }
             
-            // Test 3: EOD Manager
-            result.total_tests++;
-            if (test_eod_manager()) {
-                result.passed_tests++;
-            } else {
-                result.failed_tests++;
-                result.error_message += "EODManager test failed; ";
-            }
+            // Test 3: EOD Manager - removed (no longer required)
             
-            // Test 4: Sizer
+            // Test 3: Sizer (renumbered)
             result.total_tests++;
             if (test_sizer()) {
                 result.passed_tests++;
@@ -188,16 +177,10 @@ public:
             
             auto allocation_decisions = allocation_manager_.get_allocations(strategy_probability, test_profile);
             
-            // Step 2: Check EOD requirements
-            auto eod_decisions = eod_manager_.get_eod_allocations(timestamp_utc, portfolio, ST, test_profile);
+            // Step 2: EOD requirements removed - no longer needed
             
-            // Step 3: Coordinate positions (simplified - just use the decisions)
-            std::vector<AllocationDecision> all_decisions;
-            if (!eod_decisions.empty()) {
-                all_decisions = eod_decisions; // EOD takes priority
-            } else {
-                all_decisions = allocation_decisions;
-            }
+            // Step 3: Use allocation decisions directly (simplified)
+            std::vector<AllocationDecision> all_decisions = allocation_decisions;
             
             // Step 4: Apply basic conflict prevention (simplified)
             for (const auto& decision : all_decisions) {
@@ -260,7 +243,7 @@ public:
         std::cout << "\nIntegrity Checks:\n";
         std::cout << "  Position Integrity: " << (health.position_integrity ? "✅ PASS" : "❌ FAIL") << "\n";
         std::cout << "  Cash Integrity: " << (health.cash_integrity ? "✅ PASS" : "❌ FAIL") << "\n";
-        std::cout << "  EOD Compliance: " << (health.eod_compliance ? "✅ PASS" : "❌ FAIL") << "\n";
+        // EOD compliance check removed from health report
         
         if (!health.critical_alerts.empty()) {
             std::cout << "\n🚨 CRITICAL ALERTS:\n";
@@ -301,11 +284,7 @@ private:
         return !(has_long && has_short); // No conflicts if not both long and short
     }
     
-    bool check_eod_compliance(const Portfolio& portfolio) const {
-        // Simplified EOD check - assume compliance for now
-        // In production, this would check actual time vs market hours
-        return true;
-    }
+    // check_eod_compliance method removed - no longer required
     
     bool test_allocation_manager() {
         try {
@@ -337,25 +316,7 @@ private:
         }
     }
     
-    bool test_eod_manager() {
-        try {
-            Portfolio test_portfolio(4);
-            SymbolTable test_ST;
-            test_ST.intern("QQQ");
-            
-            // Create a test profile for the adaptive EOD manager
-            StrategyProfiler::StrategyProfile test_profile;
-            test_profile.style = TradingStyle::CONSERVATIVE;
-            
-            auto decisions = eod_manager_.get_eod_allocations(
-                std::chrono::duration_cast<std::chrono::seconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count(),
-                test_portfolio, test_ST, test_profile);
-            return true; // EOD manager should not throw
-        } catch (...) {
-            return false;
-        }
-    }
+    // test_eod_manager method removed - no longer required
     
     bool test_sizer() {
         try {

@@ -15,7 +15,7 @@ namespace sentio {
 struct TFACfg {
   std::string artifacts_dir{"artifacts"};
   std::string model_id{"TFA"};
-  std::string version{"v1"};
+  std::string version{"cpp_compatible"};
   bool use_cuda{false};
   double conf_floor{0.05};
 };
@@ -35,19 +35,10 @@ public:
   void apply_params() override;
   double calculate_probability(const std::vector<Bar>& bars, int current_index) override;
   
-  // **NEW**: Strategy-agnostic allocation interface
-  std::vector<AllocationDecision> get_allocation_decisions(
-      const std::vector<Bar>& bars, 
-      int current_index,
-      const std::string& base_symbol,
-      const std::string& bull3x_symbol,
-      const std::string& bear3x_symbol) override;
-  
-    RouterCfg get_router_config() const override;
-    // REMOVED: get_sizer_config() - No artificial limits allowed for profit maximization
-    
-    // **ARCHITECTURAL COMPLIANCE**: TFA requires dynamic allocation for profit maximization
-    bool requires_dynamic_allocation() const override { return true; }
+  // REMOVED: get_allocation_decisions - AllocationManager handles all instrument decisions
+  // REMOVED: get_router_config - AllocationManager handles routing
+  // REMOVED: get_sizer_config() - No artificial limits allowed for profit maximization
+  // REMOVED: requires_dynamic_allocation - all strategies use same allocation pipeline
 
 private:
   TFACfg cfg_;
@@ -61,7 +52,7 @@ private:
   mutable std::unique_ptr<ColumnProjector> projector_;
   mutable std::unique_ptr<ColumnProjectorSafe> projector_safe_;
   mutable bool projector_initialized_{false};
-  mutable int expected_feat_dim_{56};
+  mutable int expected_feat_dim_{55};
   
   // CRITICAL FIX: Move static state from calculate_probability to class members
   // This prevents data leakage between different test runs and ensures deterministic behavior

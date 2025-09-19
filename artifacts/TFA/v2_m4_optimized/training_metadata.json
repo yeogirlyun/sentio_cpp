@@ -1,0 +1,81 @@
+{
+  "total_bars": 1098785,
+  "regimes": {
+    "historic_real": 292385,
+    "bear_3": 96000,
+    "bear_1": 96000,
+    "volatile_1": 96000,
+    "volatile_2": 96000,
+    "bear_2": 96000,
+    "volatile_3": 96000,
+    "normal_1": 76800,
+    "normal_3": 76800,
+    "normal_2": 76800
+  },
+  "date_range": {
+    "start": 1663248600,
+    "end": 1779998340
+  },
+  "datasets": [
+    {
+      "path": "data/equities/QQQ_RTH_NH.csv",
+      "regime": "historic_real",
+      "weight": 1.0,
+      "description": "3 years recent market data: bear market 2022, bull run 2023-2024, current 2025"
+    },
+    {
+      "path": "data/future_qqq/future_qqq_track_01.csv",
+      "regime": "normal_1",
+      "weight": 0.8,
+      "description": "Normal market: steady growth, typical volatility"
+    },
+    {
+      "path": "data/future_qqq/future_qqq_track_02.csv",
+      "regime": "normal_2",
+      "weight": 0.8,
+      "description": "Normal market: steady growth, typical volatility"
+    },
+    {
+      "path": "data/future_qqq/future_qqq_track_03.csv",
+      "regime": "normal_3",
+      "weight": 0.8,
+      "description": "Normal market: steady growth, typical volatility"
+    },
+    {
+      "path": "data/future_qqq/future_qqq_track_04.csv",
+      "regime": "volatile_1",
+      "weight": 1.2,
+      "description": "Volatile market: high volatility, frequent reversals"
+    },
+    {
+      "path": "data/future_qqq/future_qqq_track_05.csv",
+      "regime": "volatile_2",
+      "weight": 1.2,
+      "description": "Volatile market: high volatility, frequent reversals"
+    },
+    {
+      "path": "data/future_qqq/future_qqq_track_06.csv",
+      "regime": "volatile_3",
+      "weight": 1.2,
+      "description": "Volatile market: high volatility, frequent reversals"
+    },
+    {
+      "path": "data/future_qqq/future_qqq_track_07.csv",
+      "regime": "bear_1",
+      "weight": 1.5,
+      "description": "Bear market: sustained downtrend, elevated volatility"
+    },
+    {
+      "path": "data/future_qqq/future_qqq_track_08.csv",
+      "regime": "bear_2",
+      "weight": 1.5,
+      "description": "Bear market: sustained downtrend, elevated volatility"
+    },
+    {
+      "path": "data/future_qqq/future_qqq_track_09.csv",
+      "regime": "bear_3",
+      "weight": 1.5,
+      "description": "Bear market: sustained downtrend, elevated volatility"
+    }
+  ]
+}

@@ -233,14 +233,19 @@ class MultiDatasetTFATrainer:
             print(f"Using cached features: {X_cached.shape}")
             X = X_cached[:len(ts)]  # Trim to match current dataset
         else:
-            print("Generating features on-the-fly...")
-            # Generate features using C++ feature builder
-            # This would require calling the C++ feature generation
-            # For now, create placeholder features
-            N = len(ts)
-            F = 55  # Standard feature count
-            X = np.random.randn(N, F).astype(np.float32)
-            print(f"Generated {X.shape} features (placeholder)")
+            print("Generating features on-the-fly using C++ feature builder...")
+            # Use proper C++ feature generation (same as tfa.py)
+            try:
+                import sentio_features as sf
+                spec_json = json.dumps(spec, sort_keys=True)
+                print(f"Building features for {symbol} with {len(ts)} bars...")
+                X = sf.build_features_from_spec(symbol, ts, openp, high, low, close, vol, spec_json).astype(np.float32)
+                print(f"Generated real features: {X.shape}")
+            except ImportError:
+                print("❌ ERROR: sentio_features module not available!")
+                print("   This means C++ feature generation is not accessible from Python.")
+                print("   The model will be trained on random features and will not work!")
+                raise RuntimeError("Cannot train without proper feature generation. Build sentio_features module first.")
         
         # Create enhanced labels with regime awareness
         y = self._create_enhanced_labels(close, ts)
@@ -619,9 +624,11 @@ class MultiDatasetTFATrainer:
         model_path = pathlib.Path(out_dir) / "model.pt"
         traced_model.save(str(model_path))
         
-        # Export metadata
+        # Export metadata (two formats for compatibility)
         total_training_time = time.time() - t0
-        metadata = {
+        
+        # 1. New format metadata (model.meta.json) - for TfaSeqContext
+        new_metadata = {
             "model_type": "TFA_MultiRegime",
             "feature_count": F,
             "sequence_length": T,
@@ -641,7 +648,37 @@ class MultiDatasetTFATrainer:
         }
         
         with open(pathlib.Path(out_dir) / "model.meta.json", 'w') as f:
-            json.dump(metadata, f, indent=2)
+            json.dump(new_metadata, f, indent=2)
+        
+        # 2. Legacy format metadata (metadata.json) - for ModelRegistryTS
+        # Generate feature names from spec
+        feature_names = []
+        for f in spec["features"]:
+            if "name" in f:
+                feature_names.append(f["name"])
+            else:
+                op = f["op"]
+                src = f.get("source", "")
+                w = str(f.get("window", ""))
+                k = str(f.get("k", ""))
+                feature_names.append(f"{op}_{src}_{w}_{k}")
+        
+        legacy_metadata = {
+            "schema_version": "1.0",
+            "saved_at": int(time.time()),
+            "framework": "torchscript",
+            "feature_names": feature_names,
+            "mean": [0.0] * F,    # Model has built-in normalization, so use zeros
+            "std": [1.0] * F,     # Model has built-in normalization, so use ones
+            "clip": [],           # No clipping used
+            "actions": [],        # No discrete actions (regression model)
+            "seq_len": T,
+            "input_layout": "BTF",
+            "format": "torchscript"
+        }
+        
+        with open(pathlib.Path(out_dir) / "metadata.json", 'w') as f:
+            json.dump(legacy_metadata, f, indent=2)
         
         # Copy feature spec
         import shutil

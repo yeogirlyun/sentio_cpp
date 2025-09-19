@@ -1,0 +1,29 @@
+# development_config.yaml - Development/testing overrides
+strategy:
+  name: "transformer_dev"
+  
+model:
+  architecture:
+    num_layers: 4                  # Smaller model for faster iteration
+    d_model: 128
+    
+  training:
+    offline:
+      batch_size: 64
+      max_epochs: 100
+      
+    online:
+      update_interval_minutes: 10  # Frequent updates for testing
+      
+performance:
+  latency:
+    max_inference_ms: 5.0          # Relaxed for debugging
+    
+risk_management:
+  position_limits:
+    max_position_size: 0.1         # Small positions for testing
+    max_daily_trades: 10
+    
+monitoring:
+  logging:
+    level: "DEBUG"                 # Verbose logging for development

@@ -203,11 +203,24 @@ static void execute_bar_pipeline(
             std::cerr << "ERROR: Negative cash balance detected after trade: " 
                       << portfolio.cash << " (instrument: " << decision.instrument 
                       << ", qty: " << trade_qty << ", price: " << instrument_price << ")" << std::endl;
-            // Emergency reversal: undo the trade
-            apply_fill(portfolio, instrument_id, -trade_qty, instrument_price);
-            portfolio.cash += fees;
-            std::cerr << "Trade reversed. Cash restored to: " << portfolio.cash << std::endl;
-            continue; // Skip this trade
+            
+            // Only reverse if this was an opening trade (BUY order that consumed cash)
+            // Closing trades (SELL orders) should never cause negative cash
+            bool is_opening_trade = (trade_qty > 0); // Positive qty = BUY = opening
+            
+            if (is_opening_trade) {
+                std::cerr << "Reversing opening trade that caused negative cash." << std::endl;
+                // Emergency reversal: undo the trade
+                apply_fill(portfolio, instrument_id, -trade_qty, instrument_price);
+                portfolio.cash += fees;
+                std::cerr << "Opening trade reversed. Cash restored to: " << portfolio.cash << std::endl;
+                continue; // Skip this trade
+            } else {
+                std::cerr << "CRITICAL: Closing trade caused negative cash - this indicates a deeper bug!" << std::endl;
+                std::cerr << "Position before: " << pos_before.qty << ", Position after: " << portfolio.positions[instrument_id].qty << std::endl;
+                // Don't reverse closing trades - they should free up cash, not consume it
+                // This indicates a serious bug in position tracking or pricing
+            }
         }
         
         double equity_after = equity_mark_to_market(portfolio, pricebook.last_px);

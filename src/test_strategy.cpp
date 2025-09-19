@@ -79,7 +79,9 @@ double TestStrategy::calculate_probability(const std::vector<Bar>& bars, int cur
     return generated_signal;
 }
 
-std::vector<TestStrategy::AllocationDecision> TestStrategy::get_allocation_decisions(
+// REMOVED: get_allocation_decisions - AllocationManager handles all instrument decisions
+/*
+std::vector<TestStrategy::AllocationDecision> TestStrategy::get_allocation_decisions_REMOVED(
     const std::vector<Bar>& bars,
     int current_index,
     const std::string& base_symbol,
@@ -133,6 +135,7 @@ std::vector<TestStrategy::AllocationDecision> TestStrategy::get_allocation_decis
     
     return decisions;
 }
+*/
 
 double TestStrategy::calculate_future_return(const std::vector<Bar>& bars, int current_index) const {
     if (current_index + config_.lookhead_bars >= static_cast<int>(bars.size())) {
@@ -175,7 +178,9 @@ bool TestStrategy::should_use_leverage(double signal_strength) const {
     return config_.enable_leverage && signal_strength > config_.strong_signal_threshold;
 }
 
-RouterCfg TestStrategy::get_router_config() const {
+// REMOVED: get_router_config - AllocationManager handles routing
+/*
+RouterCfg TestStrategy::get_router_config_REMOVED() const {
     RouterCfg cfg;
     cfg.base_symbol = "QQQ";
     cfg.bull3x = "TQQQ";
@@ -184,6 +189,7 @@ RouterCfg TestStrategy::get_router_config() const {
     cfg.max_position_pct = 1.0; // 100% position for profit maximization
     return cfg;
 }
+*/
 
 bool TestStrategy::allows_simultaneous_positions(const std::string& instrument1, const std::string& instrument2) const {
     // Define conflicting instrument groups

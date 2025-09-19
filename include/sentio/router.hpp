@@ -20,20 +20,20 @@ struct StrategySignal {
     StrategySignal signal;
     signal.probability = std::clamp(prob, 0.0, 1.0);
     
-    if (prob > 0.8) {
+    if (prob > 0.7) {
       signal.type = Type::STRONG_BUY;
-      signal.confidence = (prob - 0.8) / 0.2; // Scale 0.8-1.0 to 0-1
-    } else if (prob > 0.6) {
+      signal.confidence = (prob - 0.7) / 0.3; // Scale 0.7-1.0 to 0-1
+    } else if (prob > 0.505) {  // Narrower BUY threshold: was 0.51
       signal.type = Type::BUY;
-      signal.confidence = (prob - 0.6) / 0.2; // Scale 0.6-0.8 to 0-1
-    } else if (prob < 0.2) {
+      signal.confidence = (prob - 0.505) / 0.195; // Scale 0.505-0.7 to 0-1
+    } else if (prob < 0.3) {
       signal.type = Type::STRONG_SELL;
-      signal.confidence = (0.2 - prob) / 0.2; // Scale 0.0-0.2 to 0-1
-    } else if (prob < 0.4) {
+      signal.confidence = (0.3 - prob) / 0.3; // Scale 0.0-0.3 to 0-1
+    } else if (prob < 0.495) {  // Narrower SELL threshold: was 0.49
       signal.type = Type::SELL;
-      signal.confidence = (0.4 - prob) / 0.2; // Scale 0.2-0.4 to 0-1
+      signal.confidence = (0.495 - prob) / 0.195; // Scale 0.3-0.495 to 0-1
     } else {
-      signal.type = Type::HOLD;
+      signal.type = Type::HOLD;  // Now 0.495-0.505 range (much smaller!)
       signal.confidence = 0.0;
     }
     

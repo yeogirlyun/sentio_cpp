@@ -40,16 +40,13 @@ inline TfaArtifacts load_tfa(const std::string& model_pt,
 {
   TfaArtifacts A;
   
-  std::cout << "[TFA] Loading model: " << model_pt << std::endl;
   A.model = torch::jit::load(model_pt, torch::kCPU);
   A.model.eval();
   
-  std::cout << "[TFA] Loading feature spec: " << feature_spec_json << std::endl;
   std::ifstream fs(feature_spec_json); 
   if(!fs) throw std::runtime_error("missing feature_spec.json: " + feature_spec_json);
   fs >> A.spec;
   
-  std::cout << "[TFA] Loading model meta: " << model_meta_json << std::endl;
   std::ifstream fm(model_meta_json); 
   if(!fm) throw std::runtime_error("missing model.meta.json: " + model_meta_json);
   fm >> A.meta;
@@ -66,7 +63,6 @@ inline TfaArtifacts load_tfa(const std::string& model_pt,
     throw std::runtime_error("model.meta.json 'expects' section incomplete");
   }
   
-  std::cout << "[TFA] Model expects " << A.get_expected_input_dim() << " features" << std::endl;
   
   return A;
 }
@@ -77,12 +73,9 @@ inline TfaArtifacts load_tfa_legacy(const std::string& model_pt,
 {
   TfaArtifacts A;
   
-  std::cout << "[TFA] Loading model (legacy): " << model_pt << std::endl;
   A.model = torch::jit::load(model_pt, torch::kCPU);
   A.model.eval();
-  std::cout << "[TFA] Model loaded and set to eval mode" << std::endl;
   
-  std::cout << "[TFA] Loading legacy metadata: " << metadata_json << std::endl;
   std::ifstream fs(metadata_json);
   if(!fs) throw std::runtime_error("missing metadata.json: " + metadata_json);
   
@@ -106,7 +99,6 @@ inline TfaArtifacts load_tfa_legacy(const std::string& model_pt,
     }}
   };
   
-  std::cout << "[TFA] Legacy model expects " << A.get_expected_input_dim() << " features" << std::endl;
   
   return A;
 }

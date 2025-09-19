@@ -6,8 +6,8 @@
 #include <sstream>
 #include <iostream>
 #include <filesystem>
-#include <cctz/time_zone.h>
-#include <cctz/civil_time.h>
+#include "sentio/time_utils.hpp"
+#include <chrono>
 
 namespace sentio {
 
@@ -101,35 +101,10 @@ bool load_csv(const std::string& filename, std::vector<Bar>& out) {
         Bar bar;
         bar.ts_utc = timestamp_str;
         
-        // **MODIFIED**: Parse ISO 8601 timestamp directly as UTC
+        // Parse timestamp using unified time_utils (no external deps)
         try {
-            // Parse the RFC3339 / ISO 8601 timestamp string (e.g., "2023-10-27T13:30:00Z")
-            cctz::time_zone utc_tz;
-            if (cctz::load_time_zone("UTC", &utc_tz)) {
-                cctz::time_point<cctz::seconds> utc_tp;
-                if (cctz::parse("%Y-%m-%dT%H:%M:%S%Ez", timestamp_str, utc_tz, &utc_tp)) {
-                    bar.ts_utc_epoch = utc_tp.time_since_epoch().count();
-                } else {
-                    // Try alternative format with Z suffix
-                    if (cctz::parse("%Y-%m-%dT%H:%M:%SZ", timestamp_str, utc_tz, &utc_tp)) {
-                        bar.ts_utc_epoch = utc_tp.time_since_epoch().count();
-                    } else {
-                        // Try space format with timezone
-                        if (cctz::parse("%Y-%m-%d %H:%M:%S%Ez", timestamp_str, utc_tz, &utc_tp)) {
-                            bar.ts_utc_epoch = utc_tp.time_since_epoch().count();
-                        } else {
-                            // Try space format without timezone (assume UTC)
-                            if (cctz::parse("%Y-%m-%d %H:%M:%S", timestamp_str, utc_tz, &utc_tp)) {
-                                bar.ts_utc_epoch = utc_tp.time_since_epoch().count();
-                            } else {
-                                bar.ts_utc_epoch = 0;
-                            }
-                        }
-                    }
-                }
-            } else {
-                bar.ts_utc_epoch = 0; // Could not load timezone
-            }
+            auto sys_sec = to_utc_sys_seconds(timestamp_str);
+            bar.ts_utc_epoch = std::chrono::duration_cast<std::chrono::seconds>(sys_sec.time_since_epoch()).count();
         } catch (const std::exception& e) {
             std::cerr << "Warning: Could not parse timestamp '" << timestamp_str << "'. Error: " << e.what() << std::endl;
             bar.ts_utc_epoch = 0;
