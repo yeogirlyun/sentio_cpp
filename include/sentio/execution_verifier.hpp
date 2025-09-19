@@ -20,7 +20,8 @@ private:
     struct BarState {
         bool eod_checked = false;
         bool position_coordinated = false;
-        int trades_executed = 0;
+        int opening_trades_executed = 0;  // Only count opening trades (buys)
+        int closing_trades_executed = 0;  // Count closing trades (sells) separately
         std::set<std::string> instruments_traded;
         int64_t timestamp = 0;
     };
@@ -37,10 +38,11 @@ public:
      * @brief Verify if execution can proceed for this bar
      * @param timestamp Bar timestamp
      * @param instrument Instrument to trade (empty for general check)
+     * @param is_closing_trade True if this is a closing trade (target_weight = 0.0)
      * @return true if execution is allowed
      * @throws std::runtime_error if Golden Rule is violated
      */
-    bool verify_can_execute(int64_t timestamp, const std::string& instrument = "");
+    bool verify_can_execute(int64_t timestamp, const std::string& instrument = "", bool is_closing_trade = false);
     
     /**
      * @brief Mark that EOD check has been performed for this bar
@@ -58,8 +60,9 @@ public:
      * @brief Mark that a trade has been executed
      * @param timestamp Bar timestamp
      * @param instrument Instrument traded
+     * @param is_closing_trade True if this is a closing trade
      */
-    void mark_trade_executed(int64_t timestamp, const std::string& instrument);
+    void mark_trade_executed(int64_t timestamp, const std::string& instrument, bool is_closing_trade = false);
     
     /**
      * @brief Reset state for new bar

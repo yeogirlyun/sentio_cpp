@@ -15,25 +15,32 @@ void ExecutionVerifier::cleanup_old_states(int64_t current_timestamp) {
     }
 }
 
-bool ExecutionVerifier::verify_can_execute(int64_t timestamp, const std::string& instrument) {
+bool ExecutionVerifier::verify_can_execute(int64_t timestamp, const std::string& instrument, bool is_closing_trade) {
     cleanup_old_states(timestamp);
     
     auto& state = bar_states_[timestamp];
     state.timestamp = timestamp;
     
-    // GOLDEN RULE ENFORCEMENT: EOD must be checked first
+    // GOLDEN RULE ENFORCEMENT: EOD must be checked first (now skipped since EOD removed)
     if (!state.eod_checked) {
-        throw std::runtime_error("GOLDEN RULE VIOLATION: EOD check must occur before any execution at timestamp " + std::to_string(timestamp));
+        // Since EOD requirement was removed, automatically mark as checked
+        state.eod_checked = true;
     }
     
-    // ENFORCEMENT: One trade per bar maximum
-    if (state.trades_executed >= 1) {
-        return false;
+    // Closing trades are ALWAYS allowed (no limit)
+    if (is_closing_trade) {
+        state.closing_trades_executed++;
+        return true;
     }
     
-    // ENFORCEMENT: No duplicate instrument trades
+    // Opening trades: enforce one per bar limit
+    if (state.opening_trades_executed >= 1) {
+        return false;  // Limit reached
+    }
+    
+    // Check for duplicate instrument trades (same instrument in same bar)
     if (!instrument.empty() && state.instruments_traded.count(instrument)) {
-        return false;
+        return false;  // Already traded this instrument
     }
     
     return true;
@@ -51,9 +58,15 @@ void ExecutionVerifier::mark_position_coordinated(int64_t timestamp) {
     state.timestamp = timestamp;
 }
 
-void ExecutionVerifier::mark_trade_executed(int64_t timestamp, const std::string& instrument) {
+void ExecutionVerifier::mark_trade_executed(int64_t timestamp, const std::string& instrument, bool is_closing_trade) {
     auto& state = bar_states_[timestamp];
-    state.trades_executed++;
+    
+    if (is_closing_trade) {
+        state.closing_trades_executed++;
+    } else {
+        state.opening_trades_executed++;
+    }
+    
     state.instruments_traded.insert(instrument);
     state.timestamp = timestamp;
 }

@@ -55,48 +55,8 @@ static void execute_bar_pipeline(
     
     auto profile = profiler.get_current_profile();
     
-    // PHASE 1: MANDATORY EOD CHECK (ALWAYS runs first - Golden Rule)
+    // PHASE 1: SKIP EOD CHECK (EOD requirement removed per user request)
     verifier.mark_eod_checked(bar.ts_utc_epoch);
-    
-    auto eod_allocations = eod_mgr.get_eod_allocations(bar.ts_utc_epoch, portfolio, ST, profile);
-    if (!eod_allocations.empty()) {
-        // Execute ONLY the first EOD closing order (one trade per bar enforcement)
-        if (verifier.verify_can_execute(bar.ts_utc_epoch, eod_allocations[0].instrument)) {
-            const auto& decision = eod_allocations[0];
-            
-            // Execute the trade
-            SafeSizer sizer;
-            double target_qty = sizer.calculate_target_quantity(
-                portfolio, ST, pricebook.last_px, 
-                decision.instrument, decision.target_weight, 
-                bar.ts_utc_epoch, series[ST.get_id(decision.instrument)]
-            );
-            
-            int instrument_id = ST.get_id(decision.instrument);
-            if (instrument_id != -1) {
-                double current_qty = portfolio.positions[instrument_id].qty;
-                double trade_qty = target_qty - current_qty;
-                
-                if (std::abs(trade_qty) >= 1e-9) {
-                    double instrument_price = pricebook.last_px[instrument_id];
-                    if (instrument_price > 0) {
-                        portfolio.positions[instrument_id].qty = target_qty;
-                        total_fills++;
-                        verifier.mark_trade_executed(bar.ts_utc_epoch, decision.instrument);
-                        
-                        if (logging_enabled) {
-                            Side side = (trade_qty > 0) ? Side::Buy : Side::Sell;
-                            audit.event_fill(bar.ts_utc_epoch, decision.instrument, 
-                                            instrument_price, std::abs(trade_qty), 0.0, side);
-                        }
-                        
-                    }
-                }
-            }
-        }
-        
-        return; // GOLDEN RULE: No strategy consultation during EOD
-    }
     
     // PHASE 2: CIRCUIT BREAKER CHECK (Emergency protection)
     if (!breaker.check_portfolio_integrity(portfolio, ST, bar.ts_utc_epoch)) {
@@ -106,12 +66,35 @@ static void execute_bar_pipeline(
             if (!emergency_orders.empty() && verifier.verify_can_execute(bar.ts_utc_epoch, emergency_orders[0].instrument)) {
                 const auto& decision = emergency_orders[0];
                 
-                // Execute emergency close
+                // Execute emergency close through proper pipeline
                 int instrument_id = ST.get_id(decision.instrument);
                 if (instrument_id != -1) {
-                    portfolio.positions[instrument_id].qty = 0.0; // Force close
-                    total_fills++;
-                    verifier.mark_trade_executed(bar.ts_utc_epoch, decision.instrument);
+                    double current_qty = portfolio.positions[instrument_id].qty;
+                    if (std::abs(current_qty) > 1e-6) {
+                        // Calculate trade quantity to close position
+                        double trade_qty = -current_qty; // Opposite sign to close
+                        double instrument_price = pricebook.last_px[instrument_id];
+                        
+                        // Apply the trade through proper pipeline
+                        apply_fill(portfolio, instrument_id, trade_qty, instrument_price);
+                        
+                        // Calculate P&L and audit properly
+                        double realized_delta = 0.0; // Emergency closure, no realized P&L calculation
+                        double equity_after = equity_mark_to_market(portfolio, pricebook.last_px);
+                        double pos_after = portfolio.positions[instrument_id].qty;
+                        double fees = 0.0; // No fees for emergency closure
+                        Side side = (trade_qty > 0) ? Side::Buy : Side::Sell;
+                        
+                        // Record in audit trail
+                        if (logging_enabled) {
+                            audit.event_fill_ex(bar.ts_utc_epoch, decision.instrument, 
+                                              instrument_price, trade_qty, fees, side,
+                                              realized_delta, equity_after, pos_after, chain_id);
+                        }
+                        
+                        total_fills++;
+                        verifier.mark_trade_executed(bar.ts_utc_epoch, decision.instrument, true); // is_closing_trade = true
+                    }
                 }
             }
             
@@ -158,7 +141,8 @@ static void execute_bar_pipeline(
         const auto& decision = coord_decision.decision;
         
         // ENFORCEMENT: Verify execution is allowed
-        if (!verifier.verify_can_execute(bar.ts_utc_epoch, decision.instrument)) {
+        bool is_closing_trade = (decision.target_weight == 0.0);
+        if (!verifier.verify_can_execute(bar.ts_utc_epoch, decision.instrument, is_closing_trade)) {
             continue;
         }
         
@@ -214,12 +198,26 @@ static void execute_bar_pipeline(
         apply_fill(portfolio, instrument_id, trade_qty, instrument_price);
         portfolio.cash -= fees;
         
+        // **CRITICAL SAFETY CHECK**: Prevent negative cash balance
+        if (portfolio.cash < 0) {
+            std::cerr << "ERROR: Negative cash balance detected after trade: " 
+                      << portfolio.cash << " (instrument: " << decision.instrument 
+                      << ", qty: " << trade_qty << ", price: " << instrument_price << ")" << std::endl;
+            // Emergency reversal: undo the trade
+            apply_fill(portfolio, instrument_id, -trade_qty, instrument_price);
+            portfolio.cash += fees;
+            std::cerr << "Trade reversed. Cash restored to: " << portfolio.cash << std::endl;
+            continue; // Skip this trade
+        }
+        
         double equity_after = equity_mark_to_market(portfolio, pricebook.last_px);
         double pos_after = portfolio.positions[instrument_id].qty;
         
         if (logging_enabled) {
+            // **CRITICAL FIX**: Use signed trade_qty, not std::abs(trade_qty)
+            // SELL orders need negative quantities for proper position tracking
             audit.event_fill_ex(bar.ts_utc_epoch, decision.instrument, 
-                              instrument_price, std::abs(trade_qty), fees, side,
+                              instrument_price, trade_qty, fees, side,
                               realized_delta, equity_after, pos_after, chain_id);
         }
         
@@ -228,7 +226,7 @@ static void execute_bar_pipeline(
         total_fills++;
         
         // ENFORCEMENT: Mark trade as executed
-        verifier.mark_trade_executed(bar.ts_utc_epoch, decision.instrument);
+        verifier.mark_trade_executed(bar.ts_utc_epoch, decision.instrument, is_closing_trade);
     }
 }
 
@@ -491,6 +489,144 @@ BacktestOutput run_backtest(IAuditRecorder& audit, const SymbolTable& ST, const 
     std::cout << "  Adaptive Thresholds: 1x=" << std::fixed << std::setprecision(2) << final_profile.adaptive_entry_1x 
               << ", 3x=" << final_profile.adaptive_entry_3x << "\n";
     std::cout << "  Profile Confidence: " << std::fixed << std::setprecision(1) << (final_profile.confidence_level * 100) << "%\n";
+
+    // **PORTFOLIO STATE VERIFICATION** (for single block runs and 1-block canonical evaluations)
+    if (!cfg.skip_audit_run_creation || (cfg.skip_audit_run_creation && total_fills > 0)) { // Show for main runs and meaningful sub-blocks
+        const std::string RESET = "\033[0m";
+        const std::string BOLD = "\033[1m";
+        const std::string DIM = "\033[2m";
+        const std::string CYAN = "\033[36m";
+        const std::string GREEN = "\033[32m";
+        const std::string RED = "\033[31m";
+        const std::string WHITE = "\033[37m";
+        
+        std::cout << "\n" << BOLD << CYAN << "💼 PORTFOLIO STATE VERIFICATION" << RESET << std::endl;
+        std::cout << "┌─────────────────────────────────────────────────────────────────────────────────┐" << std::endl;
+        
+        // Starting state
+        std::cout << "│ " << BOLD << "Starting Cash:" << RESET << "     " << GREEN << "$   100,000.00" << RESET << " │ Initial capital allocation                  │" << std::endl;
+        std::cout << "│ " << BOLD << "Starting Positions:" << RESET << "           0   │ All instruments start at zero               │" << std::endl;
+        
+        // Current/Final state
+        double final_equity = equity_mark_to_market(portfolio, pricebook.last_px);
+        std::string cash_color = (portfolio.cash >= 0) ? GREEN : RED;
+        std::cout << "│ " << BOLD << "Final Cash:" << RESET << "        " << cash_color << "$" << std::setw(12) << std::fixed << std::setprecision(2) 
+                  << portfolio.cash << RESET << "  │ Remaining liquid capital                    │" << std::endl;
+        
+        // Count non-zero positions
+        int active_positions = 0;
+        double total_position_value = 0.0;
+        for (size_t i = 0; i < portfolio.positions.size(); ++i) {
+            if (std::abs(portfolio.positions[i].qty) > 1e-9) {
+                active_positions++;
+                total_position_value += portfolio.positions[i].qty * pricebook.last_px[i];
+            }
+        }
+        
+        std::cout << "│ " << BOLD << "Final Positions:" << RESET << "    " << WHITE << std::setw(8) << active_positions << RESET << "      │ Number of active instrument positions       │" << std::endl;
+        
+        std::string pos_value_color = (total_position_value >= 0) ? GREEN : RED;
+        std::cout << "│ " << BOLD << "Position Value:" << RESET << "     " << pos_value_color << "$" << std::setw(12) << std::fixed << std::setprecision(2) 
+                  << total_position_value << RESET << " │ Market value of all positions               │" << std::endl;
+        
+        std::string equity_color = (final_equity >= 100000.0) ? GREEN : RED;
+        std::cout << "│ " << BOLD << "Final Equity:" << RESET << "       " << equity_color << "$" << std::setw(12) << std::fixed << std::setprecision(2) 
+                  << final_equity << RESET << " │ Total account value (cash + positions)      │" << std::endl;
+        
+        // P&L verification
+        double calculated_pnl = final_equity - 100000.0;
+        std::string pnl_color = (calculated_pnl >= 0) ? GREEN : RED;
+        std::cout << "│ " << BOLD << "Calculated P&L:" << RESET << "     " << pnl_color << "$" << std::setw(12) << std::fixed << std::setprecision(2) 
+                  << calculated_pnl << RESET << " │ Final Equity - Starting Capital             │" << std::endl;
+        
+        std::cout << "├─────────────────────────────────────────────────────────────────────────────────┤" << std::endl;
+        
+        // Position details (if any active positions)
+        if (active_positions > 0) {
+            std::cout << "│ " << BOLD << "ACTIVE POSITIONS BREAKDOWN:" << RESET << "                                              │" << std::endl;
+            for (size_t i = 0; i < portfolio.positions.size(); ++i) {
+                if (std::abs(portfolio.positions[i].qty) > 1e-9) {
+                    std::string symbol = ST.get_symbol(i);
+                    double market_value = portfolio.positions[i].qty * pricebook.last_px[i];
+                    std::string mv_color = (market_value >= 0) ? GREEN : RED;
+                    
+                    printf("│ %s%-8s%s │ %8.2f shares │ %s$%12.2f%s │ $%8.2f/share │\n",
+                           BOLD.c_str(), symbol.c_str(), RESET.c_str(),
+                           portfolio.positions[i].qty,
+                           mv_color.c_str(), market_value, RESET.c_str(),
+                           pricebook.last_px[i]);
+                }
+            }
+        } else {
+            std::cout << "│ " << DIM << "No active positions - all positions closed at end of test" << RESET << "                       │" << std::endl;
+        }
+        
+        std::cout << "└─────────────────────────────────────────────────────────────────────────────────┘" << std::endl;
+        
+        // Integrity checks
+        bool has_negative_cash = (portfolio.cash < 0);
+        bool has_massive_positions = false;
+        for (size_t i = 0; i < portfolio.positions.size(); ++i) {
+            if (std::abs(portfolio.positions[i].qty) > 10000) { // More than 10k shares
+                has_massive_positions = true;
+                break;
+            }
+        }
+        
+        if (!has_negative_cash && !has_massive_positions) {
+            std::cout << GREEN << "✅ Portfolio Integrity: No negative cash, reasonable position sizes" << RESET << std::endl;
+        } else {
+            if (has_negative_cash) {
+                std::cout << RED << "❌ Portfolio Warning: Negative cash balance detected!" << RESET << std::endl;
+            }
+            if (has_massive_positions) {
+                std::cout << RED << "❌ Portfolio Warning: Unusually large position sizes detected!" << RESET << std::endl;
+            }
+        }
+    }
+
+    // ============== FINAL POSITION LIQUIDATION (AUDITED) ==============
+    // Ensure all final position closures are properly recorded in audit system
+    bool has_final_positions = false;
+    for (size_t sid = 0; sid < portfolio.positions.size(); ++sid) {
+        if (std::abs(portfolio.positions[sid].qty) > 1e-6) {
+            has_final_positions = true;
+            break;
+        }
+    }
+    
+    if (has_final_positions && logging_enabled) {
+        // Use the last bar timestamp for final liquidation
+        int64_t final_timestamp = base_series.empty() ? 0 : base_series.back().ts_utc_epoch;
+        std::string final_chain_id = std::to_string(final_timestamp) + ":final_liquidation";
+        
+        // Generate final closing orders for all remaining positions
+        for (size_t sid = 0; sid < portfolio.positions.size(); ++sid) {
+            double current_qty = portfolio.positions[sid].qty;
+            if (std::abs(current_qty) > 1e-6) {
+                const std::string& symbol = ST.get_symbol(sid);
+                double trade_qty = -current_qty; // Opposite sign to close
+                double instrument_price = pricebook.last_px[sid];
+                
+                // Apply the trade through proper pipeline
+                apply_fill(portfolio, sid, trade_qty, instrument_price);
+                
+                // Calculate P&L and audit properly
+                double realized_delta = 0.0; // Final liquidation, no realized P&L calculation
+                double equity_after = equity_mark_to_market(portfolio, pricebook.last_px);
+                double pos_after = portfolio.positions[sid].qty;
+                double fees = 0.0; // No fees for final liquidation
+                Side side = (trade_qty > 0) ? Side::Buy : Side::Sell;
+                
+                // Record in audit trail
+                audit.event_fill_ex(final_timestamp, symbol, 
+                                  instrument_price, trade_qty, fees, side,
+                                  realized_delta, equity_after, pos_after, final_chain_id);
+                
+                total_fills++;
+            }
+        }
+    }
 
     // Log the end of the run to the audit trail
     std::string end_meta = "{}";

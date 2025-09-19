@@ -3,24 +3,16 @@
 #include "sentio/strategy_profiler.hpp"
 #include "sentio/core.hpp"
 #include "sentio/symbol_table.hpp"
-#include <unordered_map>
 #include <unordered_set>
-#include <queue>
 
 namespace sentio {
 
-/**
- * @brief The result of a coordination check for a requested trade.
- */
 enum class CoordinationResult {
     APPROVED,
     REJECTED_CONFLICT,
     REJECTED_FREQUENCY
 };
 
-/**
- * @brief The output of the coordinator for a single allocation request.
- */
 struct CoordinationDecision {
     AllocationDecision decision;
     CoordinationResult result;
@@ -31,6 +23,12 @@ class UniversalPositionCoordinator {
 public:
     UniversalPositionCoordinator();
     
+    /**
+     * Coordinate allocation decisions with portfolio state.
+     * Enforces:
+     * 1. No conflicting positions (long vs inverse)
+     * 2. Maximum one OPENING trade per bar (closing trades unlimited)
+     */
     std::vector<CoordinationDecision> coordinate(
         const std::vector<AllocationDecision>& allocations,
         const Portfolio& portfolio,
@@ -42,25 +40,20 @@ public:
     void reset_bar(int64_t timestamp);
     
 private:
-    struct TradeRecord {
-        int64_t timestamp;
-        std::string instrument;
-        double signal_strength;
-    };
-    
-    std::unordered_map<int64_t, std::vector<TradeRecord>> trades_per_timestamp_;
-    
     const std::unordered_set<std::string> LONG_ETFS = {"QQQ", "TQQQ"};
     const std::unordered_set<std::string> INVERSE_ETFS = {"SQQQ", "PSQ"};
+    
+    int64_t current_bar_timestamp_ = -1;
+    int opening_trades_this_bar_ = 0;
+    
+    bool check_portfolio_conflicts(const Portfolio& portfolio, 
+                                  const SymbolTable& ST) const;
     
     bool would_create_conflict(const std::string& instrument, 
                               const Portfolio& portfolio, 
                               const SymbolTable& ST) const;
     
-    bool can_trade_at_timestamp(const std::string& instrument, 
-                               int64_t timestamp,
-                               const StrategyProfiler::StrategyProfile& profile);
-    
+    bool portfolio_has_positions(const Portfolio& portfolio) const;
 };
 
 } // namespace sentio
