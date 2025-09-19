@@ -34,3 +34,4 @@ sentio_trainer/**/*.pyo
 # Tools cache
 tools/__pycache__/
 tools/**/__pycache__/
+megadocs/
